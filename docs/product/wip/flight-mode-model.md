@@ -16,9 +16,9 @@ This document does not define Flight data, recording schemas, detection algorith
 - **Flight Mode:** an explicitly entered and exited operating mode in which automatic takeoff and landing detection is active.
 - **Ready on Ground:** Flight Mode is active and waiting for takeoff.
 - **In Flight:** a detected or confirmed takeoff has created a current Flight.
-- **Flight completed:** the transition in which the current Flight is finalized or discarded before Flight Mode resumes Ready on Ground.
+- **Flight ended:** the transition in which the detected airborne episode is either finalized as a Flight or discarded as a false detection before Flight Mode resumes Ready on Ground.
 
-`Flight completed` may be a transient transition rather than a long-lived state. No persistence or implementation representation is selected here.
+`Flight ended` may be a transient transition rather than a long-lived state. No persistence or implementation representation is selected here.
 
 ## Normal Application Use
 
@@ -41,11 +41,11 @@ The accepted lifecycle is:
 ```text
 Ready on Ground
 → In Flight
-→ Flight completed
+→ Flight ended
 → Ready on Ground
 ```
 
-The final transition occurs immediately after a Flight is completed. A summary may remain visible without suspending the renewed wait for takeoff.
+The final transition occurs immediately after the airborne episode is finalized as a Flight or discarded as a false detection. A summary may remain visible after a saved Flight without suspending the renewed wait for takeoff.
 
 ## Ready on Ground
 
@@ -84,7 +84,7 @@ Manual completion must offer two semantically distinct outcomes:
 1. save the current episode as a real Flight;
 2. discard it as a false detection.
 
-Discarding a false detection retains no Flight and no hidden diagnostic Flight record. Saving or discarding ends the current Flight but does not exit Flight Mode; the lifecycle returns to Ready on Ground.
+Discarding a false detection retains no Flight and no hidden diagnostic Flight record. Saving or discarding ends the current airborne episode but does not exit Flight Mode; the lifecycle returns to Ready on Ground.
 
 This rule does not select controls, confirmation behavior, or screen layout.
 
@@ -144,7 +144,7 @@ Exact timeout and warning durations are deferred. This model does not select the
 
 ## Relationship to Flight
 
-Flight Mode owns the operational context and transitions. A [Flight](flight-model.md) owns one continuous airborne episode created after takeoff and completed at confirmed landing or manual completion.
+Flight Mode owns the operational context and transitions. A [Flight](flight-model.md) owns one continuous airborne episode created after takeoff and normally completed at confirmed landing, with manual completion as an explicit exceptional boundary.
 
 Flight Mode can exist without a Flight while Ready on Ground. A Flight created by this lifecycle is distinct from Flight Mode and is not grouped under a Flight Session entity.
 
@@ -160,7 +160,7 @@ Flight Mode can exist without a Flight while Ready on Ground. A Flight created b
 
 ## Open Questions
 
-- Should `Flight completed` remain a named transient lifecycle step or be described only as a transition back to Ready on Ground?
+- Should `Flight ended` remain a named transient lifecycle step or be described only as a transition back to Ready on Ground?
 - What pilot action is required if Flight Mode exit is requested while a Flight is active?
 - Which conditions, other than pilot continuation, reset the ground inactivity period?
 - What minimum information must the completed-Flight summary provide? This question belongs to later summary and logging work, not this lifecycle model.
