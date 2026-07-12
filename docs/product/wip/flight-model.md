@@ -12,7 +12,7 @@ The [Flight Mode model](flight-mode-model.md) owns the operational lifecycle aro
 
 ## Definition of Flight
 
-A `Flight` is one continuous airborne episode between takeoff and landing. It begins only after takeoff is detected or confirmed and ends at confirmed landing or manual completion.
+A `Flight` normally represents one continuous airborne episode between takeoff and landing. It begins only after takeoff is detected or confirmed and normally ends at confirmed landing. Manual completion is an explicit exceptional boundary that may finalize the currently recorded airborne episode before landing confirmation.
 
 A Flight is distinct from Flight Mode. There is no separate Flight Session domain entity.
 
@@ -24,11 +24,12 @@ A Flight is distinct from Flight Mode. There is no separate Flight Session domai
 - Takeoff Point and Landing Point are distinct special points.
 - Everything retained through confirmed landing belongs to the Flight.
 - Confirmed landing finalizes the Flight without retrospectively trimming its final segment.
+- A manually saved Flight must not imply that landing was detected or confirmed.
 - A Flight contains enough information to support later replay of the physical flight situation, but the required data is deferred to later logging work.
 
 ## Relationship to Flight Mode
 
-[Flight Mode](flight-mode-model.md) may exist without a Flight while Ready on Ground. Its takeoff transition creates a Flight, and its landing or manual-completion transition ends the current Flight.
+[Flight Mode](flight-mode-model.md) may exist without a Flight while Ready on Ground. Its takeoff transition creates a Flight, and its landing or manual-completion transition ends the current airborne episode.
 
 One continuous period in Flight Mode may create multiple independent Flights. Flight Mode is not part of the Flight record, and no Flight Session groups those Flights.
 
@@ -40,13 +41,15 @@ The conceptual Flight lifecycle is:
 takeoff detected or confirmed
 → Flight created with an estimated actual start boundary
 → continuous airborne episode
-→ confirmed landing or manual completion
+→ confirmed landing or exceptional manual completion
 → Flight finalized or discarded
 ```
 
 The start boundary should reflect actual takeoff, not entry into Flight Mode, first ground movement, or the location where the application was opened.
 
 At confirmed landing, the end boundary includes everything recorded up to confirmation. The accepted direction is not to trim the final segment retrospectively.
+
+Manual completion creates an explicit exceptional end boundary before landing confirmation. If the episode is saved, that boundary must remain distinguishable from a confirmed landing.
 
 ## Flight Creation
 
@@ -74,7 +77,7 @@ The Takeoff Point is based on actual detected takeoff. The exact estimation meth
 
 ## In-Flight Continuity
 
-Once created, the Flight remains one continuous airborne episode until confirmed landing or manual completion. Everything recorded during that interval belongs to the Flight.
+Once created, the Flight remains one continuous airborne episode until confirmed landing or exceptional manual completion. Everything recorded during that interval belongs to the Flight.
 
 This continuity rule defines the domain boundary only. It does not decide which values are recorded, their frequency, or their storage representation.
 
@@ -96,7 +99,7 @@ The exact landing detector and Landing Point determination method are deferred.
 
 The [Flight Mode model](flight-mode-model.md#manual-flight-completion) owns the pilot's operational choice to save a real Flight or discard a false detection.
 
-Saving manually finalizes the current episode as a real Flight. Discarding removes the false episode entirely: no Flight and no hidden diagnostic Flight record are retained.
+Saving manually finalizes the currently recorded airborne episode as a Flight. A manually saved Flight must not imply that landing was detected or confirmed. Discarding removes the false episode entirely: no Flight and no hidden diagnostic Flight record are retained.
 
 Manual completion does not by itself exit Flight Mode. The semantics of a Landing Point for a manually saved Flight remain open.
 
@@ -123,6 +126,8 @@ Landing Point:
 - has no navigation role inside the already completed Flight.
 
 This model does not define landing zones, landing assistance, point storage, or determination algorithms.
+
+For a manually saved Flight, whether a Landing Point exists and how it is classified remain open. No manually created endpoint may falsely imply confirmed landing.
 
 ## Summary and Replay Relationship
 
