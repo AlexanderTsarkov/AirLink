@@ -42,6 +42,8 @@ If the task does not fit the active iteration, stop and report the mismatch. Do 
 - Reuse and extend existing modules before creating new ones.
 - Keep changes small, bounded, and reviewable.
 - Do not mix unrelated documentation, refactoring, and behavior changes.
+- Each AI task should operate at one primary abstraction level. Do not mix product discovery, domain modeling, architecture, implementation, refactoring, and review unless the task explicitly requires a controlled transition between them.
+- Do not design a screen before the domain model represented by that screen is sufficiently defined.
 - Do not introduce frameworks, dependencies, services, schemas, or architectural patterns without a demonstrated need and explicit scope.
 - Do not convert an idea into a requirement or implementation without approval.
 - Keep facts, accepted decisions, assumptions, hypotheses, and open questions clearly separated.
