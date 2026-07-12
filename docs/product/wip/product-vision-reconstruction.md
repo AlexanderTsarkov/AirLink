@@ -80,7 +80,7 @@ This is a constrained synthesis, not accepted final wording. It intentionally ex
 - Available fuel and average consumption may become user inputs, but fuel modeling and remaining-fuel logging are outside the first Flight Log scope.
 - Architecture, frameworks, services, storage, APIs, and implementation technologies are not selected.
 
-Normal application use and Flight Mode are distinct. Flight Mode is entered and exited explicitly, indicates intention to fly, and enables takeoff and landing detection. It is not a persisted domain object, and one entry may contain multiple Flights. Detailed lifecycle behavior belongs in a later Flight Mode model.
+Normal application use and Flight Mode are distinct. Flight Mode is entered and exited explicitly, indicates intention to fly, and enables takeoff and landing detection. It is not a persisted domain object. A single continuous period in Flight Mode may contain multiple Flights. Detailed lifecycle behavior belongs in a later Flight Mode model.
 
 A `Flight` is one continuous airborne episode between takeoff and landing. There is no separate Flight Session entity. Its detailed data structure belongs in a later Flight model.
 
@@ -90,12 +90,10 @@ A `Flight` is one continuous airborne episode between takeoff and landing. There
 - Clearly distinguish measured, derived, estimated, and user-entered information.
 - Do not present an ambiguous value without naming its meaning.
 - Use True North as the reference for pilot-facing navigation directions.
-- Define the domain model before designing the screen that represents it.
 - Keep the pilot centered in the main preflight and flight presentation while map and compass graphics rotate according to the selected orientation; do not treat this as a screen-layout decision.
 - Preserve historical values used during a Flight rather than silently replacing them during replay with results from future algorithm versions.
 - Keep ordinary product logging distinct from diagnostic logging.
 - Reconstruct and accept legacy concepts selectively rather than importing the old project wholesale.
-- Prefer small, testable, reviewable increments and avoid premature architecture or feature expansion.
 
 The final in-flight choice between Track-up and estimated Heading-up remains deferred for experimentation and pilot feedback.
 
