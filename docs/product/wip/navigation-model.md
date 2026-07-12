@@ -10,6 +10,24 @@ This document defines only the navigation state and directional semantics requir
 
 It is not a complete navigation specification. Route sequencing, point-reached behavior, detailed guidance, algorithms, parameter definitions, persistence, and screen design remain outside its scope.
 
+## Sources
+
+This WIP is based only on:
+
+- [`ITERATION.md`](../../../ITERATION.md);
+- [`docs/product/CurrentState.md`](../CurrentState.md);
+- [`docs/product/wip/product-vision-reconstruction.md`](product-vision-reconstruction.md);
+- [GitHub issue #6](https://github.com/AlexanderTsarkov/AirLink/issues/6);
+- owner-approved decisions supplied for issue #6.
+
+No additional legacy documents were used.
+
+## Assumptions
+
+- The initial free-flight scenario requires only one Current Waypoint and a separate Active Navigation state.
+- Detailed route behavior is not required to define the initial navigation semantics.
+- Track and estimated Heading can remain distinct product concepts before parameter validity contracts are defined.
+
 ## Terminology
 
 - **Waypoint:** a point that may provide navigation target or context.
@@ -133,6 +151,12 @@ This is a behavioral product principle, not a screen-layout specification. It do
 - Track-up versus estimated Heading-up as the final in-flight orientation;
 - handling of missing or invalid direction and wind information;
 - parameter definitions, storage, APIs, services, architecture, and implementation technology.
+
+## Expected Promotion Target
+
+After owner review and resolution of relevant open questions, accepted durable content may be promoted into an appropriate canonical product-domain document.
+
+The final canonical location has not yet been selected and must not be created by this WIP.
 
 ## Open Questions
 

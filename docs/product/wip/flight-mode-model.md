@@ -10,6 +10,24 @@ This document defines the accepted operational lifecycle while a pilot has expli
 
 This document does not define Flight data, recording schemas, detection algorithms, navigation guidance details, or screen layout.
 
+## Sources
+
+This WIP is based only on:
+
+- [`ITERATION.md`](../../../ITERATION.md);
+- [`docs/product/CurrentState.md`](../CurrentState.md);
+- [`docs/product/wip/product-vision-reconstruction.md`](product-vision-reconstruction.md);
+- [GitHub issue #6](https://github.com/AlexanderTsarkov/AirLink/issues/6);
+- owner-approved decisions supplied for issue #6.
+
+No additional legacy documents were used.
+
+## Assumptions
+
+- This model uses the accepted solo local paramotor flight in VMC as its sole scenario context.
+- Flight Mode is modeled only at product and domain level, without selecting an implementation representation.
+- Detailed detector behavior, timing values, and resource-management mechanisms will be defined separately.
+
 ## Terminology
 
 - **Normal application use:** non-flight activity such as weather, logbook, settings, and other ordinary use.
@@ -157,6 +175,12 @@ Flight Mode can exist without a Flight while Ready on Ground. A Flight created b
 - controls and presentation for entry, exit, warnings, completion, and summary;
 - behavior of an explicit Flight Mode exit request while a Flight is active;
 - Flight data, logging, parameters, storage, APIs, services, and implementation technology.
+
+## Expected Promotion Target
+
+After owner review and resolution of relevant open questions, accepted durable content may be promoted into an appropriate canonical product-domain document.
+
+The final canonical location has not yet been selected and must not be created by this WIP.
 
 ## Open Questions
 

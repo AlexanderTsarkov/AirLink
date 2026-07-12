@@ -10,6 +10,24 @@ This document defines one Flight as a domain concept: its airborne boundaries, c
 
 The [Flight Mode model](flight-mode-model.md) owns the operational lifecycle around a Flight. The [limited Navigation model](navigation-model.md) owns the navigation role of the Takeoff Point. This document does not define a Flight Log schema, parameter table, recording frequency, storage design, algorithm, or screen layout.
 
+## Sources
+
+This WIP is based only on:
+
+- [`ITERATION.md`](../../../ITERATION.md);
+- [`docs/product/CurrentState.md`](../CurrentState.md);
+- [`docs/product/wip/product-vision-reconstruction.md`](product-vision-reconstruction.md);
+- [GitHub issue #6](https://github.com/AlexanderTsarkov/AirLink/issues/6);
+- owner-approved decisions supplied for issue #6.
+
+No additional legacy documents were used.
+
+## Assumptions
+
+- A useful initial Flight model can be defined before the Flight Log schema is selected.
+- Replay responsibility can be established at product level without defining the recorded parameter set.
+- Exceptional manual completion can remain distinguishable from confirmed landing in later data and logging work.
+
 ## Definition of Flight
 
 A `Flight` normally represents one continuous airborne episode between takeoff and landing. It begins only after takeoff is detected or confirmed and normally ends at confirmed landing. Manual completion is an explicit exceptional boundary that may finalize the currently recorded airborne episode before landing confirmation.
@@ -146,6 +164,12 @@ The Flight model establishes that responsibility but does not define summary fie
 - summary content and replay behavior;
 - landing-zone logic and landing assistance;
 - architecture, APIs, services, frameworks, and UI layout.
+
+## Expected Promotion Target
+
+After owner review and resolution of relevant open questions, accepted durable content may be promoted into an appropriate canonical product-domain document.
+
+The final canonical location has not yet been selected and must not be created by this WIP.
 
 ## Open Questions
 
