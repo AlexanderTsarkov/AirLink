@@ -13,7 +13,10 @@ This directory contains accepted product documentation and controlled product WI
 1. `CurrentState.md` for the accepted state of the restarted project.
 2. `wip/README.md` for the rules governing product WIP.
 3. `wip/product-vision-reconstruction.md` for the Product Vision currently under review.
-4. `vision/README.md` for the status of the future canonical Product Vision.
+4. `wip/flight-mode-model.md` for the operational lifecycle while the pilot intends to fly.
+5. `wip/flight-model.md` for the boundaries and special points of one airborne episode.
+6. `wip/navigation-model.md` for the limited navigation state and directional semantics of the initial scenario.
+7. `vision/README.md` for the status of the future canonical Product Vision.
 
 ## Canonical Documents
 
@@ -22,6 +25,9 @@ This directory contains accepted product documentation and controlled product WI
 ## Work in Progress
 
 - `wip/product-vision-reconstruction.md` — reconstructs the initial Product Vision while separating accepted direction from legacy concepts, proposed synthesis, hypotheses, deferred areas, and open questions.
+- `wip/flight-mode-model.md` — defines the operational lifecycle of explicit Flight Mode, including ground waiting, repeated Flights, completion, and exit behavior.
+- `wip/flight-model.md` — defines one airborne Flight, its boundaries, special points, and relationship to summary and replay.
+- `wip/navigation-model.md` — defines only the navigation state and directional concepts required by the initial local-flight scenario.
 
 ## Supporting Indexes and Guidance
 
