@@ -1,17 +1,32 @@
 # Product Documentation
 
-This directory contains accepted product documentation and controlled product WIP.
+This directory contains accepted product documentation and controlled product WIP. This file is a document index, not a product specification.
+
+## Documentation Status
+
+- Canonical documents describe accepted product truth.
+- WIP documents are non-canonical drafts under owner review and are not implementation requirements.
+- Supporting indexes and guidance describe documentation status and process without defining the product.
+
+## Recommended Reading Order
+
+1. `CurrentState.md` for the accepted state of the restarted project.
+2. `wip/README.md` for the rules governing product WIP.
+3. `wip/product-vision-reconstruction.md` for the Product Vision currently under review.
+4. `vision/README.md` for the status of the future canonical Product Vision.
 
 ## Canonical Documents
 
-- `CurrentState.md` — accepted current project state outside the active iteration.
-- `vision/` — accepted long-term product direction.
+- `CurrentState.md` — records accepted project state that should remain valid outside the active iteration.
 
 ## Work in Progress
 
-- `wip/` — product drafts under discussion.
+- `wip/product-vision-reconstruction.md` — reconstructs the initial Product Vision while separating accepted direction from legacy concepts, proposed synthesis, hypotheses, deferred areas, and open questions.
 
-WIP is not canon and must not be treated as an implementation requirement without explicit approval.
+## Supporting Indexes and Guidance
+
+- `wip/README.md` — defines the status, handling, and promotion expectations for product WIP.
+- `vision/README.md` — records that no canonical Product Vision has yet been accepted and identifies the intended promotion area.
 
 ## Promotion Rule
 
@@ -24,3 +39,7 @@ A WIP document becomes canonical only after:
 5. update of this index and, when applicable, `CurrentState.md`.
 
 Legacy material is never promoted by copying alone. It must be evaluated and rewritten for the restarted AirLink project.
+
+## Index Maintenance Rule
+
+Any change that creates, moves, renames, or removes a product document must update `docs/product/README.md` in the same change.
