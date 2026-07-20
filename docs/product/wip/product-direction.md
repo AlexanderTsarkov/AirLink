@@ -25,7 +25,7 @@ The owner-approved concepts identified below are authoritative inputs to this dr
 
 This WIP uses only:
 
-1. the owner-approved long-term product context supplied for GitHub issue [#9](https://github.com/AlexanderTsarkov/AirLink/issues/9);
+1. the owner-approved long-term product context supplied in the task execution prompt;
 2. [`ITERATION.md`](../../../ITERATION.md);
 3. canonical repository context in [`CurrentState.md`](../CurrentState.md) and the [product documentation index](../README.md);
 4. GitHub issue [#9](https://github.com/AlexanderTsarkov/AirLink/issues/9) and its parent, issue [#8](https://github.com/AlexanderTsarkov/AirLink/issues/8);
@@ -42,7 +42,7 @@ The main scope distinction is intentional:
 - the existing Product Vision WIP describes the accepted initial focus and first product slice;
 - this Product Direction WIP describes the owner-approved long-term direction of AirLink as a service.
 
-Pilot Ecosystem is therefore accepted here as long-term direction, while social, marketplace, school, service, maintenance, and wider ecosystem functionality remain outside MVP 0.1 and every other release unless separately approved. This document does not modify, supersede, or retroactively reinterpret the existing Product Vision WIP. Alignment of wording between Product Vision and Product Direction must be handled deliberately during later owner review and canonical promotion.
+Pilot Ecosystem is therefore accepted here as long-term direction, while social, marketplace, school, service, maintenance, and wider ecosystem functionality are not committed to MVP 0.1 or any other specific release unless separately approved. This document does not modify, supersede, or retroactively reinterpret the existing Product Vision WIP. Alignment of wording between Product Vision and Product Direction must be handled deliberately during later owner review and canonical promotion.
 
 ## AirLink as a Service
 
@@ -184,9 +184,9 @@ The purpose is reliable preparation without excessive manual work. Exact workflo
 
 ### Feed and Pilot Ecosystem
 
-Feed is a product surface through which the pilot's visible flying world may gradually expand. The Pilot Ecosystem is the wider network of pilots, Flights, places, routes, events, equipment, organizations, and relevant services connected by real flying activity.
+Feed is the working concept for AirLink's main Home surface. It is a relevance-driven composition surface where Flight Support context and Pilot Ecosystem content may coexist. An early product may expose only a narrow subset of this surface without redefining Home as a permanently single-purpose screen.
 
-Neither concept defines a generic social network, content schema, ranking system, or committed commercial feature set.
+The Pilot Ecosystem is the wider network of pilots, Flights, places, routes, events, equipment, organizations, and relevant services connected by real flying activity. Neither concept defines UI layout, ranking logic, card types, release scope, a generic social network, or a committed commercial feature set.
 
 ## Safety and Decision Support
 
@@ -226,7 +226,7 @@ Automation should follow a coherent product model and preserve semantic correctn
 
 ## Feed and Relevance Expansion
 
-Feed is not intended to be a generic engagement feed, an endless stream optimized primarily for attention capture, a replacement for Facebook, or a collection of arbitrary social posts.
+Feed is not intended to be a generic engagement feed, an endless stream optimized primarily for attention capture, or a collection of arbitrary social posts. AirLink is not intended to replace existing Facebook groups or local communities. Its long-term role is to connect currently fragmented pilot communities through the shared language of real flying activity, especially Flights and their connected entities.
 
 Its relevance should expand conceptually from:
 
@@ -276,7 +276,7 @@ These matters require later bounded discovery and explicit approval when they be
 ## Assumptions and Material Review Point
 
 - **Assumption:** Long-term product direction can remain stable while individual early releases intentionally cover only a narrow part of it.
-- **Assumption:** Keeping domains conceptually distinct is sufficient at this stage; no future architecture or data model needs to be anticipated.
+- **Assumption:** Detailed future architecture and data models do not need to be designed at this stage. Current decisions should nevertheless avoid foreclosing the identified domains or making their later introduction unnecessarily disruptive.
 - **Constrained synthesis:** The two pillars reinforce one another through the real entities, activity, continuity, and context created by Flight Support and made discoverable through the Pilot Ecosystem.
 
 The material future review point is wording alignment between the initial Product Vision and long-term Product Direction. That alignment should be addressed deliberately during owner review and canonical promotion without assuming that either current WIP document automatically supersedes the other.
