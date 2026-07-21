@@ -135,4 +135,4 @@ Routine work does not require an expanded Product Direction report.
 
 ## Stability
 
-Keep this file focused on execution mechanics. Product context belongs in `ITERATION.md` and canonical documentation.
+Keep this file focused on execution mechanics. Product context belongs in `ITERATION.md` and the relevant product documentation according to its authority status, not in this execution overlay.

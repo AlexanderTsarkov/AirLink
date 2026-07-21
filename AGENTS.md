@@ -45,10 +45,9 @@ The alignment path is mandatory when work creates or materially changes an itera
 
 When a trigger applies or is discovered:
 
-1. consult `docs/product/wip/product-governance.md` as the detailed alignment procedure and `docs/product/wip/product-direction.md` as long-term direction context;
-2. load only the canonical, domain, product-decision, issue, and directly relevant WIP artifacts needed for the affected concern;
-3. perform the Product Direction Alignment check defined in Product Governance and record a compact outcome in the relevant product-significant issue, iteration artifact, plan, prompt, or review;
-4. stop and request an explicit owner decision for `Requires product decision` or `Conflicts with Product Direction`.
+1. within the existing Source-of-Truth Order, load the canonical, issue, domain, and product-decision artifacts relevant to the affected concern, and consult `docs/product/wip/product-governance.md` and `docs/product/wip/product-direction.md` as the required alignment context;
+2. perform the Product Direction Alignment check defined in Product Governance and record a compact outcome in the relevant product-significant issue, iteration artifact, plan, prompt, or review;
+3. stop and request an explicit owner decision for `Requires product decision` or `Conflicts with Product Direction`.
 
 The repository-wide obligation comes from this active rule. Product Governance and Product Direction remain WIP, non-canonical, not independently active repository policy, and not implementation requirements. Mandatory consultation does not let them override canon, an approved iteration, approved issue scope, or an explicit owner decision. Identify exact conflicting statements and their authority; do not invent missing product behavior or implement a guessed compromise.
 
