@@ -2,7 +2,7 @@
 
 ## Status, Purpose, and Authority
 
-This document is **WIP**, **non-canonical**, **under owner review**, **not an active repository rule**, and **not an implementation requirement**. It proposes a future governance mechanism; its use is not required unless its accepted content is later promoted and activated through separately approved changes. See the [product WIP policy](README.md).
+This document is **WIP**, **non-canonical**, **under owner review**, **not independently active repository policy**, and **not an implementation requirement**. The separately approved active routing rule in [`AGENTS.md`](../../../AGENTS.md) currently requires qualifying work to consult the alignment procedure described here. That consultation does not promote this WIP, activate all of its content, or make it a source of product authority. Changes to this WIP require separate approval and integration before they can affect active repository policy. See the [product WIP policy](README.md).
 
 Product Governance defines routing and decision discipline for product-significant work: when the [Product Direction](product-direction.md) should be consulted, how alignment should be evaluated and recorded, and when work should stop for an owner decision. It does not define AirLink, approve product decisions, change the repository's source-of-truth order, or replace existing governance and product artifacts.
 
@@ -19,7 +19,7 @@ The mechanism preserves these distinct responsibilities:
 - **Canonical domain specifications** define accepted detailed product behavior when such specifications exist.
 - **GitHub issues and execution prompts** define bounded task scope, deliverables, and acceptance criteria.
 - **`AGENTS.md` and `CLAUDE.md`** define stable agent policy and repository-local execution mechanics.
-- **Product Governance** proposes when alignment evaluation is needed, how it is performed, which conclusion is recorded, and when owner resolution is required.
+- **Product Governance** describes the alignment procedure consulted under the active routing rule in `AGENTS.md`; it does not independently establish repository policy or product authority.
 
 ## Product-Significant Work
 
@@ -40,7 +40,7 @@ Material product impact, not the artifact type, determines significance. A docum
 
 ## Routing and Context Loading
 
-The proposed routing sequence assumes that a later, separately approved active routing artifact contains a compact trigger rule. That rule can perform initial classification without requiring the full Product Governance or Product Direction documents for every routine task:
+Whenever the separately approved active routing rule in [`AGENTS.md`](../../../AGENTS.md) identifies qualifying work, it invokes the routing sequence below. The active rule can perform initial classification without requiring the full Product Governance or Product Direction documents for every routine task:
 
 1. Classify the task using its goal, affected artifacts, accepted issue scope, and expected product impact.
 2. If no product-significant trigger applies, continue under normal repository and task context without loading Product Governance or Product Direction.
@@ -53,7 +53,7 @@ Product Direction should be referenced rather than copied into iterations, issue
 
 ### Mandatory triggers
 
-Under the proposed mechanism, Product Direction and Product Governance must be loaded and applied when:
+`AGENTS.md` establishes the active trigger obligation. This section records the reviewed trigger grouping used by the alignment procedure; changes here do not alter active policy unless separately approved and integrated:
 
 - creating a new iteration or materially changing the purpose or scope of an active iteration;
 - creating or materially revising `CurrentState.md`;
@@ -111,7 +111,7 @@ The check is a compact planning and review tool, not a required long-form questi
 
 ## Conflicts, Missing Decisions, and Document Ownership
 
-Under the proposed mechanism, when canon, iteration scope, an issue or prompt, WIP, or a local proposal disagree, the agent or reviewer must:
+When the active routing rule invokes this alignment procedure and canon, iteration scope, an issue or prompt, WIP, or a local proposal disagree, the agent or reviewer must:
 
 1. identify the exact conflicting statements;
 2. classify each source as canon, WIP, iteration context, issue scope, or local proposal;
@@ -125,21 +125,21 @@ Product Direction does not automatically override current canon or an explicit o
 
 Product Direction may identify a domain or future capability without defining its detailed behavior. A future capability is not automatically a current requirement, and missing behavior remains undefined. An agent must not infer detailed requirements from long-term direction alone. When detail becomes necessary, the appropriate response is a bounded discovery, WIP, or product-decision task. Any temporary assumption affecting product semantics must be explicit, bounded, reversible, and owner-approved.
 
-## Proposed Lightweight Future Use
+## Lightweight Use Under Active Routing
 
-If this mechanism is later activated, product-significant artifacts may use compact alignment records:
+When this procedure is invoked by the active rule in `AGENTS.md`, product-significant artifacts may use compact alignment records:
 
 - **Iteration checkpoint:** direction advanced, intentional simplifications, long-term concepts deliberately excluded, direction risks, unresolved owner decisions, and outcome.
 - **Issue, prompt, or planning note:** trigger, relevant direction and decisions, any accepted simplification, unresolved decision, and outcome.
 - **Draft PR review:** confirmation that the change matches the accepted product decision, preserves declared simplifications, introduces no hidden product behavior, and exposes any remaining conflict.
 - **Routine task:** omit these sections unless a trigger is discovered.
 
-These are proposed concepts only. This WIP does not modify iteration, issue, prompt, or PR templates and does not activate a new review requirement.
+These formats remain guidance in this WIP. They do not modify iteration, issue, prompt, or PR templates, and this document does not independently activate a review requirement. Only separately approved active artifacts establish such obligations.
 
 ## Scope, Review, and Future Integration
 
-This WIP does not activate repository rules, change source-of-truth order, modify protected governance files, promote Product Direction or Product Vision into canon, authorize Product Governance or an agent to make product decisions, or define product features, UI, detailed behavior, schemas, APIs, algorithms, architecture, technology, roadmap, or release scope. It does not require Product Direction review for routine technical work.
+This WIP does not independently activate repository rules, change source-of-truth order, modify protected governance files, promote Product Direction or Product Vision into canon, authorize Product Governance or an agent to make product decisions, or define product features, UI, detailed behavior, schemas, APIs, algorithms, architecture, technology, roadmap, or release scope. It does not require Product Direction review for routine technical work. The current obligation to consult it for qualifying work comes from `AGENTS.md`.
 
 The routing sequence, trigger grouping, alignment check, and outcome actions are constrained governance synthesis for owner review. No new product decision is proposed. The existing future wording-alignment point between Product Vision and Product Direction remains unresolved and outside this task; this document neither interprets nor resolves it.
 
-After owner and ChatGPT review, accepted content may be rewritten or promoted into canonical `docs/product/ProductGovernance.md`. Activation, agent routing, iteration checkpoints, and template integration require later bounded tasks and explicit owner approval. Until then, this document remains a non-active WIP review artifact.
+Future canonical promotion remains a separate owner-controlled task; accepted durable content may later be rewritten or promoted into canonical `docs/product/ProductGovernance.md`. Changes to active agent routing, iteration checkpoints, or template integration require separate bounded tasks and explicit owner approval. Until then, this document remains WIP, non-canonical, and not an implementation requirement. Its current consultation is solely due to the active routing rule in `AGENTS.md`, and edits to this WIP do not alter that routing.
