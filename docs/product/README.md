@@ -14,10 +14,11 @@ This directory contains accepted product documentation and controlled product WI
 2. `wip/README.md` for the rules governing product WIP.
 3. `wip/product-vision-reconstruction.md` for the Product Vision currently under review.
 4. `wip/product-direction.md` for the long-term direction of AirLink as a service, including its product pillars, lifecycle, domains, and evolution principles.
-5. `wip/flight-mode-model.md` for the operational lifecycle while the pilot intends to fly.
-6. `wip/flight-model.md` for the boundaries and special points of one airborne episode.
-7. `wip/navigation-model.md` for the limited navigation state and directional semantics of the initial scenario.
-8. `vision/README.md` for the status of the future canonical Product Vision.
+5. `wip/product-governance.md` for the proposed non-active routing and decision mechanism for product-significant work.
+6. `wip/flight-mode-model.md` for the operational lifecycle while the pilot intends to fly.
+7. `wip/flight-model.md` for the boundaries and special points of one airborne episode.
+8. `wip/navigation-model.md` for the limited navigation state and directional semantics of the initial scenario.
+9. `vision/README.md` for the status of the future canonical Product Vision.
 
 ## Canonical Documents
 
@@ -27,6 +28,7 @@ This directory contains accepted product documentation and controlled product WI
 
 - `wip/product-vision-reconstruction.md` — reconstructs the initial Product Vision while separating accepted direction from legacy concepts, proposed synthesis, hypotheses, deferred areas, and open questions.
 - `wip/product-direction.md` — records the owner-approved long-term direction of AirLink as a service while keeping future concepts separate from MVP and release requirements.
+- `wip/product-governance.md` — proposes when Product Direction should be loaded, how product-significant work should be evaluated, and when an explicit owner decision is required; it is not an active repository rule.
 - `wip/flight-mode-model.md` — defines the operational lifecycle of explicit Flight Mode, including ground waiting, repeated Flights, completion, and exit behavior.
 - `wip/flight-model.md` — defines one airborne Flight, its boundaries, special points, and relationship to summary and replay.
 - `wip/navigation-model.md` — defines only the navigation state and directional concepts required by the initial local-flight scenario.
