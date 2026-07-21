@@ -51,9 +51,9 @@ Whenever the separately approved active routing rule in [`AGENTS.md`](../../../A
 
 Product Direction should be referenced rather than copied into iterations, issues, prompts, or plans. A triggered task should load enough context to evaluate the affected product concern, not every future domain. Routine work should normally remain bounded to `ITERATION.md`, the relevant accepted specifications, the issue or prompt, and the implementation context.
 
-### Mandatory triggers
+### Reviewed trigger model
 
-`AGENTS.md` establishes the active trigger obligation. This section records the reviewed trigger grouping used by the alignment procedure; changes here do not alter active policy unless separately approved and integrated:
+`AGENTS.md` exclusively defines the active mandatory triggers. The list below records the broader reviewed trigger model in this WIP. Items not represented in `AGENTS.md` are non-active guidance unless the owner explicitly classifies the work as product-significant or they are separately approved and integrated into active policy:
 
 - creating a new iteration or materially changing the purpose or scope of an active iteration;
 - creating or materially revising `CurrentState.md`;
@@ -68,6 +68,8 @@ Product Direction should be referenced rather than copied into iterations, issue
 - detecting a conflict between local work, current canon, active iteration, issue scope, or Product Direction;
 - conducting a major product or milestone review;
 - the owner explicitly classifies the work as product-significant.
+
+For current repository operation, only the triggers stated in `AGENTS.md` are mandatory. Additional cases listed here do not independently create a repository obligation.
 
 ### Routine non-triggers and discovered significance
 
