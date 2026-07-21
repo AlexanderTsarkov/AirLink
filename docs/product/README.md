@@ -28,7 +28,7 @@ This directory contains accepted product documentation and controlled product WI
 
 - `wip/product-vision-reconstruction.md` — reconstructs the initial Product Vision while separating accepted direction from legacy concepts, proposed synthesis, hypotheses, deferred areas, and open questions.
 - `wip/product-direction.md` — records the owner-approved long-term direction of AirLink as a service while keeping future concepts separate from MVP and release requirements.
-- `wip/product-governance.md` — describes the alignment procedure referenced by the active routing rule in `AGENTS.md`; it remains WIP and non-canonical, does not independently control repository policy, and requires separate approval and integration before its edits can affect active policy.
+- `wip/product-governance.md` — describes the alignment procedure referenced by the active routing rule in `AGENTS.md`; it remains WIP and non-canonical and does not independently control routing, trigger activation, or product authority. Because active policy invokes the current procedure, merged changes to its referenced checks or outcomes can affect required agent behavior and therefore require explicit owner approval and normal repository review.
 - `wip/flight-mode-model.md` — defines the operational lifecycle of explicit Flight Mode, including ground waiting, repeated Flights, completion, and exit behavior.
 - `wip/flight-model.md` — defines one airborne Flight, its boundaries, special points, and relationship to summary and replay.
 - `wip/navigation-model.md` — defines only the navigation state and directional concepts required by the initial local-flight scenario.
