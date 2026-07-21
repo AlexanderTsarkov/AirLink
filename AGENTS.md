@@ -17,6 +17,8 @@ Before meaningful work, use this order:
 5. WIP documents only when the task explicitly concerns them;
 6. legacy material only as source material, never as current truth by default.
 
+WIP is not loaded by default. In addition to work that explicitly concerns WIP, the Product-Significance Routing rule below requires consultation of `docs/product/wip/product-governance.md` and `docs/product/wip/product-direction.md` when a trigger applies. Any other WIP may be consulted only when it is directly relevant to the affected product decision and the task, issue, or triggered alignment process identifies why it is needed. Consultation does not make WIP canonical or an implementation requirement.
+
 If sources conflict, stop and report the conflict. Do not silently choose a preferred interpretation.
 
 ## Start-of-Task Discipline
@@ -34,6 +36,24 @@ Before editing:
 `ITERATION.md` provides shared iteration context so it does not need to be repeated in every prompt. The agent must still read the concrete issue, specification, decision, or WIP artifact referenced by the task.
 
 If the task does not fit the active iteration, stop and report the mismatch. Do not expand or redefine the iteration without explicit approval.
+
+## Product-Significance Routing
+
+Before loading long-term product context, classify a task using its goal, affected artifacts, approved issue scope, and expected product impact. Work is product-significant when it may materially change, reinterpret, constrain, or contradict AirLink's intended purpose; Flight Support, Pilot Ecosystem, or their relationship; a major lifecycle, workflow boundary, or product domain; unaccepted user-visible behavior; safety-relevant or decision-support semantics; a long-term evolution path; a difficult-to-reverse product simplification; an architecture boundary dependent on unresolved product semantics; the intended role of a major product surface; product canon, Product Vision, Product Direction, `CurrentState.md`, or active iteration intent.
+
+The alignment path is mandatory when work creates or materially changes an iteration, `CurrentState.md`, canonical Product Vision or Product Direction, a major product domain, lifecycle or workflow boundary, or the role of a major product surface; promotes product WIP into canon; introduces user-visible behavior not already accepted; makes an architecture decision dependent on unresolved product semantics; prepares a product-significant issue, plan, or execution prompt; detects a material conflict among local work, canon, iteration scope, issue scope, or Product Direction; or is explicitly classified as product-significant by the owner.
+
+When a trigger applies or is discovered:
+
+1. within the existing Source-of-Truth Order, load the canonical, issue, domain, and product-decision artifacts relevant to the affected concern, and consult `docs/product/wip/product-governance.md` and `docs/product/wip/product-direction.md` as the required alignment context;
+2. perform the Product Direction Alignment check defined in Product Governance and record a compact outcome in the relevant product-significant issue, iteration artifact, plan, prompt, or review;
+3. stop and request an explicit owner decision for `Requires product decision` or `Conflicts with Product Direction`.
+
+The repository-wide obligation comes from this active rule. Product Governance and Product Direction remain WIP, non-canonical, not independently active repository policy, and not implementation requirements. Mandatory consultation does not let them override canon, an approved iteration, approved issue scope, or an explicit owner decision. Identify exact conflicting statements and their authority; do not invent missing product behavior or implement a guessed compromise.
+
+The full Product Governance and Product Direction documents normally are not loaded for routine work that preserves accepted product semantics and boundaries. Typical examples include fixes restoring accepted behavior, behavior-preserving refactoring, product-neutral dependency or tooling changes, implementation of a fully specified owner-approved issue, tests and diagnostics, CI or infrastructure changes without product-semantic impact, adjustments within accepted UX and copy semantics, behavior-preserving performance or reliability work, and mechanical documentation corrections.
+
+If routine work reveals unresolved product semantics, a hidden product decision, a material conflict, or a difficult-to-reverse simplification, pause only the affected work boundary and enter the triggered alignment path before continuing it.
 
 ## Core Rules
 
