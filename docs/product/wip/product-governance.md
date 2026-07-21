@@ -12,7 +12,7 @@ This draft is based on the execution scope for GitHub issue [#11](https://github
 
 The mechanism preserves these distinct responsibilities:
 
-- **Product Direction** describes AirLink's long-term purpose, shape, principles, two product pillars, full flight lifecycle, fundamental domains, and evolution constraints. The current document is WIP and does not automatically override canon, an approved iteration, or an explicit owner decision.
+- **Product Direction** describes AirLink's long-term purpose, shape, principles, two product pillars, full flight lifecycle, fundamental domains, and evolution constraints. The current Product Direction artifact is WIP and does not automatically override canon, an approved iteration, or an explicit owner decision.
 - **Product Vision** describes the initial product focus and value proposition. The current Product Vision is also WIP and under review.
 - **`CurrentState.md`** records accepted durable project and product state outside an individual iteration.
 - **`ITERATION.md`** defines the purpose, boundaries, and constraints of the active work cycle.
@@ -40,11 +40,11 @@ Material product impact, not the artifact type, determines significance. A docum
 
 ## Routing and Context Loading
 
-The proposed routing sequence is:
+The proposed routing sequence assumes that a later, separately approved active routing artifact contains a compact trigger rule. That rule can perform initial classification without requiring the full Product Governance or Product Direction documents for every routine task:
 
-1. Classify the task using its goal, affected artifacts, accepted issue scope, and expected product impact. This initial classification does not require reading all long-term product documentation.
-2. If no product-significant trigger applies, continue under normal repository and task context without loading Product Direction.
-3. If a trigger applies or is discovered during execution, load Product Direction plus only the relevant domain and decision artifacts.
+1. Classify the task using its goal, affected artifacts, accepted issue scope, and expected product impact.
+2. If no product-significant trigger applies, continue under normal repository and task context without loading Product Governance or Product Direction.
+3. If a trigger applies or is discovered during execution, load Product Governance, Product Direction, and only the relevant domain and product-decision artifacts.
 4. Perform the Product Direction Alignment check.
 5. Record the outcome in the appropriate product-significant artifact.
 6. Stop for an owner decision when the outcome is `Requires product decision` or `Conflicts with Product Direction`.
@@ -71,7 +71,7 @@ Under the proposed mechanism, Product Direction and Product Governance must be l
 
 ### Routine non-triggers and discovered significance
 
-Product Direction normally should not be loaded for:
+The full Product Governance and Product Direction documents normally should not be loaded for:
 
 - a local bug fix that restores already accepted behavior;
 - behavior-preserving refactoring;
