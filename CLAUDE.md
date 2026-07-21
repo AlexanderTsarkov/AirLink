@@ -54,6 +54,18 @@ For a non-trivial task, report before implementation:
 - validation plan;
 - any decision that requires owner approval.
 
+Apply the Product-Significance Routing rule in `AGENTS.md`. Every non-trivial plan should state whether the task is product-significant. For routine work, a short classification such as `Product significance: Not product-significant — accepted behavior and product semantics are unchanged` is sufficient; do not load the two product WIP documents, perform the alignment questionnaire, or require an expanded final alignment report.
+
+For triggered work, the plan must identify:
+
+- the applicable trigger;
+- the Product Governance, Product Direction, and relevant canonical, domain, WIP, issue, and decision artifacts loaded;
+- the proposed alignment outcome;
+- any explicit simplification and its approval source;
+- any owner decision required before implementation.
+
+If product significance is discovered after implementation begins, pause only the affected work boundary, load the triggered context, perform the alignment check, update the plan or report with the reclassification, and request owner direction when required. Do not continue the affected product decision silently.
+
 Do not start broad implementation while unresolved product or architecture decisions remain hidden inside the task.
 
 ## Editing Rules
@@ -111,6 +123,15 @@ Report:
 - confirmation that governance files were changed only when authorized;
 - confirmation that secrets and local `_working/` artifacts were excluded;
 - recommended next step.
+
+For product-significant work, also report:
+
+- the actual alignment outcome;
+- any accepted explicit simplification and its approval source;
+- any unresolved product decision or conflict;
+- confirmation that no hidden product behavior was introduced.
+
+Routine work does not require an expanded Product Direction report.
 
 ## Stability
 
