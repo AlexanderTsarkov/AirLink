@@ -92,6 +92,15 @@ Additional artifacts may be added only when a concrete need appears.
 - Prefer one bounded issue, one branch, and one Draft PR.
 - Owner + ChatGPT perform initial review before Ready for review and integrated Codex review.
 
+## Product Direction Alignment
+
+- **Direction advanced:** This iteration establishes the controlled product and governance foundation needed before selecting and implementing the first meaningful product slice. Recovering accepted product intent, separating canon, WIP, and legacy sources, and preventing old decisions from migrating silently prepare the next iteration while preserving long-term direction without prematurely choosing architecture.
+- **Intentional simplifications:** For this iteration, AirLink does not implement mobile, web, or server functionality; select frameworks, languages, databases, cloud services, map providers, or other implementation technologies; define final system architecture, the complete continuing flight lifecycle, or detailed future product domains; or implement the wider Pilot Ecosystem. These are temporary iteration boundaries, not rejection of those long-term concepts, and they keep later choices explicit and reversible.
+- **Long-term concepts intentionally excluded:** Detailed treatment of Flight Support across preparation, Flight, completion, analysis, history, and later preparation remains outside this iteration, as do detailed definitions of Pilot, Flight, Weather, Route, Equipment, Airspace, Pre-Flight readiness, Feed, and the wider Pilot Ecosystem. They remain direction context only, not current requirements, a roadmap, or a feature backlog.
+- **Product-direction risks:** Foundation-era exclusions could be misread as permanent product limits; implementation could begin before the first meaningful product slice is explicitly selected; unresolved wording, acceptance, or authority relationships among Product Vision, Product Direction, Product Governance, and current canon could be assumed rather than decided; and WIP could be treated as canonical authority or implementation requirements.
+- **Unresolved owner decisions:** The owner retains control over selection of the first meaningful product slice and next iteration, acceptance and promotion of Product Vision, deliberate wording alignment between Product Vision and Product Direction, and any later promotion or activation of Product Direction and Product Governance. None of these decisions is made by this checkpoint.
+- **Outcome:** `Aligned with explicit simplification`. The iteration advances the controlled foundation required by AirLink's long-term direction, and its omissions are explicit, bounded, and reversible. No unresolved decision blocks the current foundation work within its existing scope.
+
 ## Iteration Completion Criteria
 
 This iteration is complete when:
