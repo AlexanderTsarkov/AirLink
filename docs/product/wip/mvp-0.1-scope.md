@@ -214,7 +214,7 @@ It:
 - retains its identity if crossed, reached, or revisited;
 - provides the navigation context needed for the initial return-to-start use case.
 
-The Flight presentation may provide a minimal waypoint indication containing:
+The Flight presentation must provide a minimal Takeoff Point indication containing:
 
 - distance to the Takeoff Point;
 - direction or bearing toward the Takeoff Point.
