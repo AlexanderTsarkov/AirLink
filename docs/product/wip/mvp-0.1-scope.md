@@ -2,9 +2,9 @@
 
 ## Status
 
-This document is **WIP**, **non-canonical**, and **not an implementation requirement**. It is subject to owner review and later promotion or replacement through the normal product-documentation process.
+This document is **owner-reviewed and accepted as the WIP product-level boundary for MVP 0.1**. It remains **non-canonical** and is not a detailed implementation specification.
 
-It defines the accepted product-level boundary of AirLink MVP 0.1 and the first meaningful end-to-end product slice. It does not select architecture, technologies, providers, algorithms, schemas, detailed UI, or implementation sequencing.
+After merge, this document may be used as an authorized product input for `AL-0002` engineering planning. It does not itself authorize implementation or select architecture, technologies, providers, algorithms, schemas, detailed UI, or implementation sequencing.
 
 ## Purpose
 
@@ -23,6 +23,29 @@ MVP 0.1 must support the pilot through a complete local-flight flow:
 - open and understand the saved Flight later.
 
 The MVP is not only an in-flight instrument prototype. It must deliver a complete preparation–Flight–completion–review outcome.
+
+## Sources
+
+This WIP is based on:
+
+- [`ITERATION.md`](../../../ITERATION.md);
+- [`docs/product/CurrentState.md`](../CurrentState.md);
+- [`docs/product/wip/product-vision-reconstruction.md`](product-vision-reconstruction.md);
+- [`docs/product/wip/flight-mode-model.md`](flight-mode-model.md);
+- [`docs/product/wip/flight-model.md`](flight-model.md);
+- [`docs/product/wip/navigation-model.md`](navigation-model.md);
+- [GitHub issue #20](https://github.com/AlexanderTsarkov/AirLink/issues/20);
+- owner decisions recorded in the issue #20 discussion.
+
+No additional legacy documents were used to define this scope.
+
+## Assumptions
+
+- The initial scenario remains one pilot performing a solo local paramotor flight in VMC.
+- MVP 0.1 is local-first and does not depend on cloud, social, multi-user, or connected-aircraft capabilities.
+- Detailed engineering choices belong to `AL-0002` or later specification work.
+- Replay presentation is outside MVP 0.1, but sufficient time-varying Flight data must be retained now because data omitted from early Flights cannot be reconstructed later.
+- Existing WIP domain models remain supporting inputs and do not become canonical through this document.
 
 ## Target Pilot and Operating Scenario
 
@@ -231,7 +254,7 @@ Exact timeout duration, warning timing, notification behavior, and continuation 
 
 Each completed and retained Flight is stored locally.
 
-The minimum saved Flight information required by MVP 0.1 is:
+The minimum pilot-facing saved Flight information required by MVP 0.1 is:
 
 - recorded map track;
 - date;
@@ -242,7 +265,9 @@ The minimum saved Flight information required by MVP 0.1 is:
 - maximum speed;
 - maximum altitude.
 
-Exact semantic definitions, precision, data representation, recording intervals, retention policy, and storage design are deferred.
+In addition to these pilot-facing fields, the Flight record must retain sufficient time-varying physical-flight and pilot-visible information to support historically faithful future replay. MVP 0.1 does not include replay presentation or playback behavior.
+
+The exact retained parameters, sampling and recording intervals, precision, validity, historical-value preservation rules, data representation, retention policy, and storage design are deferred to `AL-0002` and later specification work.
 
 ### Saved Flight Access and Review
 
@@ -331,6 +356,12 @@ The pilot must be able to complete, save, and later review a Flight locally.
 
 Cloud services, sharing, social functions, and multi-user behavior are not required for the initial meaningful outcome.
 
+### Preserve Future Replayability
+
+Replay presentation is not part of MVP 0.1, but the data needed to support historically faithful future replay must be retained from the beginning.
+
+Later algorithm changes must not silently replace historical values that were available or used during the original Flight.
+
 ### Simulation Is Part of the MVP Capability
 
 The Flight Simulation Framework is not optional internal convenience work. It is required to make the MVP behavior executable, testable, and reviewable without dependence on repeated real Flights.
@@ -408,15 +439,18 @@ The following decisions are deliberately deferred:
 - interrupted-Flight behavior;
 - manual Flight completion behavior where not already defined at product level.
 
-### Flight Parameters
+### Flight Parameters and Replay-Supporting Data
 
 - exact parameter definitions;
+- which time-varying physical-flight and pilot-visible values must be retained;
 - units and formatting;
 - sampling and recording intervals;
 - filtering and smoothing;
 - precision and validity;
 - stale or unavailable value behavior;
-- data quality semantics.
+- data quality semantics;
+- historical-value preservation rules;
+- persistence schema and storage representation.
 
 ### Wind Estimation
 
@@ -475,28 +509,41 @@ The following decisions are deliberately deferred:
 
 Deferral means that these decisions must be made deliberately during engineering planning or later product work. It does not authorize an implementation agent to choose them silently.
 
-## Acceptance Boundary
+## Open Questions
 
-This MVP 0.1 product scope is accepted when the owner confirms that it:
+None block acceptance of the MVP 0.1 product boundary.
 
-- defines one coherent end-to-end outcome for the initial paramotor pilot;
-- distinguishes the product slice from the supporting capability list;
-- includes current weather context and minimal Pre-Flight;
-- includes explicit Flight Mode;
-- supports multiple sequential Flights within one Flight Mode period;
-- includes takeoff and landing detection at product level;
-- includes the required core in-flight information;
-- includes pilot-centered orientation, controllable map scale, and Takeoff Point awareness;
-- includes estimated wind without claiming unsupported precision;
-- includes completed-Flight Summary behavior;
-- includes finite ground waiting and eventual Flight Mode exit;
-- includes local Flight persistence;
-- includes later access to and review of the saved Flight with its map track and controllable map scale;
-- explicitly makes the minimum Flight Simulation Framework mandatory;
-- distinguishes included, excluded, and deferred areas;
-- avoids selecting architecture, technologies, providers, algorithms, schemas, thresholds, update rates, or detailed UI;
-- remains limited to the accepted solo local paramotor-flight scenario.
+The detailed decisions listed in the deferred section belong to `AL-0002` or later specification work. They are not unresolved product-scope decisions in this document and must not be selected silently during implementation.
 
-Acceptance of this document establishes the product-level boundary for later engineering planning.
+## Expected Promotion Target
+
+After relevant engineering-planning decisions and later owner review, durable accepted content may be promoted into appropriate canonical product-scope or product-domain documentation.
+
+The final canonical location has not yet been selected and must not be created or assumed by this WIP.
+
+## Accepted Product Boundary
+
+The owner has accepted this MVP 0.1 scope on the following boundary:
+
+- it defines one coherent end-to-end outcome for the initial paramotor pilot;
+- it distinguishes the product slice from the supporting capability list;
+- it includes current weather context and minimal Pre-Flight;
+- it includes explicit Flight Mode;
+- it supports multiple sequential Flights within one Flight Mode period;
+- it includes takeoff and landing detection at product level;
+- it includes the required core in-flight information;
+- it includes pilot-centered orientation, controllable map scale, and Takeoff Point awareness;
+- it includes estimated wind without claiming unsupported precision;
+- it includes completed-Flight Summary behavior;
+- it includes finite ground waiting and eventual Flight Mode exit;
+- it includes local Flight persistence;
+- it requires retaining sufficient time-varying information for historically faithful future replay while deferring replay presentation;
+- it includes later access to and review of the saved Flight with its map track and controllable map scale;
+- it explicitly makes the minimum Flight Simulation Framework mandatory;
+- it distinguishes included, excluded, and deferred areas;
+- it avoids selecting architecture, technologies, providers, algorithms, schemas, thresholds, update rates, or detailed UI;
+- it remains limited to the accepted solo local paramotor-flight scenario.
+
+This accepted WIP establishes the product-level boundary for later engineering planning after merge.
 
 It does not itself authorize implementation, promote the document to canon, or resolve the decisions explicitly deferred to `AL-0002` and later work.
