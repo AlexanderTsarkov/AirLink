@@ -43,6 +43,7 @@ No additional legacy documents were used to define this scope.
 
 - The initial scenario remains one pilot performing a solo local paramotor flight in VMC.
 - MVP 0.1 is local-first and does not depend on cloud, social, multi-user, or connected-aircraft capabilities.
+- Android remains the accepted initial mobile-client target.
 - Detailed engineering choices belong to `AL-0002` or later specification work.
 - Replay presentation is outside MVP 0.1, but sufficient time-varying Flight data must be retained now because data omitted from early Flights cannot be reconstructed later.
 - Existing WIP domain models remain supporting inputs and do not become canonical through this document.
@@ -51,10 +52,12 @@ No additional legacy documents were used to define this scope.
 
 The initial target user is one paramotor pilot performing a solo local flight in visual meteorological conditions.
 
+The initial mobile client for MVP 0.1 targets Android.
+
 The operating scenario assumes:
 
 - one pilot;
-- one mobile device;
+- one Android mobile device;
 - one local flying area;
 - no crew coordination;
 - no connected aircraft equipment requirement;
@@ -78,9 +81,9 @@ Saving a Flight without later access to it is not a complete MVP outcome.
 
 ### Mobile Application Foundation
 
-MVP 0.1 includes the mobile-application foundation required to support the accepted product slice.
+MVP 0.1 includes the Android mobile-application foundation required to support the accepted product slice.
 
-This includes the application-level permissions and operating access needed for the selected MVP capabilities. Exact permission handling, platform behavior, background execution, and resource-management mechanisms are deferred.
+This includes the application-level permissions and operating access needed for the selected MVP capabilities. Exact Android framework, minimum supported Android version, permission handling, platform behavior, background execution, and resource-management mechanisms are deferred.
 
 ### Home and Current-Location Weather Context
 
@@ -244,11 +247,12 @@ Flight Mode must not remain indefinitely in its ground-waiting state.
 While waiting for another takeoff after landing or before the first takeoff:
 
 - a sufficiently long inactivity period is allowed;
-- the pilot may be warned before Flight Mode ends automatically;
-- the pilot may continue the waiting period;
-- if no continuation occurs, the application exits Flight Mode and returns to normal application use.
+- before automatic exit, the application warns the pilot;
+- the warning provides a direct action to continue waiting;
+- continuing resets the full ground-waiting period;
+- if the pilot does not continue, the application exits Flight Mode and returns to normal application use.
 
-Exact timeout duration, warning timing, notification behavior, and continuation mechanics are deferred.
+Exact timeout duration, warning timing, warning and notification presentation, and continuation-control implementation are deferred.
 
 ### Local Flight Persistence
 
@@ -402,6 +406,7 @@ The following are not part of MVP 0.1:
 - a Flight Session domain object;
 - detailed Flight Log or parameter schemas;
 - final architecture or technology selection;
+- iOS and other additional client platforms;
 - production cloud or server implementation unless later required by a separately accepted capability.
 
 These exclusions are boundaries of MVP 0.1, not permanent rejection of future AirLink concepts.
@@ -410,14 +415,16 @@ These exclusions are boundaries of MVP 0.1, not permanent rejection of future Ai
 
 The following decisions are deliberately deferred:
 
-### Application and Platform Engineering
+### Android Application Engineering
 
-- application architecture;
-- platform and framework selection;
+- Android application architecture;
+- Android application framework;
+- minimum supported Android version;
 - permission implementation;
 - foreground and background execution behavior;
 - resource-management strategy;
-- local-storage technology.
+- local-storage technology;
+- platform-specific APIs and implementation choices.
 
 ### Weather
 
@@ -484,7 +491,8 @@ The following decisions are deliberately deferred:
 - inactivity timeout duration;
 - warning timing;
 - warning and notification presentation;
-- conditions that reset the waiting period;
+- exact continuation control;
+- conditions other than pilot continuation that reset the waiting period;
 - explicit exit behavior while a Flight is active.
 
 ### Summary and Saved Flight Review
@@ -526,6 +534,7 @@ The final canonical location has not yet been selected and must not be created o
 The owner has accepted this MVP 0.1 scope on the following boundary:
 
 - it defines one coherent end-to-end outcome for the initial paramotor pilot;
+- it targets Android as the initial mobile client;
 - it distinguishes the product slice from the supporting capability list;
 - it includes current weather context and minimal Pre-Flight;
 - it includes explicit Flight Mode;
@@ -535,7 +544,7 @@ The owner has accepted this MVP 0.1 scope on the following boundary:
 - it includes pilot-centered orientation, controllable map scale, and Takeoff Point awareness;
 - it includes estimated wind without claiming unsupported precision;
 - it includes completed-Flight Summary behavior;
-- it includes finite ground waiting and eventual Flight Mode exit;
+- it includes finite ground waiting, mandatory warning and continuation before automatic exit, and eventual Flight Mode exit;
 - it includes local Flight persistence;
 - it requires retaining sufficient time-varying information for historically faithful future replay while deferring replay presentation;
 - it includes later access to and review of the saved Flight with its map track and controllable map scale;
