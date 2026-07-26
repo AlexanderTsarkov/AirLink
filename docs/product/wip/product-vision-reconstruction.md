@@ -1,179 +1,341 @@
-# AirLink Product Vision Reconstruction
+# AirLink Product Vision
 
 ## Status
 
-This document is **WIP**, **non-canonical**, and **not an implementation requirement**. It is subject to owner review and later promotion. See the [product WIP policy](README.md) for the governing rules.
+This document is **WIP**, **non-canonical**, and **not an implementation requirement**.
+
+It is an owner-reviewed, promotion-ready Product Vision draft. It defines the enduring product purpose and direction of AirLink without selecting architecture, technologies, providers, algorithms, detailed workflows, UI design, or release scope.
 
 ## Purpose
 
-This document reconstructs the initial Product Vision for the restarted AirLink project. It records the current accepted direction, proposes concise formulations where wording is not yet accepted, and classifies retained legacy concepts, hypotheses, deferred areas, and open questions.
+AirLink is intended to become a service that supports real flying activity and forms a connected ecosystem around it.
 
-It is deliberately a product-level document. Detailed domain models, algorithms, data structures, architecture, and screen design belong outside this WIP.
+The product is not adequately defined as only a weather application, flight instrument, navigation tool, flight tracker, logbook, social network, marketplace, or collection of application screens. Any of these may become part of AirLink, but none represents the complete product.
 
-## Sources and Source Priority
+This Vision defines AirLink's enduring purpose and product structure.
 
-This reconstruction uses only:
+Specific product domains, capabilities, and possible stages of development belong in Product Direction, release scopes, domain specifications, and later product discovery.
 
-1. the current owner-approved product decisions for this task;
-2. canonical repository context: [`ITERATION.md`](../../../ITERATION.md) and [`CurrentState.md`](../CurrentState.md);
-3. legacy document *AirLink: Product Vision*;
-4. only the mission, problem, principles, and audience portions of legacy document *AirLink Vision and Specs*.
+## Product Problem
 
-Current owner-approved decisions take precedence. Canonical repository documents define current project state and constraints. Legacy statements are historical source claims: they are retained only when consistent with current direction or explicitly classified for later review.
+Pilots must currently piece together both flight support and the broader flying ecosystem from disconnected tools, information sources, communities, and services.
 
-## Current Accepted Direction
+During preparation and Flight, important weather, airspace, flight, and aircraft-related information may be unavailable, insufficiently reliable, semantically unclear, or difficult to interpret quickly when it matters.
 
-AirLink is being reconstructed selectively for an initial, concrete pilot scenario. Its first value is reliable, semantically correct preflight weather information together with reliable presentation of important information during flight.
+Paramotor flying is an aviation activity, but it is often practiced without the depth of formal aviation training, operational discipline, and procedural support found in more regulated forms of aviation. Important practices such as structured Pre-Flight preparation, weather assessment, route and fuel consideration, equipment inspection, radio communication, and awareness of operational restrictions may depend largely on the individual pilot's knowledge, habits, and continued attention.
 
-The product should reduce the pilot's need to combine information mentally across unrelated sources and interfaces. It does not replace pilot judgment, official aviation information, or regulatory responsibility.
+Even when these practices are understood, repetition can turn them into routine and gradually reduce attention to their purpose and importance. Equipment readiness creates a similar problem: wings require periodic inspection, reserve parachutes require repacking, and power units require inspection and maintenance according to use and manufacturer guidance, while many pilots have only an approximate understanding of actual operating time and remaining service intervals.
 
-Flight recording is secondary as immediate user value, but a replayable `Flight` and historically faithful data are important to the product and its development. A flight emulator is an important engineering foundation for testing flight behavior, data processing, and algorithms without requiring a real flight.
+AirLink should therefore address not only fragmented information, but also the absence of a coherent and repeatable operating process. It should help make sound aviation principles, preparation habits, and equipment-awareness practices a natural part of normal paramotor flying rather than an additional administrative burden.
 
-## Initial Target User
+Beyond Flight, relevant people, real activity, places, routes, equipment, events, organizations, services, and opportunities remain fragmented and weakly connected to the flying activity they concern.
 
-The initial target user is a paramotor pilot preparing for and conducting an actual flight. The initial framing must not broaden this primary audience to all aviation users.
+As a result, pilots and other participants must repeatedly search for information, reconcile conflicting meanings, move between unrelated tools, and reconstruct relationships that should naturally exist within one connected flying context.
 
-Applicability to other pilots may be explored later, but it is not part of the accepted initial audience.
+## Mission
 
-## Initial Operating Scenario
+**Help pilots fly with better information and less cognitive burden, while connecting the people, activity, places, equipment, and opportunities that form the wider life of flying.**
 
-The first scenario is a solo local paramotor flight in visual meteorological conditions (VMC):
+## Product Structure
 
-1. prepare for the flight at the pilot's current location;
-2. take off;
-3. fly freely;
-4. return to the takeoff area.
+AirLink is built around two interdependent product pillars:
 
-Wind strength and gusts are critical preflight weather factors. Complex routes, long-distance navigation, fleet operations, schools, and commercial workflows are outside this initial scenario.
+1. **Flight Support**
+2. **Pilot Ecosystem**
 
-The Takeoff Point is the primary special navigation point. It is based on actual takeoff rather than the location where Flight Mode was entered.
+Both pillars are necessary to the complete product vision, although their development does not begin simultaneously.
 
-## Product Problem — Proposed Synthesis
+Development starts with Flight Support because it provides the immediate practical reason for pilots to adopt and use AirLink.
 
-**Proposed formulation for owner review:** A paramotor pilot preparing for and performing a local flight must interpret weather and flight information that can be fragmented across tools, presented with inconsistent semantics, or require additional mental reconciliation at a time when clarity matters.
+The Pilot Ecosystem extends that value beyond individual Flights, strengthens continued use and discovery, connects the wider life of the sport, and provides a foundation for broader reach and long-term sustainability.
 
-The legacy sources describe a broader fragmentation problem across preparation, flight, logging, sharing, and community activity. The current formulation retains the fragmentation theme but narrows it to the accepted initial pilot, weather, and in-flight information scope.
+Flight Support without the Pilot Ecosystem could remain an isolated utility used only around individual Flights.
 
-## Intended Value
+The Pilot Ecosystem without credible Flight Support and real flying activity could become a generic engagement product disconnected from the practical needs of flying.
 
-The accepted initial value has two connected parts:
+AirLink derives its long-term value from the relationship between the two.
 
-- reliable and semantically correct preflight weather information, initially for the pilot's current location;
-- reliable presentation of important flight information during the flight.
+## Flight Support
 
-AirLink should make the meaning and provenance of important quantities explicit. It must not conflate Ground Speed with Airspeed, Track with Heading, True North with Magnetic North, altitude ASL with altitude AGL, measured with derived or user-provided values, or actual with estimated values.
+Flight Support helps a pilot prepare for, conduct, and complete a Flight through one coherent product experience.
 
-All pilot-facing navigation directions are intended to use True North. The exact parameter definitions and sources belong in later WIP models.
+It should reduce the need to gather and mentally reconcile important information from unrelated tools and interfaces.
 
-## Product Mission — Proposed Formulation
+Flight Support should not merely display measurements or reproduce existing information sources. It should help the pilot understand what available information means in the current flying context and how it may affect the Flight.
 
-**Proposed formulation for owner review:** Help a paramotor pilot prepare for and conduct a local VMC flight with reliable weather and flight information whose meaning is clear.
+Its long-term context may include weather, wind, airspace, navigation, equipment, readiness, aircraft-related information, pilot context, Flight information, and other relevant factors.
 
-This is a constrained synthesis, not accepted final wording. It intentionally excludes the legacy ambition to serve every participant and commercial activity across the wider free-flight ecosystem.
+The exact capabilities included in any release are defined separately and are not implied by this Vision.
 
-## Initial Product Boundaries
+## Pilot Ecosystem
 
-- The first client is Android, while the product should remain conceptually compatible with future Android and iOS clients.
-- Preflight weather initially concerns the pilot's current location; no provider, forecast model, refresh interval, or warning threshold is selected here.
-- Paramotor operation is considered only in VMC.
-- Complex route navigation is deferred.
-- Available fuel and average consumption may become user inputs, but fuel modeling and remaining-fuel logging are outside the first Flight Log scope.
-- Architecture, frameworks, services, storage, APIs, and implementation technologies are not selected.
+The Pilot Ecosystem is the connected environment around real flying activity.
 
-Normal application use and Flight Mode are distinct. Flight Mode is entered and exited explicitly, indicates intention to fly, and enables takeoff and landing detection. It is not a persisted domain object. A single continuous period in Flight Mode may contain multiple Flights. Detailed lifecycle behavior belongs in a later Flight Mode model.
+It connects the participants and activities that make flying possible, including pilots, Flights, instructors, schools, organizers, manufacturers, equipment, service providers, communities, places, routes, events, tours, and other relevant participants and entities.
 
-A `Flight` is one continuous airborne episode between takeoff and landing. There is no separate Flight Session entity. Its detailed data structure belongs in a later Flight model.
+These participants are members of the same ecosystem rather than secondary providers serving one privileged class of participant.
+
+Each contributes a different form of value and may receive practical, social, professional, or commercial benefit according to their role.
+
+The purpose of the ecosystem is not to place one participant above another. Its purpose is to establish meaningful relationships among them around real flying activity.
+
+The ecosystem is grounded in real-world context rather than arbitrary engagement:
+
+- a pilot may share a completed or planned Flight;
+- recorded Flights may contribute to aggregated activity such as flying heatmaps;
+- organizers may publish events, gatherings, courses, or flying tours;
+- schools and instructors may provide training;
+- manufacturers may connect equipment with the pilots who use it;
+- service providers may support real equipment and operational needs.
+
+These examples illustrate the nature of the ecosystem. They do not define a feature catalogue or release commitment.
+
+The Pilot Ecosystem is not conceived as a generic stream of posts, chats, and opinions. Its content and relationships arise from actual flying, actual participants, and real activities, places, equipment, events, and services.
+
+## Value Beyond Flight
+
+The Pilot Ecosystem extends AirLink's usefulness beyond preparation and Flight.
+
+It allows AirLink to remain relevant throughout the wider life of flying by helping participants discover:
+
+- people and communities;
+- nearby and wider flying activity;
+- places and routes;
+- equipment and manufacturers;
+- schools, instructors, and training;
+- events and organized Flights;
+- services and maintenance;
+- other opportunities related to flying.
+
+This broader context is central to the purpose of the ecosystem. AirLink should not become an application used only during suitable weather or on the day of a Flight.
+
+## Ecosystem Growth and Network Value
+
+The value of the Pilot Ecosystem grows as more relevant participants, real activity, and real-world context become meaningfully connected.
+
+A new contribution may create value for several participants rather than only for the party that created it.
+
+For example, a Flight may be useful to its pilot, other pilots, organizers, places, equipment context, and aggregated flying knowledge. An event may connect pilots, organizers, locations, routes, instructors, services, and equipment.
+
+This network effect is an inherent property of the Pilot Ecosystem, not a requirement to maximize engagement or attention.
+
+## Commercial Activity
+
+AirLink is not defined as a marketplace.
+
+Commercial relationships may nevertheless emerge naturally within the Pilot Ecosystem where they connect real flying needs with relevant equipment, education, services, events, tours, maintenance, or other opportunities.
+
+Marketplace capabilities may therefore become one useful instrument or aspect of the ecosystem's development. They are not the purpose of AirLink and are not implied as a committed feature or business model by this Vision.
+
+## Initial Product Focus
+
+The first target user is a paramotor pilot.
+
+The initial validation scenario is one paramotor pilot preparing for and completing a solo Flight. This deliberately narrow scenario provides a practical basis for proving the Flight Support concept without limiting AirLink's enduring product direction to that scenario.
+
+Flight Support begins with the paramotor pilot and the accepted initial product slice.
+
+The longer-term Pilot Ecosystem may extend to closely related forms of free flight where the underlying activities, participants, needs, and shared context overlap.
+
+Such expansion is a product direction, not a release commitment.
+
+## Initial Product Outcome
+
+The initial product proves the Flight Support pillar through one coherent paramotor-flight flow:
+
+- preparation;
+- Pre-Flight;
+- Flight Mode;
+- in-flight support;
+- Flight completion.
+
+The observable initial outcome is:
+
+**A paramotor pilot can move through preparation, Flight, and completion as one coherent flow, receiving important information when it is needed and in a form that supports timely, better-informed, and safer decisions.**
+
+The detailed content of this flow belongs in the accepted MVP scope and subsequent product specifications. It is not defined by this Vision.
+
+## Safety and Pilot Responsibility
+
+AirLink is intended to contribute to safer and better-informed flying.
+
+It does this by:
+
+- identifying relevant risks where available information supports such a conclusion;
+- reducing avoidable cognitive load;
+- making important information understandable when it matters;
+- presenting the practical meaning and possible consequences of relevant conditions;
+- supporting timely pilot decisions.
+
+AirLink should make unsafe or high-risk conditions explicit when the available information provides sufficient grounds to do so.
+
+The product may, for example, identify weather outside reasonable conditions, show deteriorating in-flight context, estimate whether a safe landing area may be reachable, or warn that available information indicates elevated risk.
+
+AirLink does not guarantee safety.
+
+It does not replace:
+
+- pilot judgment;
+- accurate information supplied by the pilot;
+- official aviation information;
+- regulatory requirements;
+- equipment inspection;
+- training;
+- operational responsibility.
+
+The pilot retains the final decision and responsibility for the Flight.
+
+A pilot may provide incorrect or incomplete information, use equipment different from the declared configuration, misunderstand a warning, or knowingly continue despite an identified risk. AirLink should communicate its information and limitations clearly, but it cannot assume authority over the pilot's operational choices.
+
+## Information Integrity
+
+AirLink should prefer semantic correctness over superficial simplicity.
+
+Where meaning affects interpretation or decisions, the product should clearly distinguish between information that is:
+
+- measured;
+- estimated;
+- derived;
+- declared or entered by a participant;
+- recorded;
+- aggregated.
+
+Different concepts must not be presented as interchangeable merely because they can be shown using similar values.
+
+Important information should communicate its meaning, relevance, limitations, and provenance where these affect its proper use.
+
+AirLink should remain useful without pretending that estimates or incomplete information are exact measurements.
+
+## Cognitive Load and Presentation
+
+Important information should be understandable quickly enough for the context in which it is used.
+
+During Flight, the product should prioritize:
+
+- immediate comprehension;
+- low cognitive burden;
+- clear visual hierarchy;
+- semantic correctness;
+- visibility of safety-relevant information.
+
+This principle does not define any particular screen layout, map orientation, control, parameter set, or user-interface solution.
+
+## Flight Simulation Framework
+
+AirLink must support realistic validation of critical flight behavior without requiring a real Flight for every development and test cycle.
+
+For the initial product, an integrated Flight Simulation Framework is a mandatory product-enabling capability.
+
+It is essential to making the product feasible to develop, iterate, validate, and review within realistic time, cost, and resource constraints.
+
+The Flight Simulation Framework is not a third product pillar and is not defined as direct end-user value. It exists to enable credible development and validation of Flight Support.
+
+Its architecture, fidelity, scenarios, interfaces, data generation, automation, and testing strategy belong in engineering planning and later specifications.
 
 ## Product Principles
 
-- Prefer semantic correctness over visual convenience.
-- Clearly distinguish measured, derived, estimated, and user-entered information.
-- Do not present an ambiguous value without naming its meaning.
-- Use True North as the reference for pilot-facing navigation directions.
-- Keep the pilot centered in the main preflight and flight presentation while map and compass graphics rotate according to the selected orientation; do not treat this as a screen-layout decision.
-- Preserve historical values used during a Flight rather than silently replacing them during replay with results from future algorithm versions.
-- Keep ordinary product logging distinct from diagnostic logging.
-- Reconstruct and accept legacy concepts selectively rather than importing the old project wholesale.
+AirLink should follow these enduring product principles.
 
-The final in-flight choice between Track-up and estimated Heading-up remains deferred for experimentation and pilot feedback.
+### Real Activity Before Artificial Engagement
 
-## Initial Product Perspective
+The product and ecosystem should remain grounded in actual flying activity, real participants, and relevant real-world context.
 
-The initial perspective follows the pilot's immediate flight context:
+### Meaning Before Data Volume
 
-- **Before flight:** present reliable current-location weather, with particular attention to wind strength and gusts.
-- **During flight:** present important flight information with explicit semantics and a pilot-centered orientation model.
-- **After flight:** retain enough physical-flight information for historically faithful replay, without recording the complete internal application state.
+AirLink should prioritize understandable and relevant information rather than maximizing the number of displayed values or collected records.
 
-This perspective is not a feature catalog or a definition of screen layout. Detailed Flight Mode, Flight, navigation, logging, and parameter behavior requires separate owner-reviewed WIP.
+### Safer Decisions Without False Authority
 
-## Longer-Term Direction
+AirLink should actively identify and explain supported risks while leaving operational authority and responsibility with the pilot.
 
-The legacy vision imagined AirLink as broad infrastructure supporting preparation, flight, analysis, community participation, and commercial activity for many roles. The restarted project does not accept that breadth as a current requirement.
+### Coherent Experience Over Isolated Features
 
-The following remain bounded longer-term directions or hypotheses:
+Capabilities should contribute to a coherent product outcome rather than exist as unrelated instruments, screens, or feature demonstrations.
 
-- the product may support other free-flight pilots after proving value for the initial paramotor scenario;
-- future Android and iOS clients should be conceptually possible;
-- preparation, in-flight support, and post-flight analysis may eventually form a coherent product journey;
-- replayable Flights and emulation may support future product improvement and testing.
+### Reduced Cognitive Burden
 
-No marketplace, social platform, school-management system, or universal aviation ecosystem is currently accepted.
+The service should reduce unnecessary searching, repetition, interpretation, and manual reconciliation.
 
-## Concepts Retained from Legacy
+### Native Value for Every Participant
 
-The following legacy concepts are retained because they are consistent with current accepted direction:
+Each participant should receive value appropriate to their role through natural participation in the ecosystem.
 
-- pilots face fragmentation across tools and information sources;
-- the product can support preparation, the flight itself, and later analysis, while the initial value remains concentrated before and during flight;
-- an individual pilot benefits from accurate, understandable information;
-- simulation can support development and testing without requiring a real flight;
-- the product may create a coherent flight history, provided recorded historical meaning is preserved.
+### Real Relationships Over Generic Social Features
 
-Legacy safety language is retained only as an aspiration to support better-informed pilot decisions. AirLink is not claimed to guarantee safety or replace judgment, official sources, or regulatory responsibility.
+Social, professional, educational, operational, and commercial relationships should arise from the real context of flying rather than from engagement mechanisms detached from that context.
 
-## Deferred or Not Yet Accepted Concepts
+### Explicit Simplification
 
-The following are not part of the accepted initial Product Vision:
+Early omissions and narrow scenarios should be treated as deliberate, reversible simplifications rather than permanent definitions of the product.
 
-- a broad audience of instructors, schools, tandem customers, tourists, manufacturers, families, and observers;
-- social publishing, messaging, events, reviews, galleries, and community infrastructure;
-- marketplaces, vouchers, equipment sales, and other commercial systems;
-- school, instructor, fleet, CRM, or customer-flow management;
-- detailed checklists, alerts, SOS behavior, landing-zone assistance, or automatic recommendations;
-- complex routes, route sharing, and detailed navigation behavior;
-- detailed weather, wind, fuel, equipment, or flight-log specifications;
-- a claim that AirLink should become a universal platform or digital standard for free flight.
+### Product Meaning Before Implementation Structure
 
-These concepts are deferred, rejected from the current scope, or require later product discovery. Their presence in legacy material does not make them current requirements.
+AirLink should model real participants, processes, activities, and relationships before defining screens, services, schemas, or implementation modules.
 
-## Assumptions and Hypotheses
+## Vision Boundaries
 
-- **Hypothesis:** Bringing weather and in-flight information into one coherent experience will reduce avoidable mental reconciliation for the pilot.
-- **Hypothesis:** Explicit parameter semantics will improve trust and reduce misinterpretation.
-- **Hypothesis:** A narrow paramotor scenario can establish product value before considering other pilot groups.
-- **Hypothesis:** Replay and emulation will make flight behavior and algorithms more testable and reviewable.
-- **Assumption:** The initial product can provide useful decision support without attempting to cover every phase, role, or service described by the legacy vision.
+This Product Vision does not define:
 
-These statements require validation and must not be treated as accepted requirements.
+- a feature catalogue;
+- a complete product lifecycle;
+- a roadmap or release sequence;
+- the detailed MVP 0.1 scope;
+- application architecture;
+- technology choices;
+- mobile, web, and server decomposition;
+- providers or external services;
+- algorithms or formulas;
+- warning thresholds;
+- detailed weather or flight parameters;
+- domain schemas;
+- recording or storage rules;
+- screen layout or application navigation;
+- a social-feed design;
+- a marketplace implementation;
+- a school-management system;
+- a mandatory business model;
+- detailed commercial workflows.
 
-## Open Product Questions
+These matters require separate product discovery, owner decisions, bounded issues, domain specifications, or engineering planning.
 
-- Is the proposed problem formulation precise enough for the first product slice?
-- What final mission wording should be promoted into canonical Product Vision?
-- What observable pilot outcome should demonstrate that the initial product provides value?
-- What is the minimum preflight weather set beyond the accepted emphasis on wind strength and gusts?
-- What is the minimum in-flight information set for the initial scenario?
-- Which wording accurately describes safety-related value without overstating the product's authority or capability?
-- Should broader applicability to other free-flight pilots remain a long-term direction, or be removed until the first scenario is validated?
-- Which, if any, broader legacy concepts deserve later product discovery?
+## Relationship to Product Direction
 
-## Non-goals of This WIP
+This Vision defines the enduring purpose and structure of AirLink.
 
-This WIP does not define architecture, implementation technology, APIs, databases, mobile/web/server decomposition, algorithms, detailed domain models, recording intervals, warning thresholds, routes, UI layouts, a feature catalog, or an implementation plan.
+Product Direction describes the broader domains, relationships, possible capabilities, and evolution paths through which that Vision may be realized.
 
-It does not create canonical Product Vision or approve any retained legacy concept merely by mentioning it.
+Neither Product Direction nor this Vision automatically commits a capability to MVP 0.1 or any later release.
 
-## Expected Promotion Path
+Release scope must be accepted separately.
 
-After owner and ChatGPT review, accepted material may be rewritten or moved into the canonical `docs/product/vision/` area. Promotion requires explicit owner acceptance, deliberate handling of open questions, and an update to the product documentation index.
+## Deferred Questions
+
+The specific timing, sequence, and form through which the Pilot Ecosystem develops remain deferred to later product discovery and release planning.
+
+This includes decisions about:
+
+- expansion beyond the initial paramotor focus;
+- prioritization of ecosystem participants and domains;
+- social and discovery capabilities;
+- schools, instructors, events, tours, manufacturers, equipment, maintenance, and services;
+- possible marketplace capabilities;
+- business and sustainability models.
+
+These areas are part of the accepted product direction but are not requirements until separately reviewed and approved.
+
+## Product Vision Summary
+
+AirLink is intended to connect two inseparable forms of value:
+
+- practical support for real Flights;
+- a living ecosystem around real flying activity.
+
+It begins by helping a paramotor pilot prepare for, conduct, and complete a Flight with clearer information, lower cognitive burden, and explicit support for safer decisions.
+
+It can grow into a connected environment in which pilots, Flights, places, routes, instructors, schools, organizers, manufacturers, equipment, services, events, and communities form meaningful relationships and create value for one another.
+
+Flight Support provides the practical reason to begin using AirLink.
+
+The Pilot Ecosystem makes AirLink useful throughout the wider life of flying.
+
+Together, they define the product.
