@@ -44,7 +44,7 @@ None. Product implementation has not started.
 
 ## Active Constraints
 
-- Do not begin mobile, web, server, or infrastructure implementation during the current foundation iteration unless a separately approved iteration or issue authorizes it.
+- Do not begin mobile, web, server, or infrastructure implementation during the current foundation iteration. Implementation may begin only under a later iteration, or after the active iteration has been explicitly revised, and must also be bounded by an approved issue.
 - Do not treat previous technology choices or feature lists as accepted requirements.
 - Use only the minimum legacy material needed for the current product question.
 - Do not treat WIP product artifacts as canonical specifications or implementation authority.
