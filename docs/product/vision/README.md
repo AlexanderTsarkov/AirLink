@@ -1,6 +1,6 @@
 # Product Vision
 
-This directory contains the accepted canonical Product Vision for AirLink.
+This directory is the intended location for the accepted canonical Product Vision for AirLink.
 
 No canonical Product Vision has been accepted yet.
 
