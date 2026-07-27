@@ -12,8 +12,8 @@ This draft is based on the execution scope for GitHub issue [#11](https://github
 
 The mechanism preserves these distinct responsibilities:
 
-- **Product Direction** describes AirLink's long-term purpose, shape, principles, two product pillars, full flight lifecycle, fundamental domains, and evolution constraints. The current Product Direction artifact is WIP and does not automatically override canon, an approved iteration, or an explicit owner decision.
-- **Product Vision** describes the initial product focus and value proposition. The current Product Vision is also WIP and under review.
+- **Product Vision** defines AirLink's enduring purpose, mission, two interdependent product pillars, initial product focus, and initial validation outcome. The current Product Vision artifact remains WIP until canonical promotion.
+- **Product Direction** expands Product Vision through the broader flight lifecycle, fundamental domains, relationships, possible capabilities, and product-evolution constraints. The current Product Direction artifact is WIP and does not automatically override canon, an approved iteration, or an explicit owner decision.
 - **`CurrentState.md`** records accepted durable project and product state outside an individual iteration.
 - **`ITERATION.md`** defines the purpose, boundaries, and constraints of the active work cycle.
 - **Canonical domain specifications** define accepted detailed product behavior when such specifications exist.
@@ -44,12 +44,12 @@ Whenever the separately approved active routing rule in [`AGENTS.md`](../../../A
 
 1. Classify the task using its goal, affected artifacts, accepted issue scope, and expected product impact.
 2. If no product-significant trigger applies, continue under normal repository and task context without loading Product Governance or Product Direction.
-3. If a trigger applies or is discovered during execution, load Product Governance, Product Direction, and only the relevant domain and product-decision artifacts.
+3. If a trigger applies or is discovered during execution, load Product Governance, Product Vision, Product Direction, and only the relevant domain and product-decision artifacts.
 4. Perform the Product Direction Alignment check.
 5. Record the outcome in the appropriate product-significant artifact.
 6. Stop for an owner decision when the outcome is `Requires product decision` or `Conflicts with Product Direction`.
 
-Product Direction should be referenced rather than copied into iterations, issues, prompts, or plans. A triggered task should load enough context to evaluate the affected product concern, not every future domain. Routine work should normally remain bounded to `ITERATION.md`, the relevant accepted specifications, the issue or prompt, and the implementation context.
+Product Vision and Product Direction should be referenced rather than copied into iterations, issues, prompts, or plans. A triggered task should load enough context to evaluate the affected product concern, not every future domain. Routine work should normally remain bounded to `ITERATION.md`, the relevant accepted specifications, the issue or prompt, and the implementation context.
 
 ### Reviewed trigger model
 
@@ -65,7 +65,7 @@ Product Direction should be referenced rather than copied into iterations, issue
 - changing the intended role of a major product surface;
 - making an architecture decision that depends on unresolved product semantics;
 - preparing a product-significant issue, plan, or execution prompt;
-- detecting a conflict between local work, current canon, active iteration, issue scope, or Product Direction;
+- detecting a conflict between local work, current canon, active iteration, issue scope, Product Vision, or Product Direction;
 - conducting a major product or milestone review;
 - the owner explicitly classifies the work as product-significant.
 
@@ -73,7 +73,7 @@ For current repository operation, only the triggers stated in `AGENTS.md` are ma
 
 ### Routine non-triggers and discovered significance
 
-The full Product Governance and Product Direction documents normally should not be loaded for:
+The full Product Governance, Product Vision, and Product Direction documents normally should not be loaded for:
 
 - a local bug fix that restores already accepted behavior;
 - behavior-preserving refactoring;
@@ -90,14 +90,14 @@ If supposedly routine work reveals unresolved product semantics, a product confl
 
 For product-significant work, answer these questions concisely; record `Not applicable` when a question genuinely does not apply:
 
-1. Does the proposal support the intended purpose of AirLink?
+1. Does the proposal support the enduring purpose and mission defined by Product Vision?
 2. Does it advance Flight Support, Pilot Ecosystem, or the relationship between them?
 3. Does it model a real pilot process rather than only a convenient screen structure?
 4. Is every MVP or iteration simplification explicit, bounded, and reversible?
 5. Does the local model deny, collapse, or permanently constrain a known future domain?
 6. Does the proposal reduce routine through useful reuse and automation, or add avoidable burden?
 7. Is any product behavior, requirement, or authority being invented without owner acceptance?
-8. Does the change require an explicit revision of Product Direction rather than a silent local exception?
+8. Does the change require an explicit revision of Product Vision or Product Direction rather than a silent local exception?
 
 The check is a compact planning and review tool, not a required long-form questionnaire for routine work.
 
@@ -106,10 +106,10 @@ The check is a compact planning and review tool, not a required long-form questi
 | Outcome | Meaning and permission to proceed | Required record and authority |
 | --- | --- | --- |
 | `Not product-significant` | No trigger applies. Work may proceed under normal repository and task context. | No standalone alignment record or owner decision is normally required. If classification occurred after a check began, note the reason briefly in the working artifact. |
-| `Aligned` | The proposal supports Product Direction and remains within accepted product and task scope. Work may proceed. | Record a compact conclusion in the relevant product-significant iteration, issue, plan, prompt, or review. No new owner decision is required beyond the authority already governing that work. |
+| `Aligned` | The proposal supports Product Vision and Product Direction and remains within accepted product and task scope. Work may proceed. | Record a compact conclusion in the relevant product-significant iteration, issue, plan, prompt, or review. No new owner decision is required beyond the authority already governing that work. |
 | `Aligned with explicit simplification` | The proposal uses a simplification already made explicit and accepted in an owner-approved iteration, issue, product decision, or other appropriate artifact. Work may proceed only within that approval. | Record what is simplified or omitted, why it is bounded, why it is reversible, where approval is recorded, and which long-term concept remains intentionally deferred. If the simplification is new, product-semantic, or lacks identifiable approval, use `Requires product decision` instead. An agent cannot approve its own material exception. |
-| `Requires product decision` | Product Direction does not define needed behavior, or the proposal introduces a new product-semantic choice or unapproved simplification. Affected work must stop. | Identify the missing decision and bounded alternatives and consequences when useful. An explicit owner decision is required. Record the resolution in the correct durable artifact and revise iteration or issue scope through separately approved changes when necessary. |
-| `Conflicts with Product Direction` | The proposal or another governing source materially disagrees with Product Direction. Affected work must stop; no guessed compromise may be implemented. | Record the exact conflicting statements and classify their authority. An explicit owner decision is required. Product Direction, canon, iteration scope, issue scope, or another durable artifact may then require a separately approved revision. |
+| `Requires product decision` | Product Vision and Product Direction do not define needed behavior, or the proposal introduces a new product-semantic choice or unapproved simplification. Affected work must stop. | Identify the missing decision and bounded alternatives and consequences when useful. An explicit owner decision is required. Record the resolution in the correct durable artifact and revise iteration or issue scope through separately approved changes when necessary. |
+| `Conflicts with Product Direction` | The proposal or another governing source materially disagrees with Product Vision or Product Direction. Affected work must stop; no guessed compromise may be implemented. | Record the exact conflicting statements and classify their authority. An explicit owner decision is required. Product Vision, Product Direction, canon, iteration scope, issue scope, or another durable artifact may then require a separately approved revision. |
 
 ## Conflicts, Missing Decisions, and Document Ownership
 
@@ -123,7 +123,7 @@ When the active routing rule invokes this alignment procedure and canon, iterati
 6. request an explicit owner decision;
 7. record the accepted resolution in the artifact responsible for that decision when appropriate.
 
-Product Direction does not automatically override current canon or an explicit owner-approved iteration, issue, or decision. Two WIP documents do not establish precedence over one another. A local proposal remains a proposal, and overlapping document responsibilities should be resolved using the responsibility boundaries above rather than by duplicating content.
+Product Vision and Product Direction do not automatically override current canon or an explicit owner-approved iteration, issue, or decision. Product Vision defines enduring purpose, mission, pillars, and initial validation focus; Product Direction expands those decisions into broader domains, lifecycle relationships, and evolution paths. Two WIP documents do not establish precedence over canon, and a local proposal remains a proposal. Overlapping document responsibilities should be resolved using these boundaries rather than by duplicating content.
 
 Product Direction may identify a domain or future capability without defining its detailed behavior. A future capability is not automatically a current requirement, and missing behavior remains undefined. An agent must not infer detailed requirements from long-term direction alone. When detail becomes necessary, the appropriate response is a bounded discovery, WIP, or product-decision task. Any temporary assumption affecting product semantics must be explicit, bounded, reversible, and owner-approved.
 
@@ -132,7 +132,7 @@ Product Direction may identify a domain or future capability without defining it
 When this procedure is invoked by the active rule in `AGENTS.md`, product-significant artifacts may use compact alignment records:
 
 - **Iteration checkpoint:** direction advanced, intentional simplifications, long-term concepts deliberately excluded, direction risks, unresolved owner decisions, and outcome.
-- **Issue, prompt, or planning note:** trigger, relevant direction and decisions, any accepted simplification, unresolved decision, and outcome.
+- **Issue, prompt, or planning note:** trigger, relevant Vision, Direction, and accepted decisions, any accepted simplification, unresolved decision, and outcome.
 - **Draft PR review:** confirmation that the change matches the accepted product decision, preserves declared simplifications, introduces no hidden product behavior, and exposes any remaining conflict.
 - **Routine task:** omit these sections unless a trigger is discovered.
 
@@ -140,8 +140,8 @@ These formats remain guidance in this WIP. They do not modify iteration, issue, 
 
 ## Scope, Review, and Future Integration
 
-This WIP does not independently activate repository rules, change source-of-truth order, modify protected governance files, promote Product Direction or Product Vision into canon, authorize Product Governance or an agent to make product decisions, or define product features, UI, detailed behavior, schemas, APIs, algorithms, architecture, technology, roadmap, or release scope. It does not require Product Direction review for routine technical work. The current obligation to consult it for qualifying work comes from `AGENTS.md`.
+This WIP does not independently activate repository rules, change source-of-truth order, modify protected governance files, promote Product Direction or Product Vision into canon, authorize Product Governance or an agent to make product decisions, or define product features, UI, detailed behavior, schemas, APIs, algorithms, architecture, technology, roadmap, or release scope. It does not require Product Vision or Product Direction review for routine technical work. The current obligation to consult it for qualifying work comes from `AGENTS.md`.
 
-The routing sequence, trigger grouping, alignment check, and outcome actions are constrained governance synthesis for owner review. No new product decision is proposed. The existing future wording-alignment point between Product Vision and Product Direction remains unresolved and outside this task; this document neither interprets nor resolves it.
+The routing sequence, trigger grouping, alignment check, and outcome actions are constrained governance synthesis for owner review. No new product decision is proposed. The responsibility boundary between Product Vision and Product Direction has been explicitly resolved through owner review in issue #21 and is reflected in the artifact responsibilities above.
 
 Future canonical promotion remains a separate owner-controlled task; accepted durable content may later be rewritten or promoted into canonical `docs/product/ProductGovernance.md`. Changes to active routing, trigger activation, iteration checkpoints, or template integration require separate bounded tasks and explicit owner approval. Because `AGENTS.md` invokes the current alignment procedure in this WIP, merged changes to the referenced check or outcomes can affect required agent behavior and must therefore be explicitly owner-approved and reviewed. Until canonical promotion, this document remains WIP, non-canonical, and not an implementation requirement; it does not independently alter active routing or product authority.

@@ -27,7 +27,7 @@ This directory contains accepted product documentation and controlled product WI
 
 ## Work in Progress
 
-- `wip/product-vision-reconstruction.md` — reconstructs the initial Product Vision while separating accepted direction from legacy concepts, proposed synthesis, hypotheses, deferred areas, and open questions.
+- `wip/product-vision-reconstruction.md` — records the owner-reviewed, promotion-ready Product Vision WIP, including the enduring product purpose, two interdependent pillars, initial paramotor validation focus, safety position, product principles, deferred questions, and promotion path.
 - `wip/mvp-0.1-scope.md` — defines the owner-reviewed product-level boundary of MVP 0.1, its first meaningful end-to-end product slice, explicit non-scope, deferred decisions, and the mandatory Flight Simulation Framework.
 - `wip/product-direction.md` — records the owner-approved long-term direction of AirLink as a service while keeping future concepts separate from MVP and release requirements.
 - `wip/product-governance.md` — describes the alignment procedure referenced by the active routing rule in `AGENTS.md`; it remains WIP and non-canonical and does not independently control routing, trigger activation, or product authority. Because active policy invokes the current procedure, merged changes to its referenced checks or outcomes can affect required agent behavior and therefore require explicit owner approval and normal repository review.
