@@ -149,9 +149,9 @@ For a manually saved Flight, whether a Landing Point exists and how it is classi
 
 ## Summary and Replay Relationship
 
-A completed Flight makes a summary available. A Flight should also contain enough information to support later replay of the physical flight situation and principal information available to the pilot.
+A completed Flight makes a summary available. MVP 0.1 Scope defines the minimum pilot-facing saved-Flight information and requires a recorded map track plus principal summary information.
 
-The Flight model establishes that responsibility but does not define summary fields, recorded series, replay behavior, or a persistence schema. Those belong to later, separately reviewed work.
+A Flight should also contain enough time-varying physical-flight and pilot-visible information to support historically faithful future replay. The exact retained values, sampling rules, provenance, validity, precision, and persistence representation remain deferred to later logging and parameter work.
 
 ## Excluded and Deferred Concepts
 
@@ -161,7 +161,7 @@ The Flight model establishes that responsibility but does not define summary fie
 - takeoff and landing detectors;
 - rolling-buffer duration and retrospective analysis;
 - exact start-time, Takeoff Point, and Landing Point determination;
-- summary content and replay behavior;
+- replay behavior;
 - landing-zone logic and landing assistance;
 - architecture, APIs, services, frameworks, and UI layout.
 
@@ -176,5 +176,5 @@ The final canonical location has not yet been selected and must not be created b
 - What exact semantic distinction should be used between detected and confirmed takeoff and landing?
 - Must every manually saved Flight have a Landing Point, and how should that point avoid falsely implying a confirmed landing?
 - What quality or confidence information, if any, should accompany retrospectively estimated start time and Takeoff Point?
-- What minimum information is required for a Flight to support useful summary and faithful replay? This belongs to later logging and parameter work.
+- Which time-varying physical-flight and pilot-visible values, sampling rules, and provenance information must be retained to support historically faithful future replay?
 - How should an interrupted Flight be classified when neither confirmed landing nor deliberate manual completion is available?
