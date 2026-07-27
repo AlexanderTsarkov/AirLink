@@ -51,6 +51,7 @@ During the foundation step:
 - `docs/README.md` — documentation map;
 - `docs/product/README.md` — product canon and WIP index;
 - `docs/product/CurrentState.md` — accepted current project state;
+- `docs/product/vision/ProductVision.md` — accepted canonical Product Vision;
 - `docs/product/wip/` — active product drafts;
 - `docs/chatgpt/README.md` — minimal ChatGPT operating context;
 - GitHub issues — bounded task definitions and acceptance criteria.
@@ -98,8 +99,8 @@ Additional artifacts may be added only when a concrete need appears.
 - **Intentional simplifications:** For this iteration, AirLink does not implement mobile, web, or server functionality; select frameworks, languages, databases, cloud services, map providers, or other implementation technologies; define final system architecture, the complete continuing flight lifecycle, or detailed future product domains; or implement the wider Pilot Ecosystem. These are temporary iteration boundaries, not rejection of those long-term concepts, and they keep later choices explicit and reversible.
 - **Long-term concepts intentionally excluded:** Detailed treatment of Flight Support across preparation, Flight, completion, analysis, history, and later preparation remains outside this iteration, as do detailed definitions of Pilot, Flight, Weather, Route, Equipment, Airspace, Pre-Flight readiness, Feed, and the wider Pilot Ecosystem. They remain direction context only, not current requirements, a roadmap, or a feature backlog.
 - **Product-direction risks:** Foundation-era exclusions could be misread as permanent product limits; implementation could begin before the first meaningful product slice is explicitly selected; unresolved wording, acceptance, or authority relationships among Product Vision, Product Direction, Product Governance, and current canon could be assumed rather than decided; and WIP could be treated as canonical authority or implementation requirements.
-- **Resolved owner decisions:** The first meaningful product slice has been selected, and the responsibility boundary and wording alignment between Product Vision and Product Direction have been explicitly resolved through owner review.
-- **Unresolved owner decisions:** Canonical promotion of Product Vision, selection of the next iteration, and any later promotion or activation of Product Direction and Product Governance remain owner-controlled decisions. None of these decisions is made by this checkpoint.
+- **Resolved owner decisions:** The first meaningful product slice has been selected; the responsibility boundary and wording alignment between Product Vision and Product Direction have been explicitly resolved through owner review; and the accepted Product Vision has been promoted into canon.
+- **Unresolved owner decisions:** Selection of the next iteration and any later promotion or activation of Product Direction and Product Governance remain owner-controlled decisions. None of these decisions is made by this checkpoint.
 - **Outcome:** `Aligned with explicit simplification`. The iteration advances the controlled foundation required by AirLink's long-term direction, and its omissions are explicit, bounded, and reversible. No unresolved decision blocks the current foundation work within its existing scope.
 
 ## Iteration Completion Criteria
