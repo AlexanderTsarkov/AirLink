@@ -92,13 +92,13 @@ This gives the Takeoff Point a passive navigation-awareness role without assumin
 
 ## Passive Awareness
 
-Without Active Navigation, the product may provide passive awareness of Current Waypoint, including:
+For the initial scenario, passive Takeoff Point awareness requires:
 
-- point type;
-- map visibility;
-- distance.
+- distinct map visibility;
+- distance to the Takeoff Point;
+- direction or bearing toward the Takeoff Point.
 
-ETA is a **candidate example**, not an accepted mandatory value. Exact content, calculation, update behavior, priority, and presentation are deferred.
+Additional passive-awareness values remain deferred. ETA is a **candidate example**, not an accepted mandatory value. Exact calculation, update behavior, priority, and presentation are deferred.
 
 ## Active Guidance
 
@@ -147,7 +147,7 @@ This is a behavioral product principle, not a screen-layout specification. It do
 - landing-start versus landing-end semantics;
 - route editing and route collections;
 - detailed guidance outputs;
-- exact passive-awareness and navigation presentation;
+- additional passive-awareness values and detailed navigation presentation;
 - Track-up versus estimated Heading-up as the final in-flight orientation;
 - handling of missing or invalid direction and wind information;
 - parameter definitions, storage, APIs, services, architecture, and implementation technology.
@@ -162,7 +162,6 @@ The final canonical location has not yet been selected and must not be created b
 
 - What accepted transition disables Active Navigation?
 - What should happen if Current Waypoint becomes unavailable while Active Navigation is on?
-- Which passive-awareness values are required beyond the accepted possible examples?
 - Under what product-level validity conditions may estimated Heading be offered?
 - How should the selected in-flight orientation be evaluated with pilots before Track-up or estimated Heading-up is accepted?
 - Which parts of planned-route behavior, if any, are needed after the initial free-flight scenario?
