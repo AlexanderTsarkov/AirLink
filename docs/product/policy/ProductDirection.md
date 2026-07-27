@@ -1,8 +1,10 @@
 # AirLink Product Direction
 
-## Status
+## Status and Authority
 
-This document is **WIP**, **non-canonical**, and **not an implementation requirement**. It records owner-approved long-term product direction for review, but it does not become product canon until its content is explicitly accepted and promoted. See the [product WIP policy](README.md) for the governing rules.
+Product Direction is an **accepted product-policy artifact**. It is a living, owner-controlled statement of AirLink's broader product direction, not ordinary WIP awaiting promotion into a finished static specification.
+
+This document is not an implementation requirement, release scope, approved detailed behavior, architecture or technology decision, mandatory roadmap, or committed feature catalogue. Changes require a bounded task, explicit owner approval, and normal repository review. See the [product policy index](README.md) for its role and loading rules.
 
 ## Purpose and Authority
 
@@ -19,28 +21,28 @@ This document has a different responsibility from other project artifacts:
 
 Product processes and domain meaning are primary here. Screens and implementation structures are secondary representations and are not defined by this document.
 
-The owner-approved concepts identified below are authoritative inputs to this draft. The draft itself remains non-canonical and subject to deliberate owner review.
+The owner-approved concepts identified below form the accepted Product Direction. The document remains subject to deliberate owner-controlled evolution within its defined authority boundaries.
 
 ## Source Basis
 
-This WIP uses only:
+This document uses only:
 
 1. the owner-approved long-term product context supplied in the task execution prompt;
 2. [`ITERATION.md`](../../../ITERATION.md);
 3. canonical repository context in [`CurrentState.md`](../CurrentState.md), [`ProductVision.md`](../vision/ProductVision.md), and the [product documentation index](../README.md);
 4. GitHub issue [#9](https://github.com/AlexanderTsarkov/AirLink/issues/9) and its parent, issue [#8](https://github.com/AlexanderTsarkov/AirLink/issues/8);
-5. the existing [Flight Mode](flight-mode-model.md), [Flight](flight-model.md), and [Navigation](navigation-model.md) WIP documents listed in the product documentation index.
+5. the existing [Flight Mode](../wip/flight-mode-model.md), [Flight](../wip/flight-model.md), and [Navigation](../wip/navigation-model.md) WIP documents listed in the product documentation index.
 
-No additional legacy documents were consulted. Historical feature lists, architecture, technology choices, and commercial proposals are not sources of current product truth for this draft.
+No additional legacy documents were consulted. Historical feature lists, architecture, technology choices, and commercial proposals are not sources of current product truth for this document.
 
 ## Direction and Constrained Synthesis
 
-The broader domains, lifecycle, relationships, and evolution principles in this document come from owner-approved context. Explanatory connections between those concepts are constrained synthesis for owner review. They clarify the direction without adding requirements, release commitments, or detailed behavior.
+The broader domains, lifecycle, relationships, and evolution principles in this document come from owner-approved context. Explanatory connections between those concepts are constrained synthesis. They clarify the direction without adding requirements, release commitments, or detailed behavior.
 
 The responsibility boundary is intentional:
 
 - the canonical Product Vision defines AirLink's enduring purpose, mission, two interdependent pillars, and initial paramotor validation focus;
-- this Product Direction WIP expands that Vision through broader domains, lifecycle relationships, possible capabilities, and evolution paths.
+- this Product Direction expands that Vision through broader domains, lifecycle relationships, possible capabilities, and evolution paths.
 
 Pilot Ecosystem is accepted in Product Vision as one of AirLink's two enduring product pillars. The social, marketplace, school, service, maintenance, and wider ecosystem domains described here remain possible directions rather than commitments to MVP 0.1 or any other release unless separately approved. This document elaborates the Vision without superseding it or redefining release scope.
 
@@ -144,7 +146,7 @@ The product should be capable of distinguishing declared, recorded, and derived 
 
 Flight represents real flying activity and is a central context for Flight Support, history, and the Pilot Ecosystem. It may connect the pilot, equipment configuration, route context, weather, places, and later analysis without owning those domains.
 
-The existing [Flight model](flight-model.md) defines the narrower Flight boundaries currently under review. This document does not change those boundaries or define a broader Flight schema.
+The existing [Flight model](../wip/flight-model.md) defines the narrower Flight boundaries currently under review. This document does not change those boundaries or define a broader Flight schema.
 
 ### Weather
 
@@ -156,7 +158,7 @@ Providers, forecast models, parameter sets, refresh behavior, recommendations, a
 
 Route is a meaningful independent domain, not merely coordinates embedded inside a Flight. Routes may matter for unfamiliar terrain, difficult geography, forest or water crossings, planned cross-country Flights, coordination points, later reuse, and comparison.
 
-This direction does not define route formats, editors, storage, navigation algorithms, or UI. The existing [limited Navigation model](navigation-model.md) remains deliberately narrower and defers planned-route behavior.
+This direction does not define route formats, editors, storage, navigation algorithms, or UI. The existing [limited Navigation model](../wip/navigation-model.md) remains deliberately narrower and defers planned-route behavior.
 
 ### Equipment
 
@@ -281,10 +283,4 @@ These matters require later bounded discovery and explicit approval when they be
 
 The responsibility boundary between Product Vision and Product Direction has been explicitly resolved through owner review in issue #21: Product Vision defines enduring purpose, mission, pillars, and initial validation focus; Product Direction expands those decisions into broader domains, lifecycle relationships, and evolution paths.
 
-No other product question needs resolution for this direction-level draft. Detailed decisions remain deferred to the bounded work that requires them.
-
-## Expected Promotion Target
-
-After owner and ChatGPT review, accepted durable content is expected to be rewritten or promoted into canonical `docs/product/ProductDirection.md`.
-
-Promotion requires explicit owner acceptance, confirmation that the promoted Direction remains aligned with the canonical Product Vision, and an update to the product documentation index. Until then, this WIP remains a review artifact and not product canon or an implementation requirement.
+No other product question was required to establish the current direction-level content. Detailed decisions remain deferred to the bounded work that requires them.
