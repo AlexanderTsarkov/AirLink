@@ -350,6 +350,8 @@ Product presentation should communicate limitations appropriately without overlo
 
 ### Minimum Navigation Awareness, Not Route Navigation
 
+The Takeoff Point provides persistent return-to-start awareness.
+
 MVP 0.1 does not expand this into a general route-navigation system.
 
 ### Local Completeness Before Connected Features
