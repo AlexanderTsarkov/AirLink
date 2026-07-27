@@ -8,11 +8,11 @@ Product Governance defines routing and decision discipline for product-significa
 
 ## Sources and Artifact Responsibilities
 
-This draft is based on the execution scope for GitHub issue [#11](https://github.com/AlexanderTsarkov/AirLink/issues/11), umbrella issue [#8](https://github.com/AlexanderTsarkov/AirLink/issues/8), completed direction-drafting issue [#9](https://github.com/AlexanderTsarkov/AirLink/issues/9), [`ITERATION.md`](../../../ITERATION.md), canonical [`CurrentState.md`](../CurrentState.md), the [product documentation index](../README.md), the [Product Vision WIP](product-vision-reconstruction.md), and the owner-reviewed [Product Direction WIP](product-direction.md). No legacy AirLink material was consulted.
+This draft is based on the execution scope for GitHub issue [#11](https://github.com/AlexanderTsarkov/AirLink/issues/11), umbrella issue [#8](https://github.com/AlexanderTsarkov/AirLink/issues/8), completed direction-drafting issue [#9](https://github.com/AlexanderTsarkov/AirLink/issues/9), [`ITERATION.md`](../../../ITERATION.md), canonical [`CurrentState.md`](../CurrentState.md), the [product documentation index](../README.md), the canonical [Product Vision](../vision/ProductVision.md), and the owner-reviewed [Product Direction WIP](product-direction.md). No legacy AirLink material was consulted.
 
 The mechanism preserves these distinct responsibilities:
 
-- **Product Vision** defines AirLink's enduring purpose, mission, two interdependent product pillars, initial product focus, and initial validation outcome. The current Product Vision artifact remains WIP until canonical promotion.
+- **Product Vision** defines AirLink's accepted enduring purpose, mission, two interdependent product pillars, initial product focus, and initial validation outcome.
 - **Product Direction** expands Product Vision through the broader flight lifecycle, fundamental domains, relationships, possible capabilities, and product-evolution constraints. The current Product Direction artifact is WIP and does not automatically override canon, an approved iteration, or an explicit owner decision.
 - **`CurrentState.md`** records accepted durable project and product state outside an individual iteration.
 - **`ITERATION.md`** defines the purpose, boundaries, and constraints of the active work cycle.
@@ -123,7 +123,7 @@ When the active routing rule invokes this alignment procedure and canon, iterati
 6. request an explicit owner decision;
 7. record the accepted resolution in the artifact responsible for that decision when appropriate.
 
-Product Vision and Product Direction do not automatically override current canon or an explicit owner-approved iteration, issue, or decision. Product Vision defines enduring purpose, mission, pillars, and initial validation focus; Product Direction expands those decisions into broader domains, lifecycle relationships, and evolution paths. Two WIP documents do not establish precedence over canon, and a local proposal remains a proposal. Overlapping document responsibilities should be resolved using these boundaries rather than by duplicating content.
+Product Vision and Product Direction do not automatically override an explicit owner-approved iteration, issue, or decision. Product Vision is canonical and defines enduring purpose, mission, pillars, and initial validation focus; Product Direction remains WIP and expands those decisions into broader domains, lifecycle relationships, and evolution paths. Product Direction does not establish precedence over canon, and a local proposal remains a proposal. Overlapping document responsibilities should be resolved using these boundaries rather than by duplicating content.
 
 Product Direction may identify a domain or future capability without defining its detailed behavior. A future capability is not automatically a current requirement, and missing behavior remains undefined. An agent must not infer detailed requirements from long-term direction alone. When detail becomes necessary, the appropriate response is a bounded discovery, WIP, or product-decision task. Any temporary assumption affecting product semantics must be explicit, bounded, reversible, and owner-approved.
 
@@ -140,7 +140,7 @@ These formats remain guidance in this WIP. They do not modify iteration, issue, 
 
 ## Scope, Review, and Future Integration
 
-This WIP does not independently activate repository rules, change source-of-truth order, modify protected governance files, promote Product Direction or Product Vision into canon, authorize Product Governance or an agent to make product decisions, or define product features, UI, detailed behavior, schemas, APIs, algorithms, architecture, technology, roadmap, or release scope. It does not require Product Vision or Product Direction review for routine technical work. The current obligation to consult it for qualifying work comes from `AGENTS.md`.
+This WIP does not independently activate repository rules, change source-of-truth order, modify protected governance files, promote Product Direction into canon, authorize Product Governance or an agent to make product decisions, or define product features, UI, detailed behavior, schemas, APIs, algorithms, architecture, technology, roadmap, or release scope. It does not require Product Vision or Product Direction review for routine technical work. The current obligation to consult it for qualifying work comes from `AGENTS.md`.
 
 The routing sequence, trigger grouping, alignment check, and outcome actions are constrained governance synthesis for owner review. No new product decision is proposed. The responsibility boundary between Product Vision and Product Direction has been explicitly resolved through owner review in issue #21 and is reflected in the artifact responsibilities above.
 

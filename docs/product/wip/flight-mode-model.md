@@ -16,7 +16,7 @@ This WIP is based only on:
 
 - [`ITERATION.md`](../../../ITERATION.md);
 - [`docs/product/CurrentState.md`](../CurrentState.md);
-- [`docs/product/wip/product-vision-reconstruction.md`](product-vision-reconstruction.md);
+- [`docs/product/vision/ProductVision.md`](../vision/ProductVision.md);
 - [GitHub issue #6](https://github.com/AlexanderTsarkov/AirLink/issues/6);
 - owner-approved decisions supplied for issue #6.
 

@@ -30,7 +30,7 @@ This WIP is based on:
 
 - [`ITERATION.md`](../../../ITERATION.md);
 - [`docs/product/CurrentState.md`](../CurrentState.md);
-- [`docs/product/wip/product-vision-reconstruction.md`](product-vision-reconstruction.md);
+- [`docs/product/vision/ProductVision.md`](../vision/ProductVision.md);
 - [`docs/product/wip/flight-mode-model.md`](flight-mode-model.md);
 - [`docs/product/wip/flight-model.md`](flight-model.md);
 - [`docs/product/wip/navigation-model.md`](navigation-model.md);

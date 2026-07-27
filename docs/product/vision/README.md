@@ -1,7 +1,7 @@
 # Product Vision
 
-This directory is the intended location for the accepted canonical Product Vision for AirLink.
+This directory contains the accepted canonical Product Vision for AirLink.
 
-No canonical Product Vision has been accepted yet.
+- [`ProductVision.md`](ProductVision.md) — defines AirLink's enduring purpose, mission, two interdependent product pillars, initial product focus, product principles, and Vision boundaries.
 
-The first reconstructed vision must be developed under `docs/product/wip/`, reviewed by the project owner, and promoted here only after explicit approval.
+Changes to the canonical Product Vision are product-significant and require explicit owner approval through a bounded repository task and normal review.
