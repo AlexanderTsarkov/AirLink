@@ -161,6 +161,8 @@ A Flight should also contain enough time-varying physical-flight and pilot-visib
 - takeoff and landing detectors;
 - rolling-buffer duration and retrospective analysis;
 - exact start-time, Takeoff Point, and Landing Point determination;
+- exact completed-Flight Summary fields and semantics;
+- replay data contract, including required time-varying values, sampling rules, provenance, and historical-value preservation;
 - replay behavior;
 - landing-zone logic and landing assistance;
 - architecture, APIs, services, frameworks, and UI layout.
