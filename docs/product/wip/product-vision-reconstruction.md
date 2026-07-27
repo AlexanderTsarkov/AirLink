@@ -16,6 +16,26 @@ This Vision defines AirLink's enduring purpose and product structure.
 
 Specific product domains, capabilities, and possible stages of development belong in Product Direction, release scopes, domain specifications, and later product discovery.
 
+## Sources and Decision Basis
+
+This WIP is based on:
+
+1. owner decisions recorded during the issue #21 review;
+2. canonical iteration and project-state context in [`ITERATION.md`](../../../ITERATION.md) and [`CurrentState.md`](../CurrentState.md);
+3. the owner-reviewed MVP 0.1 product boundary in [`mvp-0.1-scope.md`](mvp-0.1-scope.md);
+4. the owner-approved long-term direction recorded in [`product-direction.md`](product-direction.md);
+5. the previously reviewed legacy sources already evaluated in the earlier Product Vision reconstruction.
+
+Current owner decisions take precedence. Canonical repository documents define project state and process constraints. The MVP and Product Direction documents remain WIP inputs and do not become canonical through this Vision draft.
+
+## Assumptions and Synthesis
+
+The product purpose, mission, two-pillar structure, initial target, observable outcome, safety position, and treatment of the Flight Simulation Framework reflect explicit owner decisions.
+
+Explanatory connections and examples are constrained synthesis intended to make those decisions understandable without introducing additional requirements. Examples of possible ecosystem content, safety-related behavior, commercial relationships, or future product domains illustrate the accepted direction; they are not feature commitments.
+
+No unresolved assumption in this document should be treated as accepted product truth. Remaining uncertainties are identified under **Deferred Questions** and require later product discovery or an explicit owner decision.
+
 ## Product Problem
 
 Pilots must currently piece together both flight support and the broader flying ecosystem from disconnected tools, information sources, communities, and services.
@@ -322,6 +342,20 @@ This includes decisions about:
 - business and sustainability models.
 
 These areas are part of the accepted product direction but are not requirements until separately reviewed and approved.
+
+## Expected Promotion Path
+
+After final review, the durable Product Vision content is intended to be rewritten or moved into the canonical `docs/product/vision/` area.
+
+Promotion requires:
+
+1. explicit owner acceptance of the final WIP;
+2. confirmation that remaining deferred questions do not block canonical Vision;
+3. creation or update of the canonical Product Vision document;
+4. update of `docs/product/README.md` and, where the accepted project state changes, `CurrentState.md`;
+5. deliberate removal or historical retention of this WIP draft.
+
+Promotion does not make Product Direction, MVP scope, examples, or deferred capabilities canonical unless they are separately accepted through their own promotion path.
 
 ## Product Vision Summary
 
