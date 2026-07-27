@@ -6,12 +6,12 @@ This document is **WIP**, **non-canonical**, and **not an implementation require
 
 ## Purpose and Authority
 
-This document describes what AirLink is intended to become, why the product is being shaped in this way, and which stable principles should guide future product-significant decisions. It keeps important long-term product domains visible without turning them into requirements for the current iteration, MVP 0.1, or any specific release.
+This document expands the enduring Product Vision into broader product domains, lifecycle relationships, and evolution principles. It describes how AirLink may develop over time without turning those directions into requirements for the current iteration, MVP 0.1, or any specific release.
 
 This document has a different responsibility from other project artifacts:
 
 - [`CurrentState.md`](../CurrentState.md) records accepted project state;
-- [`product-vision-reconstruction.md`](product-vision-reconstruction.md) defines the initial focus and first product slice under owner review;
+- [`product-vision-reconstruction.md`](product-vision-reconstruction.md) defines AirLink's enduring purpose, mission, two interdependent product pillars, and initial validation focus under owner review;
 - [`ITERATION.md`](../../../ITERATION.md) defines the active work cycle and its boundaries;
 - roadmaps and issues, when created or approved, define bounded work and release intent;
 - domain specifications define detailed accepted behavior;
@@ -35,14 +35,14 @@ No additional legacy documents were consulted. Historical feature lists, archite
 
 ## Direction and Constrained Synthesis
 
-The long-term direction, product pillars, lifecycle, fundamental domains, and product principles in this document come from owner-approved context. Explanatory connections between those concepts are constrained synthesis for owner review. They clarify the direction without adding requirements, release commitments, or detailed behavior.
+The broader domains, lifecycle, relationships, and evolution principles in this document come from owner-approved context. Explanatory connections between those concepts are constrained synthesis for owner review. They clarify the direction without adding requirements, release commitments, or detailed behavior.
 
-The main scope distinction is intentional:
+The responsibility boundary is intentional:
 
-- the existing Product Vision WIP describes the accepted initial focus and first product slice;
-- this Product Direction WIP describes the owner-approved long-term direction of AirLink as a service.
+- the Product Vision WIP defines AirLink's enduring purpose, mission, two interdependent pillars, and initial paramotor validation focus;
+- this Product Direction WIP expands that Vision through broader domains, lifecycle relationships, possible capabilities, and evolution paths.
 
-Pilot Ecosystem is therefore accepted here as long-term direction, while social, marketplace, school, service, maintenance, and wider ecosystem functionality are not committed to MVP 0.1 or any other specific release unless separately approved. This document does not modify, supersede, or retroactively reinterpret the existing Product Vision WIP. Alignment of wording between Product Vision and Product Direction must be handled deliberately during later owner review and canonical promotion.
+Pilot Ecosystem is accepted in Product Vision as one of AirLink's two enduring product pillars. The social, marketplace, school, service, maintenance, and wider ecosystem domains described here remain possible directions rather than commitments to MVP 0.1 or any other release unless separately approved. This document elaborates the Vision without superseding it or redefining release scope.
 
 ## AirLink as a Service
 
@@ -279,7 +279,7 @@ These matters require later bounded discovery and explicit approval when they be
 - **Assumption:** Detailed future architecture and data models do not need to be designed at this stage. Current decisions should nevertheless avoid foreclosing the identified domains or making their later introduction unnecessarily disruptive.
 - **Constrained synthesis:** The two pillars reinforce one another through the real entities, activity, continuity, and context created by Flight Support and made discoverable through the Pilot Ecosystem.
 
-The material future review point is wording alignment between the initial Product Vision and long-term Product Direction. That alignment should be addressed deliberately during owner review and canonical promotion without assuming that either current WIP document automatically supersedes the other.
+The responsibility boundary between Product Vision and Product Direction has been explicitly resolved through owner review in issue #21: Product Vision defines enduring purpose, mission, pillars, and initial validation focus; Product Direction expands those decisions into broader domains, lifecycle relationships, and evolution paths.
 
 No other product question needs resolution for this direction-level draft. Detailed decisions remain deferred to the bounded work that requires them.
 
@@ -287,4 +287,4 @@ No other product question needs resolution for this direction-level draft. Detai
 
 After owner and ChatGPT review, accepted durable content is expected to be rewritten or promoted into canonical `docs/product/ProductDirection.md`.
 
-Promotion requires explicit owner acceptance, deliberate handling of the Product Vision alignment point, and an update to the product documentation index. Until then, this WIP remains a review artifact and not product canon or an implementation requirement.
+Promotion requires explicit owner acceptance, confirmation that the promoted Direction remains aligned with the canonical Product Vision, and an update to the product documentation index. Until then, this WIP remains a review artifact and not product canon or an implementation requirement.
