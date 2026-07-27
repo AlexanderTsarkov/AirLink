@@ -8,7 +8,7 @@ It is not a documentation progress log. Review status, promotion readiness, and 
 
 ## Current Product Definition
 
-AirLink is being restarted as a new product project for pilots. The current foundation work defines the product and its first meaningful slice before implementation begins.
+AirLink is being restarted as a new product project for pilots. Its accepted [Product Vision](vision/ProductVision.md) defines the enduring product purpose, two interdependent product pillars, initial product focus, and product principles.
 
 AirLink is intended to support real flying activity through two interdependent forms of value:
 
@@ -29,6 +29,7 @@ Development begins with Flight Support for one paramotor pilot performing a solo
 ## Accepted Decisions
 
 - AirLink will be reconstructed selectively rather than migrated wholesale.
+- The canonical Product Vision defines Flight Support and Pilot Ecosystem as two interdependent pillars of the complete product.
 - The initial target user and validation scenario are one paramotor pilot performing a solo local Flight.
 - The first meaningful product slice spans preparation, explicit Pre-Flight, Flight Mode, one or more Flights, completion, local retention, and later saved-Flight review.
 - Flight Mode and Flight are distinct concepts; one Flight Mode period may contain multiple independent Flights.
