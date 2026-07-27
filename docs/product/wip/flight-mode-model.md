@@ -124,7 +124,7 @@ A completed-Flight summary may be shown as an overlay while Flight Mode is alrea
 
 If a new takeoff is detected while the summary is visible, the summary closes and the new Flight begins. The summary does not block takeoff detection or create a separate lifecycle period.
 
-The summary's content and presentation are outside this model.
+The summary's detailed content and presentation are outside this model. MVP 0.1 Scope defines the accepted minimum product outcome and the relationship between the post-landing Summary and later saved-Flight review.
 
 ## Multiple Flights During One Flight Mode Period
 
@@ -187,4 +187,3 @@ The final canonical location has not yet been selected and must not be created b
 - Should `Flight ended` remain a named transient lifecycle step or be described only as a transition back to Ready on Ground?
 - What pilot action is required if Flight Mode exit is requested while a Flight is active?
 - Which conditions, other than pilot continuation, reset the ground inactivity period?
-- What minimum information must the completed-Flight summary provide? This question belongs to later summary and logging work, not this lifecycle model.
