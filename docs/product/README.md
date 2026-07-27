@@ -1,36 +1,55 @@
 # Product Documentation
 
-This directory contains accepted product documentation and controlled product WIP. This file is a document index, not a product specification.
+This directory contains accepted product documentation, owner-controlled product policy, and controlled product WIP. This file is a document index, not a product specification.
 
 ## Documentation Status
 
 - Canonical documents describe accepted product truth.
+- Product-policy artifacts provide long-term direction and conditional decision discipline without creating release scope, detailed behavior, or implementation authority.
 - WIP documents are non-canonical drafts under owner review and are not implementation requirements.
 - Supporting indexes and guidance describe documentation status and process without defining the product.
 
-## Recommended Reading Order
+## Context Routing
 
-1. `CurrentState.md` for the accepted state of the restarted project.
+### Baseline Product Context
+
+1. `CurrentState.md` for accepted durable project and product state.
 2. `vision/ProductVision.md` for AirLink's accepted enduring product purpose, mission, two interdependent product pillars, initial focus, and product principles.
-3. `wip/README.md` for the rules governing product WIP.
-4. `wip/mvp-0.1-scope.md` for the owner-reviewed WIP boundary of MVP 0.1 and its first meaningful product slice.
-5. `wip/product-direction.md` for the long-term direction of AirLink as a service, including its broader product domains, lifecycle, and evolution principles.
-6. `wip/product-governance.md` for the non-canonical WIP alignment procedure invoked by the active product-significance routing rule in `AGENTS.md`; the WIP does not independently establish repository policy.
-7. `wip/flight-mode-model.md` for the operational lifecycle while the pilot intends to fly.
-8. `wip/flight-model.md` for the boundaries and special points of one airborne episode.
-9. `wip/navigation-model.md` for the limited navigation state and directional semantics of the initial scenario.
-10. `vision/README.md` for the canonical Product Vision index and change-control note.
+3. The relevant issue, specification, or other task artifact for bounded scope and accepted detail.
+
+### Conditional Product-Policy Context
+
+When the product-significance routing gate in `AGENTS.md` triggers, or product significance is discovered:
+
+1. consult `policy/ProductGovernance.md` for the conditional alignment procedure;
+2. consult `policy/ProductDirection.md` as relevant long-term alignment context;
+3. load only the other canonical, domain, issue, and decision artifacts needed for the affected concern.
+
+Routine work does not load Product Governance or Product Direction by default. See `policy/README.md` for their roles and authority boundaries.
+
+### Task-Relevant WIP
+
+Consult `wip/README.md` and only the WIP documents that the task explicitly concerns or that the triggered alignment process identifies as directly relevant:
+
+- `wip/mvp-0.1-scope.md` for the owner-reviewed WIP boundary of MVP 0.1 and its first meaningful product slice;
+- `wip/flight-mode-model.md` for the operational lifecycle while the pilot intends to fly;
+- `wip/flight-model.md` for the boundaries and special points of one airborne episode;
+- `wip/navigation-model.md` for the limited navigation state and directional semantics of the initial scenario.
 
 ## Canonical Documents
 
 - `CurrentState.md` — records accepted project and product state that should remain valid outside the active iteration.
 - `vision/ProductVision.md` — defines AirLink's accepted enduring purpose, mission, two interdependent product pillars, initial product focus, product principles, and Vision boundaries.
 
+## Product Policy
+
+- `policy/README.md` — defines the role, conditional loading, authority boundaries, and change control of product-policy artifacts.
+- `policy/ProductDirection.md` — is an accepted product-policy artifact describing AirLink's broader product domains, lifecycle relationships, and evolution principles without creating release or implementation requirements.
+- `policy/ProductGovernance.md` — is an accepted conditional product-policy artifact containing the alignment procedure invoked through the routing gate in `AGENTS.md`; it does not approve product decisions or load itself for routine work.
+
 ## Work in Progress
 
 - `wip/mvp-0.1-scope.md` — defines the owner-reviewed product-level boundary of MVP 0.1, its first meaningful end-to-end product slice, explicit non-scope, deferred decisions, and the mandatory Flight Simulation Framework.
-- `wip/product-direction.md` — records the owner-approved long-term direction of AirLink as a service while keeping future concepts separate from MVP and release requirements.
-- `wip/product-governance.md` — describes the alignment procedure referenced by the active routing rule in `AGENTS.md`; it remains WIP and non-canonical and does not independently control routing, trigger activation, or product authority. Because active policy invokes the current procedure, merged changes to its referenced checks or outcomes can affect required agent behavior and therefore require explicit owner approval and normal repository review.
 - `wip/flight-mode-model.md` — defines the operational lifecycle of explicit Flight Mode, including ground waiting, repeated Flights, completion, and exit behavior.
 - `wip/flight-model.md` — defines one airborne Flight, its boundaries, special points, and relationship to summary and replay.
 - `wip/navigation-model.md` — defines only the navigation state and directional concepts required by the initial local-flight scenario.
@@ -42,7 +61,7 @@ This directory contains accepted product documentation and controlled product WI
 
 ## Promotion Rule
 
-A WIP document becomes canonical only after:
+For ordinary WIP, a document becomes canonical only after:
 
 1. owner review;
 2. explicit acceptance of its relevant content;
@@ -51,6 +70,8 @@ A WIP document becomes canonical only after:
 5. update of this index and, when applicable, `CurrentState.md`.
 
 Legacy material is never promoted by copying alone. It must be evaluated and rewritten for the restarted AirLink project.
+
+Accepted product-policy artifacts are living policy and do not follow this ordinary WIP-to-canonical promotion lifecycle.
 
 ## Index Maintenance Rule
 

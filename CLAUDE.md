@@ -54,7 +54,7 @@ For a non-trivial task, report before implementation:
 - validation plan;
 - any decision that requires owner approval.
 
-Apply the Product-Significance Routing rule in `AGENTS.md`. Every non-trivial plan should state whether the task is product-significant. For routine work, a short classification such as `Product significance: Not product-significant — accepted behavior and product semantics are unchanged` is sufficient; do not load the two product WIP documents, perform the alignment questionnaire, or require an expanded final alignment report.
+Apply the Product-Significance Routing rule in `AGENTS.md`. Every non-trivial plan should state whether the task is product-significant. For routine work, a short classification such as `Product significance: Not product-significant — accepted behavior and product semantics are unchanged` is sufficient; do not load the two product-policy artifacts, perform the alignment questionnaire, or require an expanded final alignment report.
 
 For triggered work, the plan must identify:
 
