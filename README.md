@@ -1,8 +1,8 @@
 # AirLink
 
-AirLink is being restarted as a documentation-first product project for pilots. The initial focus is to rebuild the product definition from verified needs and selected legacy knowledge before implementation begins.
+AirLink is a documentation-first product project for pilots.
 
-The repository is currently in foundation and product-recovery mode. Product scope, architecture, implementation technologies, and delivery phases are not yet final.
+The current project phase and work boundaries are defined in `ITERATION.md`.
 
 ## Current Working Model
 
