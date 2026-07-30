@@ -176,6 +176,8 @@ Owns:
 - pilot acknowledgements;
 - explicit request to enter Flight Mode;
 - explicit request to exit Flight Mode;
+- explicit request to manually complete an active Flight;
+- pilot choice to retain a real manually completed Flight or reject a false-detection Flight;
 - pilot response to inactivity warnings;
 - pilot-facing presentation of current operational state;
 - post-landing interaction;
@@ -185,7 +187,7 @@ Owns:
 Does not own:
 
 - Flight Mode state transitions;
-- Flight creation or finalization;
+- Flight creation, completion, cancellation, or finalization;
 - takeoff or landing detection;
 - calculation of Flight information;
 - persistence of Flight records;
@@ -201,8 +203,9 @@ Owns:
 - explicit entry into Flight Mode;
 - waiting before the first Flight;
 - authorization for automatic takeoff and landing detection to affect product lifecycle;
+- authorization of manual active-Flight completion or false-detection rejection within the operational context;
 - awareness that an active Flight exists or does not exist;
-- waiting after a completed Flight;
+- waiting after a completed or rejected Flight;
 - readiness for another Flight;
 - inactivity warning before automatic exit;
 - continuation of the waiting period;
@@ -229,16 +232,19 @@ Owns:
 - active versus finalized Flight state;
 - effective takeoff boundary;
 - effective landing boundary;
+- manually completed state;
+- false-detection rejection state;
 - association of state and information with one specific Flight;
 - Flight-scoped aggregates;
 - Takeoff Point identity and its association with the Flight;
-- finalization of one Flight;
-- transfer of a finalized or interrupted Flight result to retention.
+- completion, rejection, and finalization of one Flight;
+- transfer of a finalized, interrupted, or rejected Flight result to retention handling.
 
 Does not own:
 
 - the wider Flight Mode period;
 - takeoff or landing detection decisions;
+- pilot choice between retaining a real Flight and rejecting a false detection;
 - raw input production;
 - map rendering;
 - durable storage mechanisms;
@@ -320,6 +326,7 @@ Does not own:
 
 - Flight Mode state;
 - Flight creation;
+- Flight completion or rejection;
 - Flight finalization;
 - durable recording;
 - direct modification of Takeoff Point or Flight aggregates.
@@ -386,6 +393,7 @@ Owns:
 - recoverability of already recorded information after interruption;
 - finalization of a completed Flight record;
 - retention of interrupted or incomplete Flight records;
+- handling of already recorded data after a false-detection rejection, subject to a later explicit durability decision;
 - finalized Flight summary values;
 - durable Flight identity or reference;
 - retrieval of retained Flights;
@@ -395,6 +403,7 @@ Does not own:
 
 - whether a Flight is currently airborne;
 - takeoff or landing detection;
+- the pilot decision to retain or reject a manually ended Flight;
 - Flight Mode lifecycle;
 - presentation of the saved Flight;
 - calculation ownership of current derived values.
@@ -438,6 +447,7 @@ Required observable categories include, at minimum:
 - Flight lifecycle transitions;
 - active Flight identity;
 - detection candidates and confirmations;
+- manual completion or false-detection rejection;
 - input provenance;
 - input validity and freshness;
 - derived-value validity or quality;
@@ -488,22 +498,23 @@ Flight Recording owns the historical and durable representation.
 
 ## 4.3 Detection versus transition ownership
 
-Flight Detection identifies and confirms a lifecycle boundary.
+Flight Detection identifies and confirms an automatic lifecycle boundary.
 
-It does not create or finalize a Flight.
+It does not create, complete, reject, or finalize a Flight.
 
-Flight Mode authorizes whether a confirmed takeoff may initiate a Flight.
+Flight Mode authorizes whether a confirmed automatic boundary or an explicit manual request may affect the Flight lifecycle in the current operational context.
 
-Flight Lifecycle creates and owns the Flight after that authorization.
+Flight Lifecycle owns the resulting creation, completion, rejection, and finalization of the individual Flight.
 
 ## 4.4 Runtime completion versus durable retention
 
-A Flight may be logically completed because landing has been confirmed even if durable record finalization is still pending or has failed.
+A Flight may be logically completed because landing has been confirmed or manual completion has been authorized even if durable record finalization is still pending or has failed.
 
 The following states remain distinct:
 
 - active Flight;
 - completed Flight;
+- rejected false-detection Flight;
 - successfully retained Flight;
 - interrupted retained Flight;
 - completed but incompletely retained Flight;
@@ -525,6 +536,7 @@ Examples:
 - entering;
 - waiting before first Flight;
 - active Flight present;
+- manual completion decision pending;
 - waiting after Flight;
 - inactivity warning pending;
 - exiting.
@@ -539,9 +551,11 @@ Examples:
 - active;
 - finalizing;
 - finalized;
+- manually completed;
+- rejected as false detection;
 - interrupted;
 - effective takeoff boundary;
-- effective landing boundary.
+- effective landing or manual-completion boundary.
 
 ## 5.3 Detection state
 
@@ -648,20 +662,24 @@ Ownership is divided by responsibility:
 - Flight Recording owns progressive historical recording and durable retention;
 - Spatial Awareness owns active and saved track presentation.
 
-## 5.10 Completed or interrupted Flight record
+## 5.10 Completed, rejected, or interrupted Flight record
 
 Authoritative owner: **Flight Recording and Local Retention**
 
-The retained record owns the durable historical representation of:
+The retained or retention-handled result owns the durable historical representation of:
 
 - recorded track;
 - recorded time-varying information;
 - summary values;
 - lifecycle boundaries when known;
 - completion status;
+- manual-completion status;
+- false-detection rejection status where the later durability policy retains such a trace;
 - incomplete or interrupted status;
 - recording degradation;
 - durable Flight reference.
+
+The exact durable handling of already recorded information after false-detection rejection is deferred and must not be invented during implementation.
 
 ## 5.11 Simulation scenario state
 
@@ -690,10 +708,12 @@ Meaning:
 
 - pilot requests entry into Flight Mode;
 - pilot provides required Pre-Flight acknowledgements;
-- pilot requests exit;
+- pilot requests exit from Flight Mode;
+- pilot requests manual completion of an active Flight;
+- pilot chooses whether the manually ended episode is retained as a real Flight or rejected as a false detection;
 - pilot responds to an inactivity warning.
 
-Flight Mode decides whether and how the operational transition occurs.
+Flight Mode decides whether and how each operational transition is allowed. Pilot Interaction does not mutate Flight Mode or Flight lifecycle state directly.
 
 ## 6.2 Weather Context → Pilot Interaction
 
@@ -740,7 +760,7 @@ Provides:
 - estimated actual transition boundary;
 - uncertainty or diagnostic context where required.
 
-Detection does not command direct Flight creation or record finalization.
+Detection does not command direct Flight creation, completion, rejection, or record finalization.
 
 ## 6.5 Flight Mode Lifecycle → Flight Lifecycle
 
@@ -760,9 +780,18 @@ After confirmed landing, Flight Mode:
 
 Flight Lifecycle then completes and finalizes the active Flight.
 
-Flight Mode authorizes lifecycle transitions, while Flight Lifecycle owns creation, completion, and finalization of the individual Flight.
+After a pilot requests manual completion of an active Flight, Flight Mode:
 
-This is the accepted C2 responsibility boundary applied symmetrically to Flight start and completion.
+- verifies that an active Flight exists;
+- coordinates the explicit pilot choice between retaining the episode as a real Flight and rejecting it as a false detection;
+- for a real Flight, authorizes manual completion and supplies the effective manual-completion boundary;
+- for a false detection, authorizes rejection of the active Flight and supplies the rejection reason and relevant context.
+
+Flight Lifecycle then either completes the Flight as manually completed or marks it rejected as a false-detection Flight. In either case, Flight Mode returns to an allowed ground-waiting state after Flight Lifecycle reports that no active Flight remains.
+
+Flight Mode authorizes lifecycle transitions, while Flight Lifecycle owns creation, completion, rejection, and finalization of the individual Flight.
+
+This is the accepted C2 responsibility boundary applied to automatic start, automatic completion, and explicit manual completion or rejection.
 
 ## 6.6 Flight Lifecycle → Flight Mode Lifecycle
 
@@ -770,7 +799,9 @@ Provides:
 
 - Flight created;
 - active Flight exists;
-- Flight completed;
+- Flight completed automatically;
+- Flight completed manually;
+- Flight rejected as false detection;
 - Flight finalized at runtime level;
 - no active Flight remains;
 - unresolved finalization or interruption state where relevant.
@@ -785,8 +816,8 @@ Provides:
 - Flight started;
 - effective takeoff boundary;
 - active-Flight state;
-- finalization start;
-- effective landing boundary.
+- finalization or rejection start;
+- effective landing or manual-completion boundary.
 
 This defines the period in which calculated information and aggregates belong to the Flight.
 
@@ -806,7 +837,7 @@ Derivation does not mutate Flight identity or lifecycle state.
 Provides:
 
 - active Flight identity;
-- active versus finalized status;
+- active versus finalized or rejected status;
 - Takeoff Point identity and location;
 - association of track information with the Flight;
 - finalized retained reference where required for later review.
@@ -826,11 +857,11 @@ Provides progressively:
 - derived information selected for retention;
 - track information;
 - aggregate updates where required;
-- completion or interruption state;
+- automatic completion, manual completion, rejection, or interruption state;
 - effective Flight end when known;
-- final aggregate values.
+- final aggregate values when applicable.
 
-The exact buffering, checkpoint, and transaction mechanisms are deferred.
+The exact buffering, checkpoint, transaction, and rejected-data handling mechanisms are deferred.
 
 ## 6.11 Flight Recording → Flight Lifecycle and Pilot Interaction
 
@@ -842,9 +873,10 @@ Provides:
 - finalization succeeded or failed;
 - Flight retained;
 - Flight retained as incomplete or interrupted;
-- durable Flight identity or reference.
+- false-detection data handled according to the later approved durability policy;
+- durable Flight identity or reference where applicable.
 
-A Flight may complete operationally before successful durable finalization.
+A Flight may complete operationally before successful durable finalization. Rejection as a false detection does not itself decide whether already recorded data is physically deleted, retained as a diagnostic trace, or handled by another explicit policy.
 
 ## 6.12 Flight Recording → Saved-Flight presentation
 
@@ -856,6 +888,8 @@ Provides:
 - summary information;
 - completion or interruption status;
 - data-quality or degradation information required for correct understanding.
+
+Rejected false-detection episodes are not presented as normal saved Flights unless a later explicit product decision says otherwise.
 
 ## 6.13 Simulation and Validation → Input boundary
 
@@ -876,6 +910,7 @@ The information then follows the same conceptual validity, provenance, lifecycle
 Simulation must not directly:
 
 - create a Flight;
+- complete or reject a Flight;
 - finalize a Flight;
 - create a Takeoff Point;
 - construct a retained Flight record;
@@ -919,16 +954,26 @@ Exact durability timing and guarantees remain deferred.
 
 ## 7.3 Interrupted Flight
 
-If recording stops before a confirmed landing and normal finalization:
+If recording stops before a confirmed landing or authorized manual completion and normal finalization:
 
 - the already recorded part should remain available where technically recoverable;
 - the record must be identified as incomplete or interrupted;
-- the absence of a confirmed landing boundary must remain explicit;
+- the absence of a confirmed or manually authorized completion boundary must remain explicit;
 - AirLink must not invent a landing;
 - the user must be able to distinguish the interrupted record from a complete Flight;
 - retained information should make the point of interruption understandable.
 
-## 7.4 Recording degradation
+## 7.4 False-detection rejection
+
+When the pilot explicitly rejects an active Flight as a false detection:
+
+- the episode must not be represented as a normal completed Flight;
+- Flight Lifecycle records the rejection outcome at runtime level;
+- Flight Mode returns to an allowed ground-waiting state after no active Flight remains;
+- the exact durable handling of already progressively recorded data remains deferred;
+- implementation must not silently choose physical deletion, diagnostic retention, or normal Flight retention.
+
+## 7.5 Recording degradation
 
 If durable recording becomes unavailable during an active Flight:
 
@@ -1058,10 +1103,11 @@ AirLink owns:
 - record integrity;
 - finalization semantics;
 - interrupted-record status;
+- false-detection data handling after an explicit durability decision;
 - degraded-recording status;
 - later retrieval.
 
-No database, file format, serialization method, or transaction mechanism is selected here.
+No database, file format, serialization method, transaction mechanism, or rejected-data policy is selected here.
 
 ## 8.7 System and monotonic time
 
@@ -1244,6 +1290,7 @@ The following decisions are intentionally not made under issue #33.
 - storage-capacity policy;
 - retention policy;
 - historical-value preservation rules;
+- exact durable handling of progressively recorded data after false-detection rejection;
 - record format.
 
 ## 11.7 Simulation details
@@ -1262,6 +1309,7 @@ The following decisions are intentionally not made under issue #33.
 
 - visual hierarchy;
 - detailed screen layout;
+- exact manual-completion and retain-or-reject interaction;
 - exact warning interaction;
 - detailed degraded-state presentation;
 - units and formatting;
@@ -1285,6 +1333,7 @@ They must be resolved in issue #34, #36, #37, or a separately authorized bounded
 - first-slice lifecycle boundary;
 - first-slice recording durability;
 - first-slice interruption recovery;
+- exact durable handling of false-detection data if the selected slice reaches that behavior;
 - incomplete Flight record semantics at implementation-ready depth;
 - material provider choices required by the selected slice;
 - difficult-to-reverse persistence decisions;
@@ -1306,25 +1355,67 @@ This Engineering Map advances the first meaningful Flight Support outcome by def
 - full-MVP planning remains at boundary and ownership level;
 - implementation mechanisms remain deferred;
 - simulation is required but not prematurely designed as a universal platform;
+- the first implementation slice is not selected here;
 - no complete architecture or backlog is created;
 - no technology or provider is selected without a demonstrated need;
 - no product implementation begins.
 
-## Reversibility
+## Approval authority
 
-The decisions in this section are designed to preserve reversibility because they define:
+The explicit simplifications recorded in this document were accepted by the project owner during the bounded planning work for GitHub issue `#33 / AL-0002-01` and confirmed through owner review of this document in PR #39.
+
+That approval applies only to:
+
+- the MVP 0.1 boundary defined by the owner-reviewed WIP scope;
+- concern-level responsibility and handoff planning;
+- local-first Android MVP behavior;
+- incremental simulation developed together with vertical product slices;
+- explicit deferral of implementation architecture, algorithms, providers, schemas, detailed UX, and first-slice selection.
+
+It does not approve:
+
+- the complete Engineering Map;
+- the live/simulation substitution design reserved for issue #34;
+- dependency and implementation sequence planning reserved for issue #35;
+- selection of the first vertical slice under issue #36;
+- implementation-ready decisions under issues #37 and #38;
+- any detailed implementation decision not explicitly accepted through its governing task.
+
+## Boundedness and reversibility
+
+The simplifications are bounded to MVP 0.1 and the current AL-0002 planning sequence.
+
+They are reversible because they define:
 
 - semantic ownership;
 - lifecycle separation;
 - information provenance;
 - responsibility boundaries;
-- external dependency consequences.
+- external dependency consequences;
+- explicit deferrals.
 
 They do not prescribe specific modules, classes, libraries, storage engines, providers, schemas, or deployment architecture.
+
+## Long-term concepts intentionally deferred
+
+The simplifications preserve rather than deny or collapse:
+
+- the broader Pilot Ecosystem;
+- multi-user and connected operation;
+- web and iOS clients;
+- cloud and synchronization capabilities;
+- active navigation and route planning;
+- connected aircraft equipment and external flight computers;
+- broader full-flight-lifecycle capabilities beyond MVP 0.1;
+- future architecture beyond the current concern-level map.
+
+These concepts remain outside MVP 0.1 or later in the product evolution path. Their exclusion here is not a decision against them.
 
 ## Outcome
 
 `Aligned with explicit simplification`.
+
+This outcome is authorized only within the owner-approved bounds identified above. Any new product-semantic simplification, irreversible constraint, or expansion beyond those bounds requires a separate product decision.
 
 ---
 
@@ -1339,15 +1430,17 @@ Issue #33 may be considered complete after owner review confirms that:
 - responsibility and non-ownership boundaries are accepted;
 - authoritative state and information ownership is accepted;
 - Flight Mode and Flight remain distinct;
-- the C2 Flight-start authorization boundary is accepted;
+- the C2 Flight-start, completion, and manual-rejection authorization boundary is accepted;
 - Takeoff Point split ownership is accepted;
 - instantaneous derivation, Flight-scoped aggregation, and durable recording ownership are accepted;
 - conceptual handoffs are accepted;
 - progressive Flight Recording and interrupted-record semantics are accepted;
+- manual completion ownership is accepted while exact false-detection durability handling remains deferred;
 - input-driven simulation and bounded diagnostic transition injection are accepted;
 - external-dependency categories are accepted;
 - map, network, and storage degradation expectations are accepted;
 - exclusions and deferred decisions are accepted;
+- approval authority and intentionally deferred long-term concepts are recorded for the simplification outcome;
 - this document remains WIP and non-canonical;
 - no implementation or final architecture has been introduced.
 
