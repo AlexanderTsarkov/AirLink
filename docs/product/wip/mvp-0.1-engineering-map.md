@@ -43,13 +43,16 @@ The concerns in this document are not assumed to become modules, services, packa
 
 This document must be interpreted through the repository source-of-truth order:
 
-1. `ITERATION.md`;
-2. `docs/product/CurrentState.md`;
-3. relevant indexes and canonical product documentation;
-4. accepted Product Direction and Product Governance policy;
-5. `docs/product/wip/mvp-0.1-scope.md`;
-6. directly relevant controlled WIP;
-7. approved GitHub issue scope and task-specific execution instructions.
+1. the explicit owner task or decision;
+2. `ITERATION.md`;
+3. `docs/product/CurrentState.md` and relevant canonical documentation under `docs/`;
+4. the relevant GitHub issue and approved task artifacts;
+5. WIP documents only when the task explicitly concerns them or their use is otherwise authorized by the governing task;
+6. legacy material only as source material, never as current truth by default.
+
+Product Direction and Product Governance are conditionally consulted alignment context. They apply only when the Product-Significance Routing rules in `AGENTS.md` require them; consultation does not make them task authority or implementation requirements.
+
+If these sources conflict, work must stop and the conflict must be reported rather than silently resolved.
 
 The Product Vision remains canonical.
 
