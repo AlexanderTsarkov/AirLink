@@ -748,11 +748,21 @@ After confirmed takeoff, Flight Mode:
 
 - verifies that the system is in an allowed waiting state;
 - authorizes the start of a new Flight;
-- supplies the relevant operational context.
+- supplies the confirmed takeoff boundary and relevant operational context.
 
 Flight Lifecycle then creates and owns the Flight.
 
-This is the accepted C2 responsibility boundary.
+After confirmed landing, Flight Mode:
+
+- verifies that an active Flight exists and that landing completion is allowed;
+- authorizes completion of the active Flight;
+- supplies the confirmed or estimated effective landing boundary and relevant detection context.
+
+Flight Lifecycle then completes and finalizes the active Flight.
+
+Flight Mode authorizes lifecycle transitions, while Flight Lifecycle owns creation, completion, and finalization of the individual Flight.
+
+This is the accepted C2 responsibility boundary applied symmetrically to Flight start and completion.
 
 ## 6.6 Flight Lifecycle → Flight Mode Lifecycle
 
