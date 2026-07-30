@@ -180,6 +180,8 @@ Owns:
 - pilot choice to retain a real manually completed Flight or reject a false-detection Flight;
 - pilot response to inactivity warnings;
 - pilot-facing presentation of current operational state;
+- pilot-facing presentation of current Flight values and their validity or quality state;
+- immediate post-landing Summary presentation;
 - post-landing interaction;
 - access to saved Flights;
 - presentation of degraded or unavailable capability states.
@@ -190,6 +192,7 @@ Does not own:
 - Flight creation, completion, cancellation, or finalization;
 - takeoff or landing detection;
 - calculation of Flight information;
+- construction of the finalized Flight summary representation;
 - persistence of Flight records;
 - raw external-input acquisition.
 
@@ -235,6 +238,7 @@ Owns:
 - manually completed state;
 - false-detection rejection state;
 - association of state and information with one specific Flight;
+- current Flight elapsed time;
 - Flight-scoped aggregates;
 - Takeoff Point identity and its association with the Flight;
 - completion, rejection, and finalization of one Flight;
@@ -245,10 +249,11 @@ Does not own:
 - the wider Flight Mode period;
 - takeoff or landing detection decisions;
 - pilot choice between retaining a real Flight and rejecting a false detection;
+- calculation of instantaneous derived values;
 - raw input production;
 - map rendering;
 - durable storage mechanisms;
-- presentation of saved Flights.
+- presentation of current or saved Flight information.
 
 ## 2.4 Input Acquisition and Validity
 
@@ -350,9 +355,10 @@ Does not own:
 
 - Flight identity;
 - Flight start or end;
+- current Flight elapsed time;
 - attribution of aggregates to a particular Flight;
 - durable historical records;
-- pilot interaction;
+- pilot interaction or presentation;
 - map representation.
 
 ## 2.8 Spatial Awareness and Map Context
@@ -391,9 +397,11 @@ Owns:
 - recording of relevant time-varying information;
 - recording health and degradation state;
 - recoverability of already recorded information after interruption;
-- finalization of a completed Flight record;
+- construction of one finalized summary representation from finalized Flight boundaries, aggregates, and recording status;
+- delivery of that summary representation to immediate post-landing interaction;
+- finalization of a completed Flight record using the same summary representation;
 - retention of interrupted or incomplete Flight records;
-- handling of already recorded data after a false-detection rejection, subject to a later explicit durability decision;
+- deletion of the progressively recorded episode when the Flight is rejected as a false detection;
 - finalized Flight summary values;
 - durable Flight identity or reference;
 - retrieval of retained Flights;
@@ -405,7 +413,7 @@ Does not own:
 - takeoff or landing detection;
 - the pilot decision to retain or reject a manually ended Flight;
 - Flight Mode lifecycle;
-- presentation of the saved Flight;
+- presentation of current, summary, or saved Flight information;
 - calculation ownership of current derived values.
 
 ## 2.10 Simulation and Validation Enablement
@@ -448,10 +456,12 @@ Required observable categories include, at minimum:
 - active Flight identity;
 - detection candidates and confirmations;
 - manual completion or false-detection rejection;
+- confirmation that rejected Flight data was deleted;
 - input provenance;
 - input validity and freshness;
 - derived-value validity or quality;
 - recording health;
+- summary construction and delivery outcome;
 - record finalization outcome;
 - incomplete or interrupted Flight status;
 - simulation state;
@@ -459,6 +469,8 @@ Required observable categories include, at minimum:
 - degradation of external capabilities.
 
 Observability must not silently change product behavior.
+
+Observability may record that a false-detection rejection and deletion occurred, but it must not retain the deleted Flight record, track, samples, or a hidden diagnostic Flight equivalent.
 
 Detailed logging technology, telemetry format, diagnostic UI, storage, and automation remain deferred.
 
@@ -494,7 +506,9 @@ Flight Lifecycle determines:
 - when Flight-scoped aggregation ends;
 - which aggregate values belong to the finalized Flight.
 
-Flight Recording owns the historical and durable representation.
+Flight Recording owns the finalized summary representation and the historical durable representation.
+
+Pilot Interaction owns presentation and must not recalculate or reinterpret authoritative values silently.
 
 ## 4.3 Detection versus transition ownership
 
@@ -506,21 +520,36 @@ Flight Mode authorizes whether a confirmed automatic boundary or an explicit man
 
 Flight Lifecycle owns the resulting creation, completion, rejection, and finalization of the individual Flight.
 
-## 4.4 Runtime completion versus durable retention
+## 4.4 Runtime completion versus summary and durable retention
 
 A Flight may be logically completed because landing has been confirmed or manual completion has been authorized even if durable record finalization is still pending or has failed.
+
+The finalized summary representation and durable record finalization are related but distinct outcomes:
+
+- the immediate post-landing Summary may be presented once the finalized summary representation is available;
+- durable retention may complete or fail independently;
+- retention failure must be shown explicitly and must not imply that the Flight remains active.
 
 The following states remain distinct:
 
 - active Flight;
 - completed Flight;
 - rejected false-detection Flight;
+- summary available;
 - successfully retained Flight;
 - interrupted retained Flight;
 - completed but incompletely retained Flight;
 - recording-degraded Flight.
 
 A storage failure must not imply that the pilot remains airborne.
+
+## 4.5 False-detection rejection versus observability
+
+A Flight rejected by the pilot as a false detection is removed rather than retained as a Flight.
+
+Flight Recording must delete the progressively recorded episode, including its Flight record, track, and Flight-scoped samples.
+
+Runtime observability may retain only bounded operational evidence that the rejection and deletion transition occurred. It must not preserve a hidden diagnostic Flight record or data equivalent to the deleted episode.
 
 ---
 
@@ -555,7 +584,8 @@ Examples:
 - rejected as false detection;
 - interrupted;
 - effective takeoff boundary;
-- effective landing or manual-completion boundary.
+- effective landing or manual-completion boundary;
+- current elapsed Flight time.
 
 ## 5.3 Detection state
 
@@ -662,26 +692,41 @@ Ownership is divided by responsibility:
 - Flight Recording owns progressive historical recording and durable retention;
 - Spatial Awareness owns active and saved track presentation.
 
-## 5.10 Completed, rejected, or interrupted Flight record
+## 5.10 Finalized summary representation
 
 Authoritative owner: **Flight Recording and Local Retention**
 
-The retained or retention-handled result owns the durable historical representation of:
+The finalized summary representation is constructed from:
+
+- finalized Flight identity and lifecycle boundaries;
+- final Flight-scoped aggregates;
+- recording completeness and degradation state;
+- completion type;
+- durable retention status and reference when available.
+
+The immediate post-landing Summary and saved-Flight review use this same underlying summary representation.
+
+Durable retention may complete or fail independently after the summary representation becomes available. The summary must carry the retention result or degraded status rather than hide it.
+
+## 5.11 Completed or interrupted Flight record
+
+Authoritative owner: **Flight Recording and Local Retention**
+
+The retained record owns the durable historical representation of:
 
 - recorded track;
 - recorded time-varying information;
-- summary values;
+- the finalized summary representation;
 - lifecycle boundaries when known;
 - completion status;
 - manual-completion status;
-- false-detection rejection status where the later durability policy retains such a trace;
 - incomplete or interrupted status;
 - recording degradation;
 - durable Flight reference.
 
-The exact durable handling of already recorded information after false-detection rejection is deferred and must not be invented during implementation.
+A false-detection rejection has no retained Flight record. The progressively recorded Flight record, track, and Flight-scoped samples are deleted.
 
-## 5.11 Simulation scenario state
+## 5.12 Simulation scenario state
 
 Authoritative owner: **Simulation and Validation Enablement**
 
@@ -808,7 +853,20 @@ Provides:
 
 Flight Mode then returns to waiting, remains active, or continues its exit flow.
 
-## 6.7 Flight Lifecycle → Flight Information Derivation
+## 6.7 Flight Lifecycle → Pilot Interaction
+
+Provides the pilot-facing lifecycle context that is authoritative for the active Flight:
+
+- active Flight identity or presence;
+- current elapsed Flight time;
+- active, completing, completed, rejected, or interrupted state;
+- completion type when known;
+- effective takeoff, landing, or manual-completion boundary where relevant to presentation;
+- lifecycle limitation or unresolved state that must be shown to the pilot.
+
+Pilot Interaction owns presentation and interaction. It does not calculate elapsed Flight time or infer lifecycle state from unrelated values.
+
+## 6.8 Flight Lifecycle → Flight Information Derivation
 
 Provides:
 
@@ -821,7 +879,7 @@ Provides:
 
 This defines the period in which calculated information and aggregates belong to the Flight.
 
-## 6.8 Flight Information Derivation → Flight Lifecycle
+## 6.9 Flight Information Derivation → Flight Lifecycle
 
 Provides:
 
@@ -832,7 +890,23 @@ Provides:
 
 Derivation does not mutate Flight identity or lifecycle state.
 
-## 6.9 Flight Lifecycle → Spatial Awareness
+## 6.10 Flight Information Derivation → Pilot Interaction
+
+Provides current pilot-facing Flight values and their meaning:
+
+- current Ground Speed;
+- current altitude representation;
+- current vertical speed;
+- current estimated wind;
+- course- or orientation-related value where required by the accepted Flight screen;
+- value timestamp, availability, validity, quality, or stability state;
+- measured, estimated, or derived distinction where relevant to correct interpretation.
+
+Pilot Interaction owns visual presentation and degraded-state communication. It must not silently recalculate, replace, or upgrade the semantic status of a value.
+
+Current elapsed Flight time is supplied by Flight Lifecycle rather than Flight Information Derivation.
+
+## 6.11 Flight Lifecycle → Spatial Awareness
 
 Provides:
 
@@ -844,7 +918,7 @@ Provides:
 
 Spatial Awareness owns representation, not Flight semantics.
 
-## 6.10 Flight Lifecycle and runtime information → Flight Recording
+## 6.12 Flight Lifecycle and runtime information → Flight Recording
 
 Recording begins with the active Flight rather than after landing.
 
@@ -861,37 +935,49 @@ Provides progressively:
 - effective Flight end when known;
 - final aggregate values when applicable.
 
-The exact buffering, checkpoint, transaction, and rejected-data handling mechanisms are deferred.
+For a completed Flight, these inputs allow Flight Recording to construct the finalized summary representation before or independently of durable record finalization.
 
-## 6.11 Flight Recording → Flight Lifecycle and Pilot Interaction
+For a false-detection rejection, the rejection outcome instructs Flight Recording to delete the progressively recorded Flight episode rather than retain it.
+
+The exact buffering, checkpoint, and transaction mechanisms are deferred.
+
+## 6.13 Flight Recording → Flight Lifecycle and Pilot Interaction
 
 Provides:
 
 - recording initialized;
 - recording healthy or degraded;
-- already recorded information remains recoverable;
-- finalization succeeded or failed;
+- already recorded information remains recoverable for a real or interrupted Flight;
+- finalized summary representation available;
+- summary construction limitation or incompleteness;
+- immediate post-landing summary data;
+- completion type;
+- retention pending, succeeded, degraded, or failed;
 - Flight retained;
 - Flight retained as incomplete or interrupted;
-- false-detection data handled according to the later approved durability policy;
-- durable Flight identity or reference where applicable.
+- durable Flight identity or reference when available;
+- false-detection episode deletion succeeded or failed.
 
-A Flight may complete operationally before successful durable finalization. Rejection as a false detection does not itself decide whether already recorded data is physically deleted, retained as a diagnostic trace, or handled by another explicit policy.
+The immediate post-landing Summary and saved-Flight review use the same finalized summary representation.
 
-## 6.12 Flight Recording → Saved-Flight presentation
+A Flight may complete operationally and its Summary may become available before successful durable finalization. Pilot Interaction must present retention status separately and explicitly.
+
+For a false-detection rejection, Flight Recording deletes the progressively recorded Flight record, track, and Flight-scoped samples. No hidden diagnostic Flight record is retained.
+
+## 6.14 Flight Recording → Saved-Flight presentation
 
 Provides:
 
 - retained Flight list information;
 - selected Flight record;
+- the same finalized summary representation used by immediate post-landing interaction;
 - recorded track;
-- summary information;
 - completion or interruption status;
-- data-quality or degradation information required for correct understanding.
+- data-quality, completeness, retention, or degradation information required for correct understanding.
 
-Rejected false-detection episodes are not presented as normal saved Flights unless a later explicit product decision says otherwise.
+A rejected false-detection episode is absent from normal saved Flights because its recorded Flight episode is deleted.
 
-## 6.13 Simulation and Validation → Input boundary
+## 6.15 Simulation and Validation → Input boundary
 
 For normal end-to-end simulation, Simulation substitutes external input production.
 
@@ -916,7 +1002,7 @@ Simulation must not directly:
 - construct a retained Flight record;
 - bypass Flight Detection in the normal input-driven validation path.
 
-## 6.14 Controlled diagnostic transition injection
+## 6.16 Controlled diagnostic transition injection
 
 A separate, explicitly identified diagnostic capability may inject confirmed takeoff or landing transitions to validate downstream concerns independently.
 
@@ -969,11 +1055,30 @@ When the pilot explicitly rejects an active Flight as a false detection:
 
 - the episode must not be represented as a normal completed Flight;
 - Flight Lifecycle records the rejection outcome at runtime level;
-- Flight Mode returns to an allowed ground-waiting state after no active Flight remains;
-- the exact durable handling of already progressively recorded data remains deferred;
-- implementation must not silently choose physical deletion, diagnostic retention, or normal Flight retention.
+- Flight Recording deletes the progressively recorded Flight record, track, and Flight-scoped samples;
+- no hidden durable diagnostic Flight record or equivalent retained copy is allowed;
+- bounded observability may record only that rejection and deletion occurred;
+- Flight Mode returns to an allowed ground-waiting state after no active Flight remains.
 
-## 7.5 Recording degradation
+Failure to delete the rejected episode is an explicit error or degraded cleanup outcome. It must not silently convert the episode into a saved or diagnostic Flight.
+
+## 7.5 Finalized summary representation
+
+For a completed Flight, Flight Recording constructs one finalized summary representation from finalized lifecycle boundaries, Flight-scoped aggregates, and recording completeness.
+
+That same representation is used for:
+
+- the immediate post-landing Summary inside the Flight flow;
+- the Summary in later saved-Flight review.
+
+Summary availability and durable retention are distinct:
+
+- the Summary may be presented once the representation is constructed;
+- durable retention may still be pending, degraded, or failed;
+- retention status must be included or presented alongside the Summary;
+- persistence failure does not invalidate the fact that the Flight completed.
+
+## 7.6 Recording degradation
 
 If durable recording becomes unavailable during an active Flight:
 
@@ -1101,13 +1206,14 @@ AirLink owns:
 - progressive recording;
 - recoverability expectations;
 - record integrity;
+- finalized summary representation;
 - finalization semantics;
 - interrupted-record status;
-- false-detection data handling after an explicit durability decision;
+- deletion of rejected false-detection Flight data;
 - degraded-recording status;
 - later retrieval.
 
-No database, file format, serialization method, transaction mechanism, or rejected-data policy is selected here.
+No database, file format, serialization method, or transaction mechanism is selected here.
 
 ## 8.7 System and monotonic time
 
@@ -1178,6 +1284,12 @@ If storage fails during Flight:
 - recording status becomes explicitly degraded;
 - already retained information should remain recoverable where possible;
 - incomplete retention must be visible.
+
+If deletion of a rejected false-detection episode fails:
+
+- the cleanup failure is explicit;
+- the episode must not be presented as a normal or diagnostic saved Flight;
+- the exact recovery mechanism is technical implementation detail, but the required product outcome remains deletion.
 
 ## 9.4 Input degradation
 
@@ -1290,8 +1402,11 @@ The following decisions are intentionally not made under issue #33.
 - storage-capacity policy;
 - retention policy;
 - historical-value preservation rules;
-- exact durable handling of progressively recorded data after false-detection rejection;
+- technical deletion and cleanup mechanism for rejected false-detection data;
+- summary serialization and delivery mechanism;
 - record format.
+
+The product outcome for false-detection rejection is not deferred: the progressively recorded Flight episode must be deleted and must not survive as a hidden diagnostic Flight record.
 
 ## 11.7 Simulation details
 
@@ -1315,6 +1430,7 @@ The following decisions are intentionally not made under issue #33.
 - units and formatting;
 - notification mechanisms;
 - detailed map behavior;
+- detailed immediate Summary layout;
 - detailed saved-Flight presentation.
 
 ---
@@ -1333,13 +1449,15 @@ They must be resolved in issue #34, #36, #37, or a separately authorized bounded
 - first-slice lifecycle boundary;
 - first-slice recording durability;
 - first-slice interruption recovery;
-- exact durable handling of false-detection data if the selected slice reaches that behavior;
+- technical cleanup mechanism for rejected false-detection data if the selected slice reaches that behavior;
 - incomplete Flight record semantics at implementation-ready depth;
 - material provider choices required by the selected slice;
 - difficult-to-reverse persistence decisions;
 - exact first-slice validation strategy;
 - necessary technical decisions for AL-0003;
 - explicit deferrals applicable to AL-0003.
+
+The required product behavior is already fixed: rejected false-detection Flight data is deleted rather than retained.
 
 ---
 
@@ -1433,9 +1551,12 @@ Issue #33 may be considered complete after owner review confirms that:
 - the C2 Flight-start, completion, and manual-rejection authorization boundary is accepted;
 - Takeoff Point split ownership is accepted;
 - instantaneous derivation, Flight-scoped aggregation, and durable recording ownership are accepted;
+- current derived values and Flight elapsed time have explicit pilot-presentation handoffs;
+- immediate post-landing Summary and saved-Flight review share one finalized summary representation;
 - conceptual handoffs are accepted;
 - progressive Flight Recording and interrupted-record semantics are accepted;
-- manual completion ownership is accepted while exact false-detection durability handling remains deferred;
+- manual completion ownership is accepted;
+- rejected false-detection Flight data is deleted and cannot survive as a hidden diagnostic Flight record;
 - input-driven simulation and bounded diagnostic transition injection are accepted;
 - external-dependency categories are accepted;
 - map, network, and storage degradation expectations are accepted;
