@@ -159,6 +159,7 @@ The following ten concerns define the minimum useful responsibility map for MVP 
 
 **Produces**
 
+- requests to load or refresh current conditions;
 - Pre-Flight acknowledgements;
 - requests to enter, continue, or exit Flight Mode;
 - requests to manually complete a Flight;
@@ -215,6 +216,7 @@ The following ten concerns define the minimum useful responsibility map for MVP 
 - association of information with one Flight;
 - elapsed Flight time and Flight-scoped aggregates;
 - Takeoff Point identity, estimated location, and association with the Flight;
+- confirmed Landing Point identity, estimated location, confirmed-landing classification, and association with the completed Flight;
 - runtime completion, rejection, and finalization of the individual Flight.
 
 **Consumes**
@@ -228,6 +230,7 @@ The following ten concerns define the minimum useful responsibility map for MVP 
 
 - active Flight identity and lifecycle context for C1, C7, C8, and C9;
 - Takeoff Point identity and location for C7 and C8;
+- confirmed Landing Point identity, location, and classification for C9;
 - final lifecycle boundaries and aggregates for C1 and C9;
 - completion, rejection, interruption, and no-active-Flight outcomes for C2.
 
@@ -255,6 +258,7 @@ Relevant input categories include position, movement, orientation, altitude-rela
 
 **Consumes**
 
+- bounded current-location acquisition demand from C5;
 - Flight Mode acquisition demand from C2;
 - available device, platform, and simulated-source information.
 
@@ -267,7 +271,7 @@ Relevant input categories include position, movement, orientation, altitude-rela
 **Does not own**
 
 - product lifecycle transitions;
-- the product decision that Flight Mode requires flight-grade acquisition;
+- the product decisions that current-location weather or Flight Mode require acquisition;
 - detection confirmations;
 - derived semantics;
 - Flight aggregates;
@@ -277,6 +281,7 @@ Relevant input categories include position, movement, orientation, altitude-rela
 
 **Owns**
 
+- the product need for current-location weather context in normal application and Pre-Flight use;
 - geographic scoping and interpretation of current-location weather acquisition;
 - current observed wind, gusts, direction, pressure or QNH, and observation or update time;
 - near-term forecast when available;
@@ -285,11 +290,13 @@ Relevant input categories include position, movement, orientation, altitude-rela
 
 **Consumes**
 
+- current-conditions requests from C1;
 - normalized current-location context, including availability, validity, freshness, and provenance, from C4;
 - external weather-provider information.
 
 **Produces**
 
+- bounded current-location acquisition demand for C4;
 - weather context and status for C1;
 - pressure or QNH context for C7 when the selected altitude representation requires it.
 
@@ -326,7 +333,7 @@ Relevant input categories include position, movement, orientation, altitude-rela
 
 - Flight Mode state;
 - Flight creation, completion, rejection, or finalization;
-- Takeoff Point or Flight aggregate mutation;
+- Takeoff Point, Landing Point, or Flight aggregate mutation;
 - durable recording.
 
 ## C7 — Flight Information Derivation
@@ -338,6 +345,7 @@ Relevant input categories include position, movement, orientation, altitude-rela
 - current vertical speed;
 - current or rolling estimated wind;
 - course-, orientation-, distance-, and bearing-related calculations assigned to this concern;
+- True North reference semantics for pilot-facing navigation-direction outputs;
 - validity, quality, stability, availability, and measured-versus-estimated-versus-derived semantics for its values.
 
 **Consumes**
@@ -350,7 +358,7 @@ Relevant input categories include position, movement, orientation, altitude-rela
 
 - current pilot-facing Flight values for C1;
 - aggregate updates and final aggregate values for C3;
-- Takeoff Point distance, bearing, and relevant validity state for C8;
+- Takeoff Point distance, True-North-referenced bearing or direction, and relevant validity state for C8;
 - selected time-varying values for C9 when required by the later-approved recording contract.
 
 **Does not own**
@@ -369,6 +377,7 @@ Relevant input categories include position, movement, orientation, altitude-rela
 - current-position and active-track representation;
 - map orientation presentation and pilot control of map scale;
 - Takeoff Point map representation and passive-awareness presentation;
+- pilot-facing use of True North while keeping Track, Heading, bearing, and device orientation semantically distinct;
 - saved-track presentation;
 - spatial unavailable or degraded state.
 
@@ -376,7 +385,7 @@ Relevant input categories include position, movement, orientation, altitude-rela
 
 - normalized position and orientation information from C4;
 - active Flight and Takeoff Point context from C3;
-- distance, bearing, direction, and validity information from C7;
+- distance, True-North-referenced bearing or direction, and validity information from C7;
 - retained track and spatial record information from C9 for saved-Flight review.
 
 **Produces**
@@ -385,7 +394,7 @@ Relevant input categories include position, movement, orientation, altitude-rela
 
 **Does not own**
 
-- Takeoff Point identity or location;
+- Takeoff Point or Landing Point identity or location;
 - current-value calculations;
 - Flight lifecycle;
 - active route guidance or route planning;
@@ -398,6 +407,7 @@ Relevant input categories include position, movement, orientation, altitude-rela
 - initialization and progressive recording for an active Flight;
 - recording health and degraded state;
 - local storage of completed and retained Flights;
+- retained Takeoff Point and confirmed Landing Point information as part of the completed Flight record;
 - retained track, time-varying information, accepted summary fields, completion status, and durable Flight reference;
 - retrieval of retained Flights;
 - deletion of a progressively recorded episode rejected as a false detection;
@@ -405,14 +415,14 @@ Relevant input categories include position, movement, orientation, altitude-rela
 
 **Consumes**
 
-- active Flight identity, lifecycle markers, final boundaries, and final aggregates from C3;
+- active Flight identity, lifecycle markers, final boundaries, final aggregates, and confirmed Landing Point information from C3;
 - normalized track and other approved retained inputs from C4;
 - selected derived values from C7 under the later-approved recording contract.
 
 **Produces**
 
 - recording health and retention status for C1 and C3;
-- retained summary fields and track for C1 and C8;
+- retained summary fields, special-point information, and track for C1 and C8 as required by approved presentation contracts;
 - durable Flight reference when available;
 - success or failure of false-detection episode deletion.
 
@@ -421,6 +431,7 @@ Relevant input categories include position, movement, orientation, altitude-rela
 - whether the pilot is airborne;
 - Flight Mode or Flight lifecycle;
 - boundary detection;
+- confirmed Landing Point meaning or classification;
 - pilot retain-versus-discard choice;
 - current-value calculations;
 - presentation.
@@ -469,14 +480,15 @@ Detailed logging technology, telemetry format, diagnostic UI, storage, and autom
 | O2 | Flight identity and runtime lifecycle state | C3 | C1, C2, C7, C8, and C9 consume the relevant context |
 | O3 | Effective takeoff, confirmed-landing, and manual-completion boundaries | C3 | C1 and C9 consume final boundaries; C7 uses the active interval |
 | O4 | Elapsed Flight time and Flight-scoped aggregates | C3 | C1 presents them; C9 retains approved final values |
-| O5 | Takeoff Point identity and estimated location | C3 | C7 calculates relative values; C8 presents the point |
+| O5 | Takeoff Point identity and estimated location | C3 | C7 calculates relative values; C8 presents the point; C9 retains it |
 | O6 | Normalized runtime inputs, time, validity, freshness, and provenance | C4 | C5 consumes current-location context; other runtime consumers use required inputs without reclassifying source state silently |
-| O7 | Weather observation, forecast, and pressure or QNH context | C5 | C1 presents weather; C7 conditionally consumes pressure or QNH |
+| O7 | Current-location weather acquisition demand, weather observation, forecast, and pressure or QNH context | C5 | C4 fulfills the location demand; C1 presents weather; C7 conditionally consumes pressure or QNH |
 | O8 | Takeoff and landing detection candidate and confirmation state | C6 | C2 decides whether confirmed boundaries may affect lifecycle |
-| O9 | Current derived Flight, direction, distance, and bearing values | C7 | C1 and C8 present relevant values; C3 receives aggregate updates |
+| O9 | Current derived Flight, True-North-referenced direction, distance, and bearing values | C7 | C1 and C8 present relevant values; C3 receives aggregate updates |
 | O10 | Active and saved spatial representation | C8 | C1 presents the resulting map and awareness context |
 | O11 | Progressive and durable Flight record, recording status, and saved representation | C9 | C1 and C8 consume saved and retention results |
 | O12 | Simulation scenario and simulated-source state | C10 | C4 receives simulated equivalents; observability distinguishes the source |
+| O13 | Confirmed Landing Point identity, estimated location, and confirmed-landing classification | C3 | C9 retains it as part of the completed Flight record; presentation may consume it only through an approved Summary or spatial contract |
 
 ## Ownership interpretation rules
 
@@ -494,13 +506,13 @@ Each flow below describes the minimum concern-level path required by the accepte
 
 | ID | Mandatory flow | Principal conceptual path | Required observable result | Explicitly deferred or unresolved |
 | --- | --- | --- | --- | --- |
-| F1 | Current conditions | C4 supplies normalized current-location context, including availability, validity, freshness, and provenance, to C5; C5 uses that context to scope external weather acquisition and supplies observed weather, forecast when available, freshness, validity, and degraded state to C1 | The pilot can understand relevant conditions for the current location before Pre-Flight; unavailable or invalid location produces an explicit weather limitation rather than silently using an unrelated location | Provider, request mechanism, refresh/cache policy, forecast intervals, exact representation, fallback details |
+| F1 | Current conditions | C1 requests current conditions from C5; C5 expresses bounded current-location acquisition demand to C4; C4 fulfills that demand and supplies normalized current-location context, including availability, validity, freshness, and provenance, to C5; C5 uses that context to scope external weather acquisition and supplies observed weather, forecast when available, freshness, validity, and degraded state to C1 | The pilot can understand relevant conditions for the current location before Pre-Flight; unavailable or invalid location produces an explicit weather limitation rather than silently using an unrelated location | Provider, request mechanism, concurrent-demand coordination, refresh/cache policy, forecast intervals, exact representation, fallback details |
 | F2 | Minimal Pre-Flight and Flight Mode entry | C1 presents accepted acknowledgements and sends the completed acknowledgements plus explicit entry request to C2; C2 returns the resulting state to C1, issues Flight Mode acquisition demand to C4, and enables the allowed detection context for C6; C4 fulfills the demand through its acquisition boundary | Flight Mode becomes active only after explicit pilot intent; Ready on Ground waiting begins; required Flight Mode inputs become available through C4 | Exact controls, layout, platform activation, acquisition profiles, and resource-management mechanism |
 | F3 | Ready on Ground waiting, warning, continuation, and automatic exit | C4 supplies monotonic time to C2; C2 supplies waiting/warning/exit state to C1; C1 may request continuation; C2 resets the waiting period or exits when required; on exit C2 withdraws Flight Mode acquisition demand and C4 reduces or stops Flight Mode-specific acquisition while preserving other active input demands | The warning is presented, continuation is possible, and Flight Mode eventually exits if the pilot does not continue; resource use follows Flight Mode demand without C2 performing acquisition directly | Timeout and warning duration, presentation, exact continuation control, other reset conditions (`P5`), acquisition profiles and platform mechanism |
 | F4 | Confirmed takeoff and Flight creation | C4 supplies valid runtime inputs to C6; C6 confirms takeoff and supplies its estimated boundary to C2; C2 validates context and authorizes C3; C3 creates the Flight and Takeoff Point and tells C2/C1/C7/C8/C9 that an active Flight exists | One Flight begins inside active Flight Mode; its effective start and Takeoff Point represent the accepted actual-takeoff estimate; recording starts | Detector, confirmation semantics (`P2`), recent-history custody, retrospective estimation, thresholds, filters |
 | F5 | Active Flight information, elapsed time, aggregates, and progressive recording | C4 supplies inputs to C7 and time to C3; C5 supplies pressure or QNH to C7 only when required; C7 supplies current values to C1 and aggregate updates to C3; C3 supplies elapsed time and Flight context to C1; C4/C7/C3 supply approved retained information to C9 | Ground Speed, altitude, vertical speed, Flight time, and estimated wind are available with correct semantic status; Flight aggregates advance; recording progresses | Algorithms, validity rules, update rates, altitude/QNH model, retained parameter contract, sampling and persistence mechanics |
-| F6 | Takeoff Point awareness | C3 supplies Takeoff Point identity/location to C7 and C8; C7 supplies distance, bearing/direction, and validity to C8; C8 supplies the pilot-centred map and passive awareness presentation to C1 | The Takeoff Point remains distinct and visible throughout the Flight, with distance and bearing/direction; passive awareness does not become Active Navigation | Bearing and orientation details, quality semantics, map interaction and final orientation decision (`P6`) |
-| F7 | Confirmed landing and runtime completion | C4 supplies inputs to C6; C6 confirms landing and supplies the boundary to C2; C2 validates context and authorizes C3; C3 completes/finalizes the Flight, supplies final boundaries/aggregates to C1/C9, and reports no active Flight to C2 | The individual Flight ends; C2 immediately returns to Ready on Ground; waiting for another takeoff resumes | Landing detector, confirmation semantics (`P2`), exact Landing Point determination |
+| F6 | Takeoff Point awareness | C3 supplies Takeoff Point identity/location to C7 and C8; C7 supplies distance, True-North-referenced bearing or direction, and validity to C8; C8 supplies the pilot-centred map and passive awareness presentation to C1 while preserving the distinct meanings of Track, Heading, bearing, and device orientation | The Takeoff Point remains distinct and visible throughout the Flight, with distance and True-North-referenced bearing or direction; passive awareness does not become Active Navigation | Declination source/model, correction algorithm, update rate, source validity, fallback behavior, quality semantics, map interaction and final orientation decision (`P6`) |
+| F7 | Confirmed landing and runtime completion | C4 supplies inputs to C6; C6 confirms landing and supplies the boundary to C2; C2 validates context and authorizes C3; C3 completes/finalizes the Flight, establishes the confirmed Landing Point, supplies final boundaries/aggregates to C1/C9, supplies Landing Point identity/location/classification to C9, and reports no active Flight to C2 | The individual Flight ends; the completed Flight has a distinct confirmed Landing Point retained with its record; C2 immediately returns to Ready on Ground and waiting for another takeoff resumes | Landing detector, confirmation semantics (`P2`), exact Landing Point determination and storage representation |
 | F8 | Immediate completed-Flight Summary | C3 supplies final Flight values and completion type to C1; C9 supplies recording completeness and retention status; C1 presents their shared core summary information while C2 remains Ready on Ground | A Summary appears inside the Flight flow, confirms completion, and does not block waiting for another takeoff | Exact Summary fields beyond accepted minimum, information hierarchy, layout, retention timing and error presentation |
 | F9 | Another Flight in the same Flight Mode period | After F7/F8, C2 remains Ready on Ground, Flight Mode acquisition demand remains active, and C6 remains allowed to detect takeoff; a new F4 starts a new independent Flight; C1 closes the prior Summary when the new Flight begins | Multiple independent Flights may occur in one Flight Mode period without a Flight Session record | Exact presentation transition |
 | F10 | Manual completion — retain real Flight | C1 sends the manual-completion request and retain choice to C2; C2 validates context and authorizes C3; C3 completes the Flight with an explicit manual boundary and supplies final results to C1/C9; C2 returns to Ready on Ground | A real Flight is retained without implying confirmed landing; Flight Mode remains active | Exact interaction, confirmation behavior, and Landing Point semantics (`P4`) |
@@ -508,7 +520,7 @@ Each flow below describes the minimum concern-level path required by the accepte
 | F12 | Explicit Flight Mode exit while no Flight is active | C1 sends an exit request to C2; C2 exits, disables the allowed detection context, withdraws Flight Mode acquisition demand from C4, and returns the resulting state to C1; C4 reduces or stops Flight Mode-specific acquisition while preserving any other active input demand | Flight Mode ends separately from any individual Flight; C2 owns the operational decision and C4 owns the acquisition/resource mechanism | Exact control, presentation, acquisition profiles, and platform mechanism |
 | F13 | Explicit Flight Mode exit while a Flight is active | No product flow is accepted. C1 may originate the request, but C2 must not invent refusal, forced completion, discard, or another transition | The unresolved state is exposed rather than silently implemented | Explicit owner product decision `P1` is required before implementation reaches this scenario |
 | F14 | Platform interruption during an active Flight | C4 exposes the interruption or restoration signal to C3 and C9; the affected concerns expose their state and outcome to C1/C2 as required | Interruption is observable and does not silently masquerade as confirmed landing or deliberate completion | Product classification and retained outcome (`P3`), recovery guarantees, checkpointing, restoration, and storage mechanics |
-| F15 | Saved-Flight access and review | C1 requests a retained Flight from C9; C9 supplies accepted summary fields, retained status, and recorded track; C8 presents the saved track and scale control; C1 presents the saved summary and record status | A retained Flight can later be opened and understood through both its map track and principal summary information | Navigation to history, detailed layout, editing, replay, analytics, schema and retrieval implementation |
+| F15 | Saved-Flight access and review | C1 requests a retained Flight from C9; C9 supplies accepted summary fields, retained status, retained special-point information, and recorded track; C8 presents the saved track and scale control; C1 presents the saved summary and record status | A retained Flight can later be opened and understood through its map track and principal summary information without losing the semantic identity of its Takeoff Point or confirmed Landing Point | Navigation to history, detailed layout, editing, replay, analytics, schema and retrieval implementation |
 | F16 | Simulation-driven validation | C10 supplies approved simulated equivalents through C4; C4 preserves simulated provenance; normal C2–C9 paths execute without simulation-only lifecycle or product logic | Ground waiting, takeoff, active Flight values, Takeoff Point awareness, landing, Summary, persistence, saved review, and multiple Flights can be validated without a real Flight | Full substitution boundary, minimum equivalents, fidelity, provenance contract, observability, controls, automation, and architecture belong to issue #34 |
 
 ## Flow-coverage interpretation
@@ -534,7 +546,7 @@ Each flow below describes the minimum concern-level path required by the accepte
 | Network | Connectivity infrastructure | AirLink interprets availability and freshness and may use cached or preloaded context | Core active-Flight lifecycle, current local information, and progressive local recording must not require permanent connectivity |
 | System and monotonic clocks | Platform clock sources | C4 exposes wall-clock and monotonic time with source semantics | Durations, detection windows, and inactivity periods must not rely solely on mutable wall-clock continuity |
 
-Specific providers, APIs, libraries, storage engines, databases, formats, caches, acquisition coordinators, resource profiles, and recovery mechanisms are not selected by this document.
+Specific providers, APIs, libraries, storage engines, databases, formats, caches, acquisition coordinators, resource profiles, declination sources, and recovery mechanisms are not selected by this document.
 
 ---
 
@@ -576,6 +588,12 @@ Map, weather, network, or storage degradation may reduce available information o
 
 Simulation substitutes approved input production and validation control. It does not create simulation-only lifecycle, calculation, storage, or presentation behavior.
 
+## R10 — Pilot-facing navigation directions use True North
+
+All pilot-facing navigation directions are referenced to True North. A magnetic source may support ground device orientation, but it must be corrected before pilot-facing use. Track, Heading, bearing, and device orientation remain semantically distinct and must not be presented as an unlabeled generic direction.
+
+The declination source or model, correction algorithm, update rate, validity rules, fallback behavior, and display formatting remain deferred.
+
 ---
 
 # 7. Open Decisions and Explicit Deferrals
@@ -598,10 +616,10 @@ These decisions are not implementation-agent choices. When a selected slice reac
 | ID | Decision group | Includes | Governing later work |
 | --- | --- | --- | --- |
 | D1 | Platform and input contracts | Android APIs, permissions, execution behavior, concern-level acquisition-demand coordination, resource profiles, sampling, timestamps, freshness, validity, source hierarchy, sensor fusion | Selected-slice planning and bounded technical decisions |
-| D2 | Flight detection | Algorithms, signals, thresholds, filters, confirmation windows, recent-history duration, retrospective boundary estimation, false-positive and false-negative recovery | Selected-slice planning after required product decisions |
+| D2 | Flight detection and boundary-derived points | Algorithms, signals, thresholds, filters, confirmation windows, recent-history duration, retrospective takeoff-boundary estimation, confirmed Landing Point determination, false-positive and false-negative recovery | Selected-slice planning after required product decisions |
 | D3 | Derived information | Altitude/QNH model, vertical speed, estimated wind, direction values, quality/stability semantics, precision, smoothing, update rates | Selected-slice and parameter-contract work |
-| D4 | Orientation and map behavior | Orientation source and switching, magnetic correction, bearing semantics, invalid-direction fallback, zoom/recenter interaction, final orientation implementation | Selected-slice planning and pilot validation |
-| D5 | Recording and replay-supporting data | Retained parameter set, sampling intervals, historical-value preservation, buffering, checkpointing, recovery, storage capacity, retention policy, schema and format | Selected-slice persistence planning and later logging work |
+| D4 | Orientation and map behavior | Orientation source and switching, declination source/model, magnetic-to-True correction algorithm, update rate, source validity, fallback behavior, display formatting and labels, zoom/recenter interaction, final orientation implementation | Selected-slice planning and pilot validation |
+| D5 | Recording and replay-supporting data | Retained parameter set, sampling intervals, historical-value preservation, buffering, checkpointing, recovery, storage capacity, retention policy, special-point storage representation, schema and format | Selected-slice persistence planning and later logging work |
 | D6 | Summary and presentation | Exact Summary fields beyond accepted minimum, information hierarchy, formatting, units, controls, warning presentation, saved-review layout | Selected-slice UX and product planning |
 | D7 | Simulation and observability | Live/simulated substitution points, simulated equivalents, fidelity, provenance, mandatory observable behavior, controls, scenarios, automation | Issue #34, then selected-slice planning |
 | D8 | Dependencies, risks, decisions, and implementation sequence | Concern dependency order, external constraints, risk-reduction order, difficult-to-reverse decisions, future slice sequence | Issue #35 |
@@ -652,13 +670,14 @@ A valid review should verify that:
 
 1. every accepted MVP 0.1 flow is represented in section 4;
 2. every important state or information category has one authoritative owner in section 3;
-3. every mandatory flow has a complete producer–owner–consumer path at concern level;
+3. every mandatory flow has a complete trigger–demand–producer–owner–consumer path at concern level where external acquisition is required;
 4. no concern silently assumes authority owned by another concern;
 5. every relevant unresolved product question is explicitly recorded in section 7.1;
-6. deferred implementation mechanics remain deferred;
-7. no final architecture, API, schema, provider, algorithm, or complete internal message graph is implied.
+6. accepted semantic product rules are not reclassified as deferred engineering choices;
+7. deferred implementation mechanics remain deferred;
+8. no final architecture, API, schema, provider, algorithm, or complete internal message graph is implied.
 
-Do not treat the absence of implementation mechanics as a defect unless that absence leaves an accepted product flow, ownership boundary, difficult-to-reverse decision, or required first-slice dependency undefined.
+Do not treat the absence of implementation mechanics as a defect unless that absence leaves an accepted product flow, ownership boundary, difficult-to-reverse decision, accepted semantic invariant, or required first-slice dependency undefined.
 
 ---
 
@@ -669,10 +688,10 @@ Issue #33 content is ready for owner review when the owner confirms that:
 - the MVP 0.1 Scope is sufficient for this planning level;
 - the engineering boundary in section 1 is accepted;
 - concern contracts C1–C10 are accepted as responsibilities rather than final components;
-- ownership entries O1–O12 are accepted;
+- ownership entries O1–O13 are accepted;
 - mandatory flows F1–F16 cover the accepted MVP outcome without inventing unresolved product behavior;
 - external dependency and degradation boundaries are accepted;
-- cross-cutting rules R1–R9 preserve the approved product distinctions;
+- cross-cutting rules R1–R10 preserve the approved product distinctions;
 - product decisions P1–P6 remain explicitly unresolved and are not delegated to implementation;
 - engineering deferrals D1–D8 remain assigned to the appropriate later bounded work;
 - the document remains WIP, non-canonical, and non-authoritative for implementation;
