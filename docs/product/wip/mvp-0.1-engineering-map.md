@@ -17,9 +17,9 @@ The current document contains:
 
 - the owner-approved engineering-boundary and responsibility-map baseline prepared under GitHub issue `#33 / AL-0002-01`;
 - the owner-approved and merged live-input and simulation-substitution extension prepared under GitHub issue `#34 / AL-0002-02`;
-- the dependency, risk, decision-order, deferral, and high-level sequencing extension prepared under GitHub issue `#35 / AL-0002-03` and currently under owner review in its Draft PR.
+- the dependency, risk, decision-order, deferral, and high-level sequencing extension prepared under GitHub issue `#35 / AL-0002-03` and PR `#41`.
 
-Approval of the issue #33 and #34 content does not constitute approval of the issue #35 extension or the complete Engineering Map. Final owner approval of the consolidated map remains pending until the owner accepts the issue #35 Draft PR.
+Creation of the issue #35 extension does not itself approve that extension or the consolidated MVP 0.1 Engineering Map. Explicit owner acceptance and merge of PR #41 records approval of the issue #35 extension and of the consolidated map as an AL-0002 planning input. That approval does not promote the document to canon, make it implementation authority, select the first vertical slice, start issue #36, activate AL-0003, or authorize implementation.
 
 ## Purpose
 
@@ -865,7 +865,7 @@ These exclusions are bounded MVP simplifications. They do not reject or redefine
 
 - **Direction advanced:** the first coherent local Flight Support outcome spanning preparation, Flight, completion, retention, and later review.
 - **Explicit simplification:** MVP 0.1 is mapped only at concern, authoritative-ownership, mandatory-flow, input-category, semantic-fidelity, observability, external-constraint, dependency, risk, decision-timing, and high-level product-wave level. Future implementation is organized through bounded vertical product outcomes rather than a complete backlog or concern-by-concern build sequence.
-- **Approval authority:** the planning depth and simplification are authorized by `ITERATION.md`, issues #32 and #35, the owner-reviewed MVP 0.1 planning boundary, the accepted and merged issue #33/#34 outputs, the five owner-approved issue #34 constraints, and the four owner decisions governing issue #35. Acceptance of the issue #35 extension remains subject to owner review.
+- **Approval authority:** the planning depth and simplification are authorized by `ITERATION.md`, issues #32 and #35, the owner-reviewed MVP 0.1 planning boundary, the accepted and merged issue #33/#34 outputs, the five owner-approved issue #34 constraints, and the four owner decisions governing issue #35. The issue #35 extension was prepared under issue #35 and PR #41; its creation does not constitute approval, which is recorded only by explicit owner acceptance and merge of PR #41.
 - **Boundedness:** the map applies only to MVP 0.1 engineering planning under AL-0002.
 - **Reversibility:** each implementation wave expands only the necessary subset of C1–C10; minimum simulation grows inside product slices; Android constraints remain visible before live integration; source substitution, scenario metadata, runtime provenance, handling, and Flight classification remain separate; no final components, APIs, schemas, providers, algorithms, storage engines, simulation controls, or complete architecture are selected.
 - **Early risk treatment:** estimated wind remains a central intended Flight Support value and is scheduled for controlled risk reduction within the first several implementation iterations, using scenario truth only for comparison with C7's independent result.
@@ -1065,9 +1065,9 @@ Issue #36 must compare candidates and obtain explicit owner selection. This docu
 
 # 14. Issue #35 Acceptance Check
 
-Issue #35 content is ready for owner review when the owner confirms that:
+The acceptance record for issue #35 is explicit owner acceptance and merge of PR #41 after confirmation that:
 
-- issue #33 baseline and issue #34 extension are recorded as accepted and merged, while issue #35 and consolidated-map approval remain pending;
+- issue #33 baseline and issue #34 extension are recorded as accepted and merged, and issue #35 approval is recorded only through explicit owner acceptance and merge of PR #41;
 - semantic, runtime-information, external, and implementation-order dependencies are explicit and remain distinct;
 - C1–C10 remain concern responsibilities rather than final components, and the runtime graph is not a module-build sequence;
 - the runtime input backbone, lifecycle spine, active-Flight information dependencies, and validation boundary preserve accepted ownership without defining APIs or internal message architecture;
@@ -1086,4 +1086,4 @@ Issue #35 content is ready for owner review when the owner confirms that:
 - Product Direction alignment remains `Aligned with explicit simplification`;
 - no application architecture, mobile framework, Android API, provider, database, schema, algorithm, exact simulation equation or format, complete UI, implementation code, or executable prototype is introduced.
 
-Owner acceptance of the issue #35 Draft PR approves this extension and the consolidated Engineering Map as an AL-0002 planning input. It does not promote the document to canon, make it implementation authority, select the first vertical slice, activate AL-0003, or authorize product implementation.
+Creation of this extension and acceptance check does not itself record approval. Explicit owner acceptance and merge of PR #41 records approval of the issue #35 extension and the consolidated MVP 0.1 Engineering Map as an AL-0002 planning input. That approval does not promote the document to canon, make it implementation authority, select the first vertical slice, start issue #36, activate AL-0003, or authorize product implementation.
