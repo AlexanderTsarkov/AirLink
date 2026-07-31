@@ -16,13 +16,10 @@ It is:
 The current document contains:
 
 - the owner-approved engineering-boundary and responsibility-map baseline prepared under GitHub issue `#33 / AL-0002-01`;
-- the live-input and simulation-substitution extension prepared for owner review under GitHub issue `#34 / AL-0002-02`.
+- the owner-approved and merged live-input and simulation-substitution extension prepared under GitHub issue `#34 / AL-0002-02`;
+- the dependency, risk, decision-order, deferral, and high-level sequencing extension prepared under GitHub issue `#35 / AL-0002-03` and currently under owner review in its Draft PR.
 
-The following extension remains reserved for later bounded work:
-
-- issue `#35 / AL-0002-03` — dependency order, risk order, decision order, deferred-decision consolidation, and candidate implementation sequence.
-
-Approval of the issue #33 content does not constitute approval of the issue #34 extension or the complete Engineering Map. Final owner approval of the consolidated map occurs only after the bounded work of issues #34 and #35.
+Approval of the issue #33 and #34 content does not constitute approval of the issue #35 extension or the complete Engineering Map. Final owner approval of the consolidated map remains pending until the owner accepts the issue #35 Draft PR.
 
 ## Purpose
 
@@ -36,7 +33,12 @@ At the current planning depth, it defines:
 - coverage of the mandatory MVP 0.1 product flows;
 - external dependency and degradation boundaries;
 - accepted cross-cutting responsibility rules;
-- unresolved product decisions and intentionally deferred engineering decisions.
+- concern-level semantic, runtime-information, external, and implementation-order dependencies;
+- external constraints that affect implementation order;
+- engineering risks and their reduction order;
+- unresolved product decisions, difficult-to-reverse decision timing, and intentionally deferred engineering decisions;
+- a high-level risk-ordered sequence of future implementation waves;
+- constraints for later first-slice candidate selection.
 
 Concern identifiers in this document are planning references. They do not prescribe modules, packages, classes, services, processes, deployment units, repositories, or dependency-injection boundaries.
 
@@ -51,24 +53,27 @@ For the purposes of this map, planning is complete when:
 - required producers and consumers are connected at concern level;
 - responsibility and non-ownership boundaries prevent implementation agents from inventing product semantics or transferring authority silently;
 - external dependency and degradation consequences that affect product behavior are explicit;
+- semantic and runtime-information dependencies are distinguishable from implementation order;
+- material risks, decision gates, latest safe decision points, and difficult-to-reverse choices are visible before implementation reaches them;
+- future implementation can be organized as bounded vertical slices that produce observable product outcomes rather than as concern-by-concern construction;
 - unresolved product decisions and intentionally deferred engineering decisions are recorded rather than guessed.
 
 The map describes **principal conceptual handoffs** only. A handoff identifies which concern supplies information or requests a transition, which concern owns the resulting state or interpretation, and which concern requires the outcome. It does not prescribe how that handoff is technically implemented.
 
 Missing concern-level ownership or a missing path required by an accepted MVP flow is a defect in this document. Missing implementation mechanics are not defects unless they are required to preserve product meaning, avoid a difficult-to-reverse decision, or prepare the separately selected first implementation slice.
 
-Implementation-ready depth is intentionally reserved for the selected first vertical slice and its governing later issues. Issue #34 extends this map at whole-MVP concern level, and issue #35 will extend it with ordering and sequencing, without converting it into a complete architecture.
+Implementation-ready depth is intentionally reserved for the selected first vertical slice and its governing later issues. Issues #33 and #34 establish the accepted boundary, responsibility, and live/simulation foundation. Issue #35 adds whole-MVP dependency, risk, decision-order, and high-level sequence guidance without converting the map into a complete architecture, backlog, or implementation plan.
 
 ## Governing Context
 
 Work under this document follows the source-of-truth order and Product-Significance Routing defined in `AGENTS.md`.
 
-The issue #34 extension uses the issue #33 owner-approved baseline and the following task-specific context:
+The issue #35 extension uses the owner-approved and merged issue #33 and #34 outputs and the following task-specific context:
 
 - `ITERATION.md`;
 - `docs/product/CurrentState.md`;
 - relevant canonical product documentation;
-- GitHub issues #32–#34 and approved task artifacts;
+- GitHub issues #32 and #35 and approved task artifacts;
 - the owner-reviewed `docs/product/wip/mvp-0.1-scope.md` planning baseline;
 - directly relevant Flight Mode, Flight, and Navigation WIP.
 
@@ -80,7 +85,7 @@ Consultation does not promote WIP into canon or make this planning artifact impl
 
 ## 1.1 Planning-sufficiency assessment
 
-The existing MVP 0.1 Scope and the owner-approved issue #33 Engineering Map are sufficient as the WIP planning baseline for the concern-level work required by issue #34.
+The existing MVP 0.1 Scope and the owner-approved and merged issue #33 and #34 Engineering Map content are sufficient as the WIP planning baseline for the dependency, risk, decision-order, deferral, and high-level sequencing work required by issue #35.
 
 No contradiction or omission currently blocks:
 
@@ -90,9 +95,10 @@ No contradiction or omission currently blocks:
 - state and information ownership;
 - concern-level product-flow coverage;
 - external-dependency classification;
-- live-input categorization, conceptual substitution, provenance, semantic fidelity, retained simulated-Flight behavior, and mandatory observability under issue #34.
+- live-input categorization, conceptual substitution, provenance, semantic fidelity, retained simulated-Flight behavior, and mandatory observability under issue #34;
+- concern-level dependency classification, external ordering constraints, risk reduction, decision timing, deferral consolidation, and high-level future sequencing under issue #35.
 
-No blocking product contradiction or omission was found, no product-scope correction is required, and no additional owner decision blocks issue #34 review.
+No blocking product contradiction or omission was found, no product-scope correction is required, and no additional owner decision blocks issue #35 review.
 
 Issue #34 proceeds under five explicit owner-approved constraints:
 
@@ -104,7 +110,16 @@ Issue #34 proceeds under five explicit owner-approved constraints:
 
 These decisions settle the product-semantic boundary needed by issue #34. Architecture, source-selection mechanics, scenario representation, controls, exact simulated parameters, physical and sensor models, storage realization, diagnostics presentation, automation, and first-slice-specific simulation design remain intentionally deferred.
 
-Some product and domain decisions remain unresolved. They are recorded in section 7 because they must not be selected silently during implementation. They do not prevent the concern-level boundary from being mapped.
+Issue #35 proceeds under four additional explicit owner decisions:
+
+1. future implementation planning uses bounded end-to-end vertical slices ordered by product outcome and risk reduction, not concern-by-concern, layer-by-layer, or infrastructure-first construction;
+2. the first implementation slice includes only the minimum C10 simulation capability required to exercise and observe that slice, and simulation capability grows incrementally inside later product slices;
+3. Android constraints inform boundaries and difficult-to-reverse choices from the beginning, while concrete live Android source integration follows a coherent and acceptably working simulation-driven application path;
+4. estimated wind is an early major product and engineering risk: the first slice must preserve compatible input, time, derivation, simulation, observability, and retention boundaries, and controlled wind validation must occur within the first several implementation iterations rather than after general MVP completion.
+
+These owner decisions order future planning without selecting the first slice, application architecture, mobile framework, Android APIs, storage design, provider, algorithm, complete simulator, or final component realization.
+
+Some product and domain decisions remain unresolved. They are recorded in section 7 because they must not be selected silently during implementation. They do not prevent the concern-level dependency and sequencing map from being completed, provided each future slice stops at an applicable unresolved decision boundary.
 
 The MVP 0.1 Scope remains non-canonical, is not a detailed specification, and does not gain implementation authority through this assessment.
 
@@ -681,6 +696,22 @@ Each flow below describes the minimum concern-level path required by the accepte
 | Network | Connectivity infrastructure | AirLink interprets availability and freshness and may use cached or preloaded context | Core active-Flight lifecycle, current local information, and progressive local recording must not require permanent connectivity |
 | System and monotonic clocks | Platform clock sources | C4 exposes wall-clock and monotonic time with source semantics | Durations, detection windows, and inactivity periods must not rely solely on mutable wall-clock continuity |
 
+## External constraints affecting implementation order
+
+External dependencies do not prescribe a provider or technical stack, but their semantics constrain when implementation choices remain safe. Android feasibility is considered from the first slice wherever it affects boundaries or difficult-to-reverse decisions. Concrete live-source mechanisms are intentionally connected only after a coherent simulation-driven product path exists.
+
+| External constraint | Why it affects order | Latest safe point | Failures that must remain explicit | Authoritative concerns |
+| --- | --- | --- | --- | --- |
+| Android lifecycle and permissions | Lifecycle state and denied, limited, or revoked access affect availability, interruption, acquisition demand, and whether a product flow can continue | Preserve lifecycle, permission, and availability semantics in the first slice; choose concrete mechanisms before Phase 4 live integration | Denial, revocation, process interruption, restoration, and unavailable source; none may masquerade as landing, completion, rejection, or valid current data | C4 owns normalized platform and availability state; C2/C3 own lifecycle meaning; C9 owns recording outcome |
+| Foreground and background execution | Continuous acquisition and recording may be constrained when the app is obscured, backgrounded, or interrupted | Preserve acquisition-demand and interruption boundaries in simulation-driven slices; decide the Android execution model before live continuous acquisition and validate it before real-flight readiness | Suspended acquisition, stopped execution, delayed samples, continuity gaps, restoration failure, and recording degradation | C4 owns input/execution state; C2 owns Flight Mode demand; C3 owns Flight state; C9 owns recording health and retention |
+| Device GNSS, movement, orientation, altitude, pressure, and clocks | Source availability, timestamps, quality, reference semantics, and combinations directly affect C6–C9 behavior | Preserve C4 normalization, time, provenance, validity, and degradation contracts from the first slice; connect and validate each live category before the dependent Phase 4 behavior is claimed | Unavailable, invalid, stale, low-quality, discontinuous, or semantically incompatible values and source switches | C4 owns normalized runtime-source state; C6 owns detection; C7 owns derived meaning; C8 owns spatial presentation |
+| Weather-provider availability and network behavior | Current-location scoping, observation versus forecast, freshness, and offline behavior affect Pre-Flight context and conditional QNH use | Preserve C5 interpretation and degradation boundaries before a slice consumes weather; select or integrate a provider only when that slice requires live weather | Network loss, provider failure, unrelated-location data, stale observation, missing forecast, and unavailable pressure/QNH | C5 remains authoritative for weather interpretation; C4 owns current-location context; C1 presents limitations |
+| Map availability | Map loss can remove a presentation aid without changing lifecycle, detection, calculation, or recording truth | Preserve C8 degraded behavior before the first spatial slice; choose a provider only when map rendering is implemented | Missing tiles or rendering, stale/offline coverage, projection or orientation failure, and unavailable saved-track presentation | C8 owns AirLink spatial meaning and degradation; C2/C3/C6/C7/C9 remain authoritative for their non-map responsibilities |
+| Local-storage reliability | Early record loss can permanently destroy Flight history and future replay evidence; partial writes may misrepresent retention | Define the logical retained-data and historical-preservation contract before the first durable Flight result; choose schema and recovery strategy before production persistence hardening | Initialization, progressive-write, finalization, retrieval, migration, capacity, deletion, and recovery failures | C9 owns recording, durable meaning, retrieval, deletion, and health; C3 owns lifecycle classification and boundaries |
+| System and monotonic clocks | Mutable wall time cannot safely define durations, detection windows, ordering, or inactivity; discontinuity affects replay and diagnosis | Separate wall-clock and monotonic semantics in the first slice and decide the durable timestamp model before retained time history depends on it | Clock adjustment, monotonic discontinuity, missing timestamps, reordered samples, and invalid source time | C4 owns clock-source semantics; C2/C3/C6/C7/C9 consume time only for their accepted responsibilities |
+| Interruption and restoration | A process or source interruption during a Flight exposes unresolved P3 semantics and tests whether recording and lifecycle remain distinguishable | Make interruption observable from the first applicable slice; resolve P3 before recovery behavior or production persistence hardening is implemented | Interrupted, restored, partially restored, unrecoverable, and recording-incomplete outcomes; interruption is never silently landing or deliberate completion | C4 exposes interruption/restoration; C3 owns Flight classification/state; C9 owns technical recovery and retained outcome after product meaning is decided |
+| Battery and resource use | High-rate acquisition and long-running execution may make a technically correct path unusable or unsafe for real-flight validation | Preserve concern-level demand boundaries early; measure and harden resource behavior after live integration and before real-flight readiness | Throttling, reduced availability, device pressure, excessive drain, and resource-driven acquisition or recording gaps | C2/C5 express bounded demand; C4 owns fulfillment and resource-facing source state; affected concerns expose degradation |
+
 Specific providers, APIs, libraries, storage engines, databases, formats, caches, acquisition coordinators, resource profiles, declination sources, and recovery mechanisms are not selected by this document.
 
 ---
@@ -763,35 +794,49 @@ MVP 0.1 requires coherent semantic and behavioral relationships sufficient to ex
 
 ---
 
-# 7. Open Decisions and Explicit Deferrals
+# 7. Decision Classification and Consolidated Deferrals
 
-## 7.1 Product and domain decisions requiring explicit owner resolution
+## 7.1 Difficult-to-reverse decision classification
 
-| ID | Unresolved decision | Why it remains open | Required before |
+Decision class describes authority and reversibility, not implementation order. A high-classification decision is made only when a bounded vertical slice requires it; it is not a reason to build a horizontal foundation first.
+
+| Class | Meaning | Examples in this map | Required treatment |
 | --- | --- | --- | --- |
-| P1 | Behavior of an explicit Flight Mode exit request while a Flight is active | The Flight Mode WIP explicitly leaves the required pilot and lifecycle behavior open | Any implementation slice exposes or must handle this action |
-| P2 | Exact semantic distinction and transition rule between detected and confirmed takeoff or landing | Current WIP requires automatic lifecycle support but defers the exact boundary semantics | Detector and lifecycle implementation-ready planning |
-| P3 | Product classification and retained outcome for a Flight interrupted without confirmed landing or deliberate manual completion | Current sources do not accept whether the episode is retained, deleted, recoverable, incomplete, or represented another way | Interruption recovery, restoration, or persistence implementation |
-| P4 | Landing Point existence and classification for a manually retained Flight | A manual boundary must not falsely imply confirmed landing | Persisting or presenting a Landing Point for manual completion |
-| P5 | Conditions other than pilot continuation that reset the Ready on Ground inactivity period | Flight Mode WIP leaves these conditions open | Detailed inactivity behavior for a selected slice |
-| P6 | Final primary in-flight orientation behavior | Track-up versus estimated Heading-up remains deferred for experimentation and pilot feedback | Final Flight spatial behavior is selected for implementation |
+| A — owner-controlled product semantics | Defines pilot-facing meaning, lifecycle, retention meaning, or another accepted product distinction | P1–P6; completion and interruption meaning; Flight retention or deletion meaning; pilot-facing semantic distinctions | Explicit owner decision before implementation reaches the boundary; an agent must stop rather than infer an answer |
+| B — material and difficult to reverse | Establishes a durable technical contract or system boundary whose later replacement would be costly or could destroy historical meaning | Logical retained-data contract; historical-value preservation; timestamp and monotonic-time model; durable Flight identity and classification; provenance and validity preservation; application architecture or framework when first required; storage schema and migration strategy; Android execution model; realization of runtime-input and substitution boundaries | A bounded decision section or separate decision issue before implementation depends on it; issue #35 classifies but does not choose it |
+| C — material but replaceable behind preserved contracts | Selects a substantial mechanism that can evolve without changing accepted product semantics or Class B boundaries | Detection and wind-estimation algorithms; weather or map provider; smoothing; source hierarchy; simulation controls; detailed UI information hierarchy | Decide in the bounded slice that first requires it, preserve observability and contracts, and avoid premature whole-MVP selection |
+| D — local implementation choice | Affects only a local realization and can change without altering accepted behavior or a preserved contract | Class names; package organization; local helper abstractions; internal DTOs; behavior-preserving implementation detail | Choose locally inside an authorized implementation issue; do not elevate it into product or architecture authority |
 
-These decisions are not implementation-agent choices. When a selected slice reaches one of them, the affected work must stop for the governing owner decision.
+No final architecture or Class B choice is selected by this document. A Class B decision may be prepared only in the later bounded work that demonstrates the need and authority.
 
-## 7.2 Engineering decisions intentionally deferred
+## 7.2 Owner-controlled product decisions
 
-| ID | Decision group | Includes | Governing later work |
-| --- | --- | --- | --- |
-| D1 | Platform and input contracts | Android APIs, permissions, execution behavior, concern-level acquisition-demand coordination, resource profiles, sampling, timestamps, freshness, validity, source hierarchy, sensor fusion | Selected-slice planning and bounded technical decisions |
-| D2 | Flight detection and boundary-derived points | Detector design within the accepted non-speed-only constraint, signal combination, thresholds, filters, confirmation windows, recent-history duration and custody within the transient-history constraint, retrospective takeoff-boundary estimation, confirmed Landing Point determination, false-positive and false-negative recovery | Selected-slice planning after required product decisions |
-| D3 | Derived information | Altitude/QNH model, vertical speed, estimated wind within the accepted non-gust scope, direction values, quality/stability semantics, precision, smoothing, update rates | Selected-slice and parameter-contract work |
-| D4 | Orientation and map behavior | Selection and switching among C7-provided orientation values or candidates, declination source/model, magnetic-to-True correction and Heading-derivation algorithms, update rate, source validity, fallback behavior, display formatting and labels, exact compass-ring design, scale-control mechanism, zoom range/steps, gesture/button behavior, animation, recenter interaction, final orientation policy and implementation | Selected-slice planning and pilot validation |
-| D5 | Recording and replay-supporting data | Exact retained parameter set, sampling intervals, live/selected/simulated provenance and validity representation, separate representation and historical preservation of pass-through/controlled-substitute handling where required, calculation-version context, preservation mechanism, active-Flight recording buffering, checkpointing, recovery, storage capacity, retention policy, special-point storage representation, schema, migration and format | Selected-slice persistence planning and later logging work |
-| D6 | Summary and presentation | Exact Summary fields beyond accepted minimum, information hierarchy, formatting, units, controls, warning presentation, non-flight placement and presentation of estimated-wind limitations, manual-versus-confirmed completion formatting, exact Summary exit-action control, label, placement and confirmation behavior, saved-review layout | Selected-slice UX and product planning |
-| D7 | Simulation and observability realization | Framework architecture, substitution implementation, source hierarchy and switching, pass-through/controlled-substitute handling representation, mixed-source provenance-composition mechanism, exact scenario/control representation, simulation-path generation, heading-profile and phase-sequence realization, motion model, scenario-wind application, timing implementation, validation comparison mechanics, control surface, operator workflow, exact simulated parameters, physical and sensor realism, sample rates, deterministic versus stochastic behavior, noise and error models, latency, acceleration, pause, step, rewind or replay controls, automation integration, diagnostics presentation, logging or telemetry technology, test framework, scenario or run persistence, storage separation by Flight-level classification, history filtering and visual marking, retention and cleanup policy or implementation, and first-slice-specific simulation design | Selected-slice planning and the bounded later work that requires each decision |
-| D8 | Dependencies, risks, decisions, and implementation sequence | Concern dependency order, external constraints, risk-reduction order, difficult-to-reverse decision classification and timing, future slice sequence | Issue #35 |
+P1–P6 remain unresolved. The timing below establishes the latest safe decision point; it does not answer any decision.
 
-Deferral means that the decision must be made deliberately in the bounded work that requires it. Deferral does not authorize an implementation agent to select product semantics or difficult-to-reverse architecture silently.
+| ID | Decision and type | Authority | Trigger and latest safe decision point | Dependencies and reversibility | Status and governing future work |
+| --- | --- | --- | --- | --- | --- |
+| P1 | Behavior of an explicit Flight Mode exit request while a Flight is active; Class A lifecycle semantics | Owner | Before a slice exposes or handles Flight Mode exit during an active Flight | Depends on C1 request, C2 authorization, C3 completion/interruption meaning, and C9 retention outcome; a guessed transition could corrupt lifecycle and retained meaning | Unresolved; stop the applicable slice and obtain an owner decision before implementing F13 |
+| P2 | Exact semantic distinction and transition rule between detected and confirmed takeoff or landing; Class A lifecycle semantics | Owner | Before implementation-ready planning of permanent automatic detection and lifecycle transitions | Constrains C6 outcomes, C2 authorization, C3 boundaries, Takeoff/Landing Point meaning, and C9 history; early reversible experiments may not claim final semantics | Unresolved; governing decision for D2 and permanent F4/F7 behavior |
+| P3 | Product classification and retained outcome for a Flight interrupted without confirmed landing or deliberate manual completion; Class A lifecycle and retention semantics | Owner | Before interruption recovery behavior and production persistence hardening | Constrains C3 state, C9 recovery and retention, C1 presentation, and restoration; technical recoverability must not decide product meaning | Unresolved; governing decision for F14 and the recovery parts of D1/D5 |
+| P4 | Landing Point existence and classification for a manually retained Flight; Class A special-point semantics | Owner | Before any retained or pilot-facing manual-completion Landing Point representation | Depends on C3 manual boundary, C9 retained special-point contract, and C1/C8 presentation; a confirmed Landing Point must never be implied falsely | Unresolved; governing decision for F10 and relevant D2/D5/D6 work |
+| P5 | Conditions other than pilot continuation that reset the Ready on Ground inactivity period; Class A Flight Mode semantics | Owner | Before final inactivity-reset behavior is planned or implemented | Depends on C2 monotonic-time and transition behavior and C1 warning/continuation flow; timeout experiments must remain reversible | Unresolved; governing decision for final F3 behavior |
+| P6 | Final primary in-flight orientation behavior; Class A spatial-presentation semantics | Owner | Before final in-flight spatial-orientation policy is selected, while reversible Track-up and estimated-Heading-up experiments may occur earlier | Depends on C4 source state, C7 semantic identity and validity, and C8 presentation; experiments must preserve Track, Heading, bearing, and device-orientation distinctions | Unresolved; governing decision for final F6 policy and D4 |
+
+Implementation must stop at the applicable boundary when the required P1–P6 owner decision has not been made.
+
+## 7.3 Engineering decision groups intentionally deferred
+
+| ID | Decision group and classification | Authority | Trigger and latest safe decision point | Dependencies and reversibility | Status and governing future work |
+| --- | --- | --- | --- | --- | --- |
+| D1 | Platform and input contracts: Android APIs, permissions, execution behavior, concern-level acquisition-demand coordination, resource profiles, sampling, timestamps, freshness, validity, source hierarchy, and sensor fusion; Class B for execution, time, acquisition-demand, and substitution-boundary realization; Class C for replaceable source hierarchy and resource tuning | Bounded technical decision with required owner approval for material Class B choices | Decide only the subset required before the selected slice depends on it; decide the concrete Android execution model before Phase 4 continuous live acquisition | Depends on C2/C5 demand, C4 normalization, clocks, permissions, lifecycle, provenance, and C10 substitution; mechanisms remain replaceable only behind preserved contracts | Deferred to selected-slice planning, Phase 4 integration, and bounded technical decisions |
+| D2 | Flight detection and boundary-derived points: detector design within the non-speed-only constraint, signal combination, thresholds, filters, confirmation windows, recent-history duration and custody within the transient-history constraint, retrospective takeoff-boundary estimation, confirmed Landing Point determination, and false-positive or false-negative recovery; Class C mechanism governed by Class A P2/P4 semantics | Bounded slice work after applicable owner decisions | Before a slice claims permanent automatic takeoff/landing or retained boundary-derived points | Depends on C4 inputs, C6 detection, C2 authorization, C3 boundaries, transient recent history, and C9 retention; algorithms may evolve behind stable semantics and observability | Deferred to selected-slice detector planning after P2 and P4 where applicable |
+| D3 | Derived information: altitude/QNH model, vertical speed, estimated wind within the accepted non-gust scope, direction values, quality and stability semantics, precision, smoothing, and update rates; primarily Class C algorithms and parameter contracts, with historically retained meaning constrained by Class B D5 | Bounded slice and parameter-contract work | Before a slice presents, validates, or retains each derived value; estimated-wind decisions occur early enough for Phase 2 validation | Depends on C4 inputs, C5 pressure/QNH when applicable, C3 context, C7 semantics, C9 historical preservation, and C10 comparison observability | Deferred incrementally; estimated wind is an early risk target, not a post-MVP deferral |
+| D4 | Orientation and map behavior: selection and switching among C7-provided orientation candidates, declination source or model, magnetic-to-True correction and Heading derivation, update rate, source validity, fallback, formatting and labels, compass-ring design, map-scale controls, zoom, gesture or button behavior, animation, recenter interaction, final orientation policy, and implementation; Class C mechanisms governed by Class A P6 final policy | Bounded slice and pilot-validation work after any required owner decision | Before each spatial behavior is implemented; P6 is required only before the final policy, allowing reversible earlier experiments | Depends on C4 orientation and movement inputs, C7 True-North outputs and semantic identity, and C8 presentation; providers and algorithms remain replaceable | Deferred to spatial slices and pilot validation |
+| D5 | Recording and replay-supporting data: exact retained parameters and sampling, provenance and validity representation, separately relevant handling context, calculation-version context, historical preservation, active-Flight buffering, checkpointing, recovery, capacity, retention policy, special-point representation, schema, migration, and format; Class B for logical retained-data, historical preservation, Flight identity/classification, schema, and migration; Class C for tuning and replaceable mechanisms | Bounded technical decision with owner approval for material Class B choices | Define the minimum logical retained contract before the first durable Flight result; decide production schema, migration, checkpointing, and recovery before persistence hardening depends on them | Depends on C3 identity/boundaries/classification, C4/C7 retained information and provenance, C9 semantics, P3 interruption meaning, and P4 when manual Landing Point is represented; omitted history cannot be reconstructed | Deferred to first applicable retained-result planning and later persistence hardening |
+| D6 | Summary and presentation: exact Summary fields beyond the accepted minimum, information hierarchy, formatting, units, controls, warning presentation, non-flight explanation of estimated-wind limitations, manual-versus-confirmed completion formatting, exact Summary exit action, and saved-review layout; mainly Class C information hierarchy and controls, with Class A escalation if new product meaning is required | Bounded UX and product planning | Before the applicable pilot-facing slice is implementation-ready | Depends on C1 presentation, C3 completion/classification, C7 values, C8 spatial result, C9 retention status, and P1/P4/P6 where applicable; layouts remain replaceable while semantics remain stable | Deferred incrementally to relevant vertical slices |
+| D7 | Simulation and observability realization: framework architecture, substitution implementation, source hierarchy and switching, provenance and handling representation, mixed-source composition, scenario representation, path generation, heading and phase realization, motion and wind application, timing, validation comparison, controls, operator workflow, exact parameters, physical and sensor realism, sample rates, deterministic or stochastic behavior, noise and errors, latency, acceleration, pause, step, rewind or replay controls, automation, diagnostics, logging or telemetry, test framework, scenario or run persistence, simulated-Flight storage separation, history marking, retention, cleanup, and first-slice-specific design; Class B only where first realization fixes a difficult-to-reverse substitution, time, architecture, or retained-classification boundary; otherwise Class C controls and tooling | Bounded technical decision inside each vertical slice | Decide only the minimum subset before each slice uses it; the first slice must include enough controlled input, run state, time, observability, and Flight classification to validate its path | Depends on C10 control, normal C4/C5 boundaries, C3 run classification, C6–C9 normal behavior, and scenario-truth separation; controls and fidelity grow incrementally and remain replaceable behind preserved boundaries | Deferred per slice; no standalone simulator or infrastructure-only iteration is authorized |
+
+Deferral means that each decision is made deliberately in the bounded future work that first requires it. It does not authorize an implementation agent to select product semantics or difficult-to-reverse architecture silently. The former D8 placeholder is removed because issue #35 now records dependencies, risks, decision timing, and sequence directly in sections 13 and 14.
 
 ---
 
@@ -819,11 +864,13 @@ These exclusions are bounded MVP simplifications. They do not reject or redefine
 # 9. Product Direction Alignment
 
 - **Direction advanced:** the first coherent local Flight Support outcome spanning preparation, Flight, completion, retention, and later review.
-- **Explicit simplification:** MVP 0.1 is mapped only at concern, authoritative-ownership, mandatory-flow, input-category, semantic-fidelity, observability, external-dependency-category, and deferral level. Simulation preserves product meaning without requiring a physically exact flight or sensor model.
-- **Approval authority:** the planning depth and simplification are authorized by `ITERATION.md`, issues #33 and #34, the owner-reviewed MVP 0.1 planning boundary, and the five owner-approved issue #34 constraints. Acceptance of the issue #34 extension remains subject to owner review.
+- **Explicit simplification:** MVP 0.1 is mapped only at concern, authoritative-ownership, mandatory-flow, input-category, semantic-fidelity, observability, external-constraint, dependency, risk, decision-timing, and high-level product-wave level. Future implementation is organized through bounded vertical product outcomes rather than a complete backlog or concern-by-concern build sequence.
+- **Approval authority:** the planning depth and simplification are authorized by `ITERATION.md`, issues #32 and #35, the owner-reviewed MVP 0.1 planning boundary, the accepted and merged issue #33/#34 outputs, the five owner-approved issue #34 constraints, and the four owner decisions governing issue #35. Acceptance of the issue #35 extension remains subject to owner review.
 - **Boundedness:** the map applies only to MVP 0.1 engineering planning under AL-0002.
-- **Reversibility:** source substitution changes input production and may change explicit category-level provenance, while scenario/control metadata, pass-through/controlled-substitute handling, runtime-value provenance, and C10-run-to-C3 Flight classification remain separate; a simulation path is not an AirLink Route and downstream C2–C9 responsibilities remain concern-level; no final components, APIs, schemas, providers, algorithms, storage engines, simulation controls, or complete architecture are selected.
-- **Intentionally deferred:** physical and sensor realism beyond product meaning, detailed scenario and source-selection realization, first-slice simulator design, wider Flight Support domains, Pilot Ecosystem, connected operation, cloud, web, iOS, later lifecycle capabilities, and future architecture.
+- **Reversibility:** each implementation wave expands only the necessary subset of C1–C10; minimum simulation grows inside product slices; Android constraints remain visible before live integration; source substitution, scenario metadata, runtime provenance, handling, and Flight classification remain separate; no final components, APIs, schemas, providers, algorithms, storage engines, simulation controls, or complete architecture are selected.
+- **Early risk treatment:** estimated wind remains a central intended Flight Support value and is scheduled for controlled risk reduction within the first several implementation iterations, using scenario truth only for comparison with C7's independent result.
+- **Intentionally deferred:** concrete Android live-source integration until a coherent simulation-driven core exists; physical and sensor realism beyond product meaning; detailed scenario and source-selection realization; exact first-slice simulator design; Route, Equipment, Airspace, wider Flight Support, Pilot Ecosystem, connected operation, cloud, web, iOS, later lifecycle capabilities, and future architecture.
+- **Product-pillar boundary:** simulation enables validation and does not become a third product pillar, alternative product, or standalone implementation wave.
 - **Product behavior and authority:** no new behavior is inferred beyond the owner-approved issue constraints, and this WIP planning artifact remains non-canonical and non-authoritative for implementation.
 - **Outcome:** `Aligned with explicit simplification`.
 
@@ -833,7 +880,7 @@ Any new product-semantic simplification, irreversible constraint, or expansion b
 
 # 10. Review Contract
 
-Review this map at concern and mandatory-flow level.
+Review this map at concern, mandatory-flow, dependency, risk, decision-timing, and high-level sequence level.
 
 A valid review should verify that:
 
@@ -841,7 +888,7 @@ A valid review should verify that:
 2. every important state or information category has one authoritative owner in section 3;
 3. every mandatory flow has a complete trigger–demand–producer–owner–consumer path at concern level where external acquisition is required;
 4. no concern silently assumes authority owned by another concern;
-5. every relevant unresolved product question is explicitly recorded in section 7.1;
+5. every relevant unresolved product question is explicitly recorded in section 7.2;
 6. accepted semantic product rules are not reclassified as deferred engineering choices;
 7. deferred implementation mechanics remain deferred;
 8. no final architecture, API, schema, provider, algorithm, or complete internal message graph is implied;
@@ -852,7 +899,15 @@ A valid review should verify that:
 13. weather and pressure simulation, invalidity, staleness, unavailability, degradation, and interruption are represented;
 14. retained simulated Flights remain distinguishable from non-simulated Flights through Summary and saved review and can be deleted individually or as a category without deleting non-simulated Flights;
 15. mandatory observability distinguishes scenario/control metadata and scenario truth, C10-requested provenance and handling, C4/C5 actually active runtime-value provenance and handling, single-source or mixed-source composition, Flight-level classification, inputs, lifecycle, detection, derivation, spatial results, recording, retention, deletion, Summary, and saved review; scenario truth may be compared with C7-derived output but cannot bypass the normal derived-value calculation path;
-16. issue #35 dependency, risk, decision-order, and future-slice work has not begun.
+16. semantic, runtime-information, external, and implementation-order dependencies remain distinct, and the runtime concern graph is not presented as a module-build sequence;
+17. implementation order uses bounded vertical slices that produce observable product outcomes and introduce only the necessary subset of concerns;
+18. the first slice includes minimum C10 capability inside the slice rather than requiring a standalone simulator or infrastructure wave;
+19. Android feasibility constrains early boundaries while concrete live-source integration remains later than a coherent simulation-driven product path;
+20. risk severity, risk-reduction order, and implementation order remain distinct;
+21. estimated wind remains an early risk-reduction target without scenario truth entering C7 as an answer;
+22. P1–P6 remain unresolved with explicit latest safe decision points, D1–D7 remain deferred to bounded future work, and no obsolete D8 deferral remains;
+23. decision Classes A–D classify authority and reversibility without selecting architecture or another Class B realization;
+24. the future sequence remains a high-level set of product waves compatible with issue #36 rather than a complete backlog or first-slice selection.
 
 Do not treat the absence of implementation mechanics as a defect unless that absence leaves an accepted product flow, ownership boundary, difficult-to-reverse decision, accepted semantic invariant, or required first-slice dependency undefined.
 
@@ -870,15 +925,15 @@ Owner approval and merge of the issue #33 baseline confirmed that:
 - external dependency and degradation boundaries are accepted;
 - cross-cutting rules R1–R14 preserve the approved product distinctions;
 - product decisions P1–P6 remain explicitly unresolved and are not delegated to implementation;
-- engineering deferrals D1–D8 remain assigned to the appropriate later bounded work;
+- engineering deferrals D1–D7 remain assigned to appropriate later bounded work; the issue #33 baseline's former D8 reservation is now completed by issue #35 content in sections 13 and 14;
 - the document remains WIP, non-canonical, and non-authoritative for implementation;
 - no implementation or final architecture has been introduced.
 
 ---
 
-# 12. Issue #34 Acceptance Check
+# 12. Issue #34 Extension Acceptance Record
 
-Issue #34 content is ready for owner review when the owner confirms that:
+Owner approval and merge of issue #34 confirmed that:
 
 - the existing MVP 0.1 Scope and issue #33 baseline are sufficient and no blocking contradiction or additional owner decision remains;
 - the five owner-approved constraints in section 1.1 are represented without reinterpretation;
@@ -898,24 +953,137 @@ Issue #34 content is ready for owner review when the owner confirms that:
 - mandatory observability is sufficient to inspect every required source, state, decision, outcome, and retained distinction without becoming product truth or retaining a rejected Flight-equivalent record;
 - D7 explicitly defers implementation mechanics and first-slice-specific simulation design;
 - Product Direction alignment remains `Aligned with explicit simplification`;
-- no implementation, architecture, provider, schema, format, algorithm, complete test strategy, or issue #35 work has been introduced.
+- no implementation, architecture, provider, schema, format, algorithm, complete test strategy, or premature issue #35 work was introduced.
 
-Owner acceptance of this section approves the issue #34 extension as planning input. It does not approve the consolidated Engineering Map, promote this WIP artifact, authorize implementation, or activate AL-0003.
+The accepted issue #34 extension is planning input for issue #35. Its acceptance did not approve the consolidated Engineering Map, promote this WIP artifact, authorize implementation, or activate AL-0003.
 
 ---
 
-# 13. Reserved Extension Point
+# 13. Issue #35 — Dependencies, Risks, Decisions, and Future Slices
 
-## 13.1 Issue #35 — Dependencies, risks, decisions, and future slices
+## 13.1 Concern-level dependency model
 
-Issue #35 will extend and consolidate this map with the approved:
+C1–C10 are responsibility boundaries, not final components. Four dependency types must remain distinguishable:
 
-- concern-level dependency order;
-- external constraints affecting implementation order;
-- major engineering risks and risk-reduction order;
-- difficult-to-reverse decision classification and timing;
-- consolidated deferred-decision register;
-- high-level candidate sequence of future implementation iterations;
-- findings that constrain first-slice candidate selection.
+| Dependency type | Meaning in this map | Ordering consequence |
+| --- | --- | --- |
+| Semantic dependency | One concern needs product meaning or authority owned by another concern before it can interpret an outcome correctly | The supplying meaning must be accepted before dependent implementation reaches it; this does not require the owner concern to be completed first |
+| Runtime information dependency | One concern consumes state or information produced by another during an accepted flow | The vertical slice must connect the necessary producer, owner, consumer, validity, and degradation path; it does not prescribe an internal call, event, or message architecture |
+| External dependency | AirLink relies on platform, device, provider, map, network, storage, or clock behavior outside its ownership | The slice must preserve AirLink's interpretation and explicit failure boundary; concrete integration occurs only when the slice requires it |
+| Implementation-order dependency | A risk, product decision, or difficult-to-reverse contract must be reduced or decided before later implementation can safely depend on it | Implementation order is expressed through bounded vertical slices and decision gates, never by treating the runtime concern graph as a module-build sequence |
 
-This extension must not convert the map into a complete backlog, final architecture, or detailed plan for every future slice.
+The runtime concern graph is not a construction sequence. A concern may be introduced minimally in one slice and expanded in later slices. Concern dependencies describe semantic and runtime responsibility relationships; they do not require all of C4, C9, C10, or another concern to be built as an isolated foundation before C1–C3 product behavior.
+
+Major dependency structures are:
+
+| Structure | Principal dependency relationships | Implementation-order interpretation |
+| --- | --- | --- |
+| Runtime input backbone | C4 normalizes runtime inputs and exposes validity, timing, provenance, availability, and degradation. C5 owns weather scoping and interpretation. C10 controls approved substitute production and requested run configuration but does not replace C4 or C5 ownership of actually active source state and meaning | Each slice introduces only the input categories and substitute behavior needed for its observable outcome; no complete input platform or simulator is built first |
+| Lifecycle spine | Conceptually preserve `C1 pilot action → C2 Flight Mode authorization → C6 boundary confirmation → C2 authorization → C3 Flight transition → C9 recording/retention` | This records authority and semantic dependency, not a mandatory technical call sequence. A slice may exercise a bounded subset while preserving every reached ownership boundary |
+| Active-Flight information | C7 depends on C4 runtime inputs, C3 Flight context, and conditionally C5 pressure/QNH. C8 depends on C4 spatial inputs, C3 Flight and Takeoff Point context, C7 orientation/bearing outputs, and C9 retained spatial information for saved review | Derived and spatial behavior is added only with the normal context, provenance, and validity path required by the slice; C8 does not recalculate C7 meaning and saved review does not redefine C9 history |
+| Validation | C10 crosses source production, simulation-run classification, observability, and cleanup request boundaries. C3 associates run classification at Flight creation; C9 preserves it and owns deletion. All product behavior continues through C2–C9 | Minimum C10 capability belongs inside the first and later vertical slices. It must not become a separate product, alternative lifecycle, alternative calculation system, alternative recorder, or standalone infrastructure wave |
+
+## 13.2 Engineering-risk register and reduction order
+
+Risk severity describes consequence. Reduction order describes when evidence or a decision gate is needed. Implementation order describes the bounded product slice that supplies that evidence. These are not interchangeable: a severe risk may require an early compatible boundary or experiment without requiring its complete capability in the first slice.
+
+The register is ordered by earliest required risk-reduction attention. Adjacent items may be reduced in the same vertical slice, and estimated-wind work must begin within the first several implementation iterations.
+
+| Reduction order | Risk and severity | Consequence and affected concerns or flows | Recommended reduction strategy | Required decision gate and ordering rationale | First-slice constraint |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Irreversible loss of historically necessary Flight data — Critical | Early Flights cannot later support faithful review or replay; C3/C4/C7/C9 and F5/F8/F15 are affected | Define the minimum logical retained-data and historical-preservation contract before the first durable result; validate that original semantic status, provenance, classification, boundaries, and needed time-varying values survive | Class B D5 decision before persistence depends on it; P3/P4 before their exceptional retained meanings. Irrecoverable omission makes this earlier than storage optimization | If the slice retains a Flight result, it must preserve the minimum approved history and classification rather than a disposable summary-only record |
+| 2 | Unresolved Flight and Flight Mode lifecycle semantics — Critical | A guessed transition can corrupt Flight identity, completion, retention, repeated-Flight behavior, or pilot intent across C1/C2/C3/C6/C9 and F2–F14 | Select a slice path that uses only accepted transitions; expose reached unresolved boundaries and stop there | P1–P5 at their section 7 latest safe points; Class B identity and timestamp choices only when required. Product meaning precedes mechanism | The slice must show real runtime state and may not invent active-Flight exit, interruption, manual Landing Point, detection-confirmation, or inactivity semantics |
+| 3 | Untrustworthy simulation or observability — High | Passing demonstrations could use alternative semantics, hidden truth, incorrect provenance, or uninspectable transitions; C3–C10 and F16/F17 are affected | Put minimum deterministic C10 production, run state, ordered time, classification, degradation, and concern-owned observability inside the first slice; expand it with later outcomes | Relevant D7 subset before the slice runs; any Class B substitution or time realization receives bounded decision treatment. Evidence must precede claims of product behavior | Mandatory: enough C10 and observability to exercise the slice through normal boundaries; no standalone simulator |
+| 4 | Takeoff and landing detection — High | False or late boundaries can create, omit, truncate, or misclassify Flights and special points across C2/C3/C4/C6/C9 and F4/F7/F11 | Start with controlled lifecycle-driving inputs and observable candidates/outcomes; compare reversible detector approaches before permanent semantics and hardening | P2 before permanent automatic detection; P4 before manual Landing Point representation; D2 remains Class C behind accepted boundaries | A first slice need not solve the permanent detector, but any automatic boundary it uses must be bounded, observable, and must not claim unresolved semantics |
+| 5 | Estimated-wind feasibility and usefulness — High | A central Flight Support value may prove unstable, misleading, or incompatible with retained/source boundaries; C4/C7/C9/C10 and F5/F16 are affected | Preserve required input, time, derivation, provenance, simulation-truth separation, comparison diagnostics, and retained context from the first slice; run controlled validation in an early following wave | Relevant D3/D5/D7 decisions before wind output is presented or retained. Early evidence is required because late failure would undermine core product value | The first slice need not implement complete wind estimation, but it must not create incompatible boundaries or postpone the risk until general MVP completion |
+| 6 | Orientation and spatial semantics — High | Collapsing Track, Heading, bearing, device orientation, or True North can mislead the pilot and constrain future navigation; C4/C7/C8 and F6/F15 are affected | Preserve semantic identities and validity from the input boundary; use reversible simulated experiments and degraded cases before final presentation policy | P6 before final policy; D4 decisions per spatial slice. Semantic separation precedes provider or rendering optimization | If spatial behavior is included, it must use normal C4/C7/C8 boundaries and remain compatible with later P6 resolution |
+| 7 | Local persistence and interruption recovery — High | Partial recording, process loss, or failed restoration may silently lose or misstate a Flight; C3/C4/C9 and F5/F14/F15 are affected | Validate progressive recording status and explicit failure with controlled interruption; harden recovery after product classification is decided | P3 before recovery semantics; Class B D5 schema/recovery and D1 execution decisions before production hardening | Minimal retention must expose success or failure; the slice must not imply that storage failure changes airborne state or completion meaning |
+| 8 | Android lifecycle and continuous-acquisition behavior — High | A simulation-correct path may fail under real permissions, execution limits, source loss, or backgrounding; C2–C4/C6/C9 and active-Flight flows are affected | Keep lifecycle, acquisition-demand, time, provenance, and interruption boundaries Android-feasible from the beginning; integrate live sources after a coherent simulated path, then harden before real-flight validation | Class B D1 Android execution model before Phase 4 continuous acquisition; P3 before interruption recovery meaning. Concrete integration is later because stable product behavior should exist first | No live Android source is required, but the first slice may not assume uninterrupted wall time, permanent availability, or unconstrained execution |
+| 9 | External provider coupling — Medium | Weather or map failure or replacement could leak provider meaning into product semantics or block local Flight behavior; C5/C8 and F1/F6/F15 are affected | Preserve provider-neutral AirLink interpretation, freshness, availability, and degradation boundaries; defer selection until a consuming slice needs it | Relevant Class C provider choice and any Class B boundary decision before integration; local lifecycle and recording must remain provider-independent | The first slice must not select providers unless explicitly required, and no provider may become lifecycle or calculation authority |
+| 10 | Infrastructure-first planning without product outcomes — High | Time may be spent completing layers, storage, scaffolding, or a simulator while no pilot-visible outcome or integrated risk evidence exists; all concerns and AL-0002 intent are affected | Require each future iteration to deliver a bounded end-to-end outcome using only necessary concern subsets, minimum simulation, observability, and retained result where meaningful | Issue #36 must reject infrastructure-only candidates; later charters must retain this gate. Product outcome and risk reduction determine order | Mandatory: the first slice cannot be storage-only, scaffolding, dependency injection, a map shell, an application shell, or a standalone simulator |
+
+## 13.3 Bounded minimum-simulator concept
+
+The minimum simulator is evidence that early end-to-end validation can remain bounded; it is not final architecture or detailed specification.
+
+A deterministic paramotor movement profile may contain only ground waiting, acceleration, takeoff, climb, level flight, heading changes, descent, landing, and stopping. Each phase may be represented by Heading, airspeed, vertical speed, and duration or another bounded progression condition. A simple box or similar flight-pattern template may be a sequence of pilot-Heading-and-time or Heading-and-phase segments. That template is C10 scenario metadata, not an AirLink Route, Current Route, Route Navigation, or Active Navigation.
+
+A scenario may define average wind direction, average wind speed, gust level, and a minimal deterministic variation. Conceptually, air-relative movement plus scenario wind produces the ground-relative trajectory and movement observed through normal inputs. The minimum model does not require wing configuration, trim, accelerator, engine or thrust, mass, angle of bank, physical turn dynamics, turbulence, thermals, aerodynamic takeoff or landing mechanics, exact gust physics, or sensor noise. Heading changes may be immediate or minimally interpolated when sufficient to preserve product semantics.
+
+The simulator may produce coherent normal-boundary position, Ground Speed source information, Track/course, altitude, vertical movement, time, Heading-related source information where required, and takeoff- and landing-driving conditions. These values enter normal C4/C5 boundaries and retain runtime provenance. The wind-validation relationship remains:
+
+`scenario truth wind → generated ground-relative trajectory and movement → normal C4 inputs → independent C7 estimated wind → validation comparison`
+
+Scenario truth must not be supplied to C7 as an expected answer. Exact equations, rates, variability, parameters, structures, formats, controls, and implementation mechanisms remain deferred to planning of the selected slice.
+
+## 13.4 High-level future implementation sequence
+
+The sequence is a set of risk-ordered product waves, not a committed roadmap, fixed issue list, complete backlog, or authority to implement. A wave contains multiple bounded vertical slices where needed, a later wave may begin before every behavior in an earlier wave is complete, and issue #36 remains responsible for candidate comparison and explicit first-slice selection.
+
+### Phase 1 — Simulation-driven product core
+
+Bounded vertical slices progressively connect pilot-facing action, Flight Mode and Flight state, controlled simulated inputs, observable lifecycle behavior, completion, a minimal retained result, saved access where included by the selected slice, and minimum simulation-run classification. Each slice introduces only the necessary subset of C1–C10 and includes the minimum C10 capability required to validate its path. The exact first slice is not selected here.
+
+### Phase 2 — Early estimated-wind risk reduction
+
+Within the first several implementation iterations, introduce only the simulation and runtime capabilities needed to test Heading and air-relative movement assumptions, Ground Track, Ground Speed, scenario truth wind, independent C7 estimation, comparison diagnostics, and retained calculation context where required. This wave may overlap with adjacent lifecycle, spatial, recording, or saved-result slices. It does not require complete wind behavior or a complete simulator in one iteration.
+
+### Phase 3 — Broader simulation-based MVP behavior
+
+Progressively cover missing simulation-driven product behavior such as Takeoff Point and spatial awareness, multiple Flights, Summary, waiting and automatic exit, manual completion and discard, current conditions, Pre-Flight, degraded cases, and saved review. These outcomes remain separate bounded slices where appropriate; they are not required in one implementation iteration.
+
+### Phase 4 — Android live-input integration
+
+After a coherent and acceptably working simulation-based application path exists, integrate real position, movement, orientation, altitude, pressure, time sources, lifecycle signals, permissions, and availability states. Preserve the C4/C5 and downstream boundaries already exercised by simulation. Android constraints, timestamps, acquisition demand, provenance, interruption, and retention continuity have remained visible from earlier phases even though concrete live mechanisms begin here.
+
+### Phase 5 — Real-flight readiness
+
+Before any bounded real-flight validation, address foreground/background behavior, interruption and restoration, acquisition continuity, recording reliability, battery and resource behavior, source degradation, detector behavior, diagnostics, live-versus-simulated semantic consistency, and cleanup or separation of simulated Flights. This phase establishes readiness evidence; it does not define actual real-flight test procedures.
+
+## 13.5 First-slice selection constraints
+
+Issue #35 constrains but does not perform issue #36. A valid first-slice candidate must:
+
+- produce a real pilot-visible result;
+- include runtime state;
+- use normal concern boundaries;
+- include the minimum simulation capability needed by the slice;
+- provide sufficient observability;
+- produce a minimal retained result where meaningful;
+- reduce at least one material risk;
+- remain bounded and reversible;
+- avoid requiring resolution of every P1–P6 decision;
+- avoid infrastructure-only work;
+- avoid a standalone simulator;
+- avoid a map shell, storage-only task, application shell, scaffolding task, or dependency-injection task;
+- avoid silently choosing complete architecture or a Class B realization outside bounded authority;
+- preserve the possible future independence of Route, Equipment, Airspace, Pilot Ecosystem, web, iOS, cloud, and connected domains.
+
+Issue #36 must compare candidates and obtain explicit owner selection. This document neither compares nor selects them.
+
+---
+
+# 14. Issue #35 Acceptance Check
+
+Issue #35 content is ready for owner review when the owner confirms that:
+
+- issue #33 baseline and issue #34 extension are recorded as accepted and merged, while issue #35 and consolidated-map approval remain pending;
+- semantic, runtime-information, external, and implementation-order dependencies are explicit and remain distinct;
+- C1–C10 remain concern responsibilities rather than final components, and the runtime graph is not a module-build sequence;
+- the runtime input backbone, lifecycle spine, active-Flight information dependencies, and validation boundary preserve accepted ownership without defining APIs or internal message architecture;
+- external Android, device, provider, map, storage, clock, interruption, and resource constraints identify ordering effect, latest safe point, explicit failures, and authoritative concerns without selecting a provider or technology;
+- the risk register distinguishes severity, reduction order, and implementation order and covers historical data, lifecycle semantics, simulation trust, Android behavior, detection, estimated wind, spatial semantics, persistence/recovery, provider coupling, and infrastructure-first planning;
+- minimum C10 capability is part of the first vertical slice and grows incrementally rather than becoming a standalone infrastructure iteration;
+- the bounded simulator concept remains scenario evidence rather than final architecture, and scenario metadata remains distinct from runtime provenance and AirLink Route or navigation state;
+- scenario truth wind shapes only generated ground-relative inputs and remains separate from C7's independent estimate;
+- estimated wind is an early risk target within the first several implementation iterations and is not postponed until general MVP completion;
+- Android constraints are visible from the first slice where relevant, concrete live integration follows a coherent simulation-driven core, and Android reliability precedes real-flight readiness;
+- P1–P6 remain unresolved with explicit latest safe decision points and stop boundaries;
+- decision Classes A–D describe authority and reversibility without selecting a Class B decision or final architecture;
+- D1–D7 are consolidated with triggers and governing later work, and D8 no longer claims completed issue #35 work is deferred;
+- the five implementation phases remain high-level risk-ordered product waves rather than a complete backlog or fixed issue sequence;
+- first-slice constraints are explicit while candidate comparison and selection remain reserved for issue #36;
+- Product Direction alignment remains `Aligned with explicit simplification`;
+- no application architecture, mobile framework, Android API, provider, database, schema, algorithm, exact simulation equation or format, complete UI, implementation code, or executable prototype is introduced.
+
+Owner acceptance of the issue #35 Draft PR approves this extension and the consolidated Engineering Map as an AL-0002 planning input. It does not promote the document to canon, make it implementation authority, select the first vertical slice, activate AL-0003, or authorize product implementation.
