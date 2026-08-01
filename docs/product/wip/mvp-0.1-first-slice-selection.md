@@ -325,7 +325,7 @@ Issue #37 must decide only what is necessary to make this selected slice impleme
 - pressure-to-altitude calculation details;
 - vertical-speed filtering;
 - the first wind-estimation method;
-- runtime responsibility contracts;
+- slice-specific runtime contracts and handoffs within the accepted Engineering Map concern boundaries;
 - compact simulation-panel behavior;
 - exact Summary contract;
 - test strategy and acceptance cases;
@@ -372,7 +372,7 @@ The selected first slice intentionally implements only the map and orientation, 
 - **Long-term direction preserved:** it supports Android-first implementation without redefining AirLink as Android-only and does not deny or collapse Route, wider Flight Support, Pilot Ecosystem, or other future domains.
 - **Authority:** the owner decision supplied for issue #36 authorizes this selection record only. Issue #37 owns implementation-ready planning; no implementation is authorized here.
 
-No Product Vision or Product Direction revision is required.
+No further Product Vision or Product Direction revision is required by this selection artifact.
 
 ## Decision Consequences
 
