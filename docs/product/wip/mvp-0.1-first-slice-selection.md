@@ -98,7 +98,7 @@ The owner selects Candidate C:
 
 The selection is accepted with explicit simplification. It selects the first implementation-slice candidate for detailed planning; it does not authorize implementation. Issue #37 must turn this selection into an implementation-ready plan.
 
-Application framework, map provider, final architecture, exact algorithms, thresholds, contracts, and detailed UI remain unselected.
+Issue #36 selects no application framework, map provider, whole-product technical strategy, final architecture, exact algorithm, threshold, implementation contract, or detailed UI. Issue #37 may prepare only the bounded choices needed to make this slice implementation-ready, subject to the approval boundaries stated below.
 
 ## Selected Slice Outcome
 
@@ -111,10 +111,10 @@ The selected end-to-end user-observable result is:
 5. No Flight exists yet.
 6. The user starts simulation input progression.
 7. Normal source-equivalent data changes over time.
-8. Takeoff is detected by normal Flight Detection responsibility, not declared by the simulator.
-9. The active Flight and its Takeoff Point are created through the normal Flight Mode and Flight lifecycle responsibilities; C3 supplies Takeoff Point identity, estimated location, and Flight association to C8 and C9, and C8 establishes it as the passive Current Waypoint while Active Navigation remains off.
-10. The map and Flight information update during the simulated Flight, or C8 exposes a pilot-visible spatial unavailable or degraded state while the non-map Flight path continues.
-11. A minimal C9 boundary initializes and progressively retains selected C3/C4/C7 history in memory while exposing recording health, completeness, and outcome.
+8. C6 confirms takeoff from normal inputs rather than a simulator-declared lifecycle event, distinguishing confirmation time from its estimated effective takeoff boundary, and C2 authorizes C3 to create the Flight.
+9. C3 establishes the Flight identity, C3-supplied Flight-level `simulated` classification, authoritative effective takeoff boundary, and Takeoff Point identity, estimated location, and Flight association, then supplies that creation context to C8 and C9; C8 establishes Takeoff Point as the passive Current Waypoint while Active Navigation remains off.
+10. As part of that handoff, C9 performs in-memory recording initialization before the first ordinary active-Flight update expected to be retained. Any initialized recording starts with the authoritative C3 context, and the successful, degraded, or failed initialization outcome is observable.
+11. The map and Flight information update during the simulated Flight, or C8 exposes a pilot-visible spatial unavailable or degraded state while the non-map Flight path continues; C9 progressively retains the approved C3/C4/C7 history while exposing recording health, completeness, and outcome.
 12. Estimated wind becomes available after sufficient data exists.
 13. Landing is detected from normal inputs.
 14. C3 completes the individual Flight through confirmed landing, creates the confirmed Landing Point, and supplies the required Landing Point information to C9; recording preserves the final segment through that boundary, C2 returns to `Ready on Ground`, and Flight Mode remains active.
@@ -192,9 +192,9 @@ The simulator must not emit:
 
 All privileged C10 scenario truth and control metadata—including truth wind, truth airspeed, air-relative Heading used as scenario truth, scenario phase, the flight-pattern template, truth trajectory, generated ground-vector truth, initial truth conditions, and any other scenario-only value—may be used only to generate approved normal source-equivalent runtime inputs, for independent validation comparison, or for bounded development observability. None may be consumed directly by C6, C7, C8, C9, or pilot-facing product logic.
 
-If a Heading-related, airspeed-related, or other value is required as a real runtime input, issue #37 must explicitly approve it for the selected slice. C10 must emit it through the normal C4 boundary with normal availability, validity, timing, provenance, and handling semantics, and downstream consumers must not receive its privileged scenario-truth identity. C7 estimated wind uses only the approved normal-boundary runtime inputs available through the selected product path. Truth values may be compared with C7 output only after independent estimation, preserving the Engineering Map relationship:
+If an additional value is required as a real runtime input, issue #37 must identify it and obtain the required approval for the selected slice. C4-owned values, including Heading-related and airspeed-related values, must enter through the normal C4 boundary. Controlled weather equivalents must continue through the normal C5 boundary. Any other approved source-equivalent must enter through the applicable accepted C4 or C5 boundary. The applicable boundary owns and exposes availability, validity, timing, provenance, handling, and source outcome, and downstream consumers must not receive a privileged scenario-truth identity. C7 estimated wind uses only the approved normal-boundary runtime inputs available through the selected product path. Truth values may be compared with C7 output only after independent estimation, preserving the Engineering Map relationship:
 
-`scenario truth wind → C10-generated ground-relative inputs → normal C4 boundary → independent C7 estimated wind → validation comparison`
+`scenario truth wind → C10-generated approved source equivalents → normal C4/C5 boundaries → independent C7 estimated wind → validation comparison`
 
 Concern identifiers are planning references only. They do not select modules, services, classes, or architecture.
 
@@ -217,7 +217,9 @@ This selection does not choose timestamp data types, clock APIs, timer libraries
 The first detector is bounded and experimental, not the final production detector. C6 — Flight Detection infers takeoff and landing from normal simulated inputs; C10 does not send lifecycle events.
 
 - before confirmed takeoff, Flight Mode remains in ground waiting and no Flight exists;
-- after confirmed takeoff, C2 — Flight Mode Lifecycle authorizes C3 — Flight Lifecycle and Flight State to begin an active simulated Flight; C3 logically creates the Takeoff Point, owns its identity, estimated location, and association with the active Flight, and supplies that information to C8 and C9; C8 establishes Takeoff Point as the passive Current Waypoint while Active Navigation remains off;
+- after C6 confirms takeoff, C2 — Flight Mode Lifecycle authorizes C3 — Flight Lifecycle and Flight State to begin an active simulated Flight;
+- C3 establishes the Flight identity, C3-supplied Flight-level `simulated` classification, authoritative effective takeoff boundary, and Takeoff Point identity, estimated location, and association with the active Flight, and supplies that creation context to C8 and C9; C8 establishes Takeoff Point as the passive Current Waypoint while Active Navigation remains off;
+- as part of the same creation handoff, C9 performs in-memory recording initialization before the first ordinary active-Flight update expected to be retained; any initialized recording starts with that authoritative context, and the successful, degraded, or failed initialization outcome is observable;
 - after confirmed landing, C2 authorizes C3 to complete the individual Flight through the confirmed boundary; C3 logically creates the confirmed Landing Point, owns its identity, estimated location, confirmed-landing classification, and association with the completed Flight, and supplies that information to C9; C2 returns to `Ready on Ground`, Flight Mode remains active, and Summary appears inside the continuing Flight Mode flow;
 - C9 retains all approved information through confirmed landing, including the final segment, and exposes the outcome when finalizing the in-memory Flight record;
 - recording degradation or failure does not cancel confirmed landing, reactivate the Flight, or convert it into a rejected or nonexistent Flight;
@@ -227,6 +229,8 @@ The first detector is bounded and experimental, not the final production detecto
 - Reset is not Flight interruption, manual completion, false-detection discard, Flight Mode exit, confirmed landing, or another Flight lifecycle outcome.
 
 The one-Flight-per-development-session restriction is an explicit first-slice harness simplification only. It does not redefine the accepted broader rule that one Flight Mode may contain multiple independent Flights, and completing the Flight does not automatically exit Flight Mode. Repeating the scenario requires Reset after the completed outcome and therefore starts a fresh development session.
+
+C6's takeoff confirmation time, its estimated effective takeoff boundary, and the bounded recent pre-confirmation history are distinct. If the effective boundary is earlier than confirmation, C9 incorporates only the approved retained categories from that boundary through confirmation as part of initialization. Inputs before the effective boundary and any unused pre-confirmation history remain transient and are overwritten; they do not create a hidden Flight record before C3 creates the Flight. This selection does not choose detector thresholds or windows, the detector algorithm, history-buffer duration or custody, the exact effective sample, or final P2 semantics. Issue #37 must plan the bounded experimental mechanism, ownership, approved retained categories, and acceptance evidence without claiming final production semantics.
 
 Pilot-facing detector state may remain limited to waiting for takeoff, active Flight, an optional brief landing-confirmation state, and completed Summary. Detailed diagnostics, thresholds, final detection semantics, and the final algorithm belong to issue #37 or authorized implementation work.
 
@@ -315,25 +319,26 @@ The slice includes sufficient bounded observability to prove that normal concern
 - C10-requested provenance and handling;
 - C4/C5 actually active provenance, handling, availability, validity, and freshness;
 - wall-clock and monotonic semantics where relevant;
-- C6 takeoff and landing candidate and confirmed outcomes;
+- C6 takeoff and landing candidate and confirmed outcomes, including distinct takeoff confirmation time and estimated effective takeoff boundary;
 - C2 authorization outcomes reached by the slice;
-- C3 Flight lifecycle transitions and C3-supplied Flight-level classification;
+- C3 Flight lifecycle transitions and the creation context supplied to C9, including Flight identity, Flight-level classification, authoritative effective takeoff boundary, and Takeoff Point information;
 - C7 estimator inputs received through normal boundaries, estimated-wind output, validity, and quality state;
 - independent comparison between C7 estimated wind and the C10 truth oracle after estimation;
 - C8 normal versus unavailable or degraded outcome;
-- C9 initialization, progressive append or retention, completeness, finalization, and retention outcome;
+- C9 initialization before the first ordinary retainable active-Flight update, successful, degraded, or failed initialization outcome, approved bounded recent-history incorporation or discard outcome, progressive append or retention, completeness, finalization, and retention outcome;
 - Summary derivation from the finalized Flight record.
 
 Scenario phase and other privileged truth or control metadata may be observed for validation but do not become product inputs or alternative concern authority. This observability is validation support rather than product UI. It does not require an expanded on-screen diagnostics overlay, production telemetry platform, cloud logging, analytics, full replay tooling, or final observability architecture.
 
 ## Retained Result and Flight Summary
 
-The retained result is not a Summary-only object. During the active Flight, selected historical information passes through the accepted C3/C4/C7 → C9 responsibility boundary. A minimal C9 implementation progressively retains that information in memory; it does not become a database, storage engine, or complete durable-retention subsystem. C9 owns recording health, completeness, and the in-memory retention outcome and exposes the outcomes of recording initialization, progressive append or retention, and finalization to C3 and the pilot-facing flow where they affect the completed-Flight result. Independent UI counters must not replace this recording path.
+The retained result is not a Summary-only object. After C6 confirms takeoff and C2 authorizes creation, C3 supplies C9 with the Flight identity, C3-supplied Flight-level `simulated` classification, authoritative effective takeoff boundary, and Takeoff Point identity, estimated location, and Flight association. C9 performs recording initialization as part of that creation handoff, before the first ordinary active-Flight update expected to be retained. Any initialized recording begins with those authoritative values; a degraded or failed attempt to do so remains observable. During the active Flight, selected historical information passes through the accepted C3/C4/C7 → C9 responsibility boundary. A minimal C9 implementation progressively retains that information in memory; it does not become a database, storage engine, or complete durable-retention subsystem. C9 owns recording health, completeness, and the in-memory retention outcome and exposes the outcomes of recording initialization, progressive append or retention, and finalization to C3 and the pilot-facing flow where they affect the completed-Flight result. Independent UI counters must not replace this recording path.
 
 After confirmed landing, C9 finalizes the progressive recording into one in-memory Flight record for the current run, retaining all approved information through the confirmed-landing boundary. Recording must not stop at the first landing candidate, trim history retrospectively to approximate an earlier landing point, or omit the final segment between landing-detection activity and confirmed landing. That record preserves at least these logical categories:
 
 - temporary Flight identity within the current application run;
 - Flight lifecycle boundaries;
+- takeoff confirmation time and the authoritative effective takeoff boundary as distinct meanings;
 - the authoritative confirmed-landing completion status applicable to this slice;
 - the C3-supplied Flight-level `simulated` classification;
 - Takeoff Point identity, estimated location, and Flight association;
@@ -347,7 +352,9 @@ After confirmed landing, C9 finalizes the progressive recording into one in-memo
 - calculation context required to interpret historically retained derived values;
 - final Flight aggregates used by Summary.
 
-The ordered time-varying history must be sufficient to preserve the selected slice's source and derived Flight behavior through confirmed landing, including its final segment, and validate position and movement; Ground Speed and Track; atmospheric pressure and relevant QNH context; calculated barometric altitude; derived vertical speed; estimated wind; and lifecycle and timing boundaries. Retained ordering and durations use monotonic semantics and cannot be rewritten by wall-clock adjustment. Runtime-value provenance and separately relevant handling remain distinct from Flight-level `simulated` classification; C9 preserves the classification supplied by C3 without deriving or reclassifying it from recorded source composition. This does not require retaining every raw runtime value. This artifact selects neither an exact schema nor an exhaustive retained parameter list. The exact retained parameters, sampling frequency, history-reduction rules, downsampling, compression, buffering, and representation are deferred to issue #37.
+If the effective takeoff boundary precedes confirmation, the initialized record incorporates the approved retained categories available in bounded recent history from that boundary through confirmation. Information before the effective boundary and unused pre-confirmation history remain transient, are overwritten, and never constitute a hidden Flight record. The bounded history exists only to support the experimental retrospective boundary; it does not authorize retention of unapproved categories.
+
+The ordered time-varying history must be sufficient to preserve the selected slice's source and derived Flight behavior through confirmed landing, including its final segment, and validate position and movement; Ground Speed and Track; atmospheric pressure and relevant QNH context; calculated barometric altitude; derived vertical speed; estimated wind; and lifecycle and timing boundaries. Retained ordering and durations use monotonic semantics and cannot be rewritten by wall-clock adjustment. Runtime-value provenance and separately relevant handling remain distinct from Flight-level `simulated` classification; C9 preserves the classification supplied by C3 without deriving or reclassifying it from recorded source composition. This does not require retaining every raw runtime value. This artifact selects neither an exact schema nor an exhaustive retained parameter list. The exact retained parameters, sampling frequency, history-reduction rules, downsampling, compression, buffering, custody, and representation are implementation-ready work for issue #37 within the fixed selection boundary.
 
 The Flight Summary is not the retained Flight record. It appears after confirmed landing while C2 is `Ready on Ground` and Flight Mode remains active. Its aggregates come from the finalized in-memory Flight record rather than independent UI-owned counters, and the completed-Flight presentation preserves the record's C3-supplied Flight-level `simulated` classification, authoritative confirmed-landing completion status, and C9 recording health, completeness, and retention outcome. A missing, incomplete, degraded, or failed record must not be presented as successfully retained, and Summary must not mask recording failure or synthesize a successful result from independent UI counters. Where no complete finalized record exists, the pilot-facing completed-Flight flow exposes that the record is incomplete, degraded, unavailable, or failed as applicable; the exact presentation remains deferred.
 
@@ -369,7 +376,7 @@ No durable persistence is included. The selected slice has no database or storag
 
 AirLink's intended mobile product supports Android and iOS. Initial implementation and early platform validation are Android-first, while first-slice product semantics and non-platform logic must not be Android-specific. Concrete iOS integration is deferred.
 
-No application framework or code-sharing strategy is selected. This artifact does not select Flutter or two native applications; framework and sharing choices belong to bounded technical planning.
+Issue #36 selects no application framework, code-sharing strategy, map technology, or map provider. This artifact does not choose Flutter, two native applications, a whole-product framework or sharing strategy, a permanent map-provider standard, or a complete application architecture. Issue #37 may prepare and obtain owner approval only for the bounded application/framework and map-technology/provider choices demonstrably necessary for this slice; those choices do not establish a whole-product strategy or permanent standard.
 
 ## First-Slice Explicit Non-Scope
 
@@ -400,22 +407,37 @@ The selected slice does not include:
 - final wind algorithm;
 - final Flight Screen design;
 - expanded diagnostics overlay;
-- complete application architecture;
-- provider or framework selection.
+- a complete application architecture;
+- an application-framework or map-provider selection by issue #36, a whole-product framework or code-sharing strategy, or a permanent map-provider standard; issue #37 may prepare only the bounded choices required for this slice, subject to approval, without establishing those broader commitments.
 
 These exclusions are explicit first-slice simplifications, not changes to the broader accepted MVP 0.1 boundary or permanent rejection of future behavior. Excluding special-point markers and navigation presentation does not exclude C3's logical creation of the Takeoff Point and confirmed Landing Point, the C3 → C8 handoff and passive Current Waypoint state, or C9's in-memory retention of the required special-point information. The Reset decision does not resolve P1 active-Flight exit or P3 interruption semantics, and this slice does not silently resolve P2, P4, P5, or P6 beyond the explicitly selected experimental and non-scope boundaries.
 
-## Technical Decisions Deferred to Issue #37
+## Implementation-Ready Decisions and Contracts for Issue #37
 
-Issue #37 must decide only what is necessary to make this selected slice implementation-ready, including:
+Issue #36 fixes the following selection-level semantics and boundaries:
 
-- the application or framework decision required for the slice;
-- the map technology or provider required for the slice;
+- Candidate C is selected, while Candidates A and B remain valid progressive-recording and retained-result slices rather than Summary-only alternatives;
+- Reset availability and meaning, post-landing `Ready on Ground` inside continuing Flight Mode, and the one-Flight-per-development-session harness restriction are fixed as stated above;
+- the C3 → C8 Takeoff Point handoff and passive Current Waypoint state are included while Active Navigation remains off;
+- the wall-clock, monotonic-time, source-time, and AirLink-observed-time distinctions and invariants are fixed;
+- privileged C10 truth remains isolated from product inputs and downstream product logic;
+- runtime-value provenance, requested and active handling, and C3-supplied Flight-level classification remain independent;
+- C8 degradation remains explicit and cannot redefine or stop the non-map Flight path;
+- C9 initializes through the takeoff-side C3 handoff, progressively records in memory, retains the approved effective-boundary-to-confirmation history when that boundary precedes confirmation and the final segment through confirmed landing, and exposes initialization, append or retention, completeness, health, finalization, and outcome;
+- Summary is derived from the finalized Flight record and cannot mask an incomplete, degraded, unavailable, or failed recording outcome;
+- the selected slice includes no durable persistence, and issue #36 does not authorize product implementation.
+
+Issue #37 must not reselect Candidate C or silently revise these semantics unless the owner explicitly reopens them through a separate authorized decision. It converts the fixed selection into an implementation-ready plan by defining slice contracts, bounded and replaceable mechanisms, acceptance cases and evidence, implementation decomposition, and any approved material technical choices necessary for this slice.
+
+Within those fixed constraints, issue #37 must define or obtain approval for, as applicable:
+
+- the bounded application or framework choice demonstrably required for this slice, without selecting a whole-product framework or code-sharing strategy;
+- the bounded map technology or provider choice demonstrably required for this slice, without establishing a permanent provider standard;
 - exact scenario asset format;
 - scenario values and phase durations;
 - the minimum clock contract, including C4-normalized wall-clock, monotonic, source-time, and AirLink-observed-time semantics needed by the slice;
 - acceptance coverage for wall-clock adjustment, monotonic discontinuity or invalidity, and tests proving duration, detector windows, and retained ordering do not depend on mutable wall clock;
-- takeoff and landing detector thresholds;
+- the bounded experimental takeoff and landing mechanism, including detector thresholds and windows, recent-history ownership and custody, buffer duration, effective-sample choice, approved retained categories, and acceptance evidence, without claiming final detector or P2 semantics;
 - pressure-to-altitude calculation details;
 - vertical-speed filtering;
 - the first wind-estimation method and its explicitly approved normal-boundary runtime inputs, without granting C7 access to privileged C10 truth or control metadata;
@@ -423,7 +445,8 @@ Issue #37 must decide only what is necessary to make this selected slice impleme
 - slice-specific runtime contracts and handoffs within the accepted Engineering Map concern boundaries, including C3 → C8 Takeoff Point identity, location, Flight association, and passive Current Waypoint state;
 - the slice-specific contract and tests that keep runtime-value provenance, C10-requested handling, C4/C5 actually active handling, and C3-supplied Flight-level classification independent without defining a full provenance schema;
 - the minimum logical retained-data contract for the slice, including exact retained parameters, sampling or history-reduction rules, representation of semantic status, validity, provenance, separately relevant handling, clock semantics, and retained calculation or version context;
-- exact bounded outcomes for C9 recording initialization, progressive append or retention, and finalization; observable recording health and completeness states; and the C9-to-C3 and pilot-facing handoffs for those outcomes;
+- the C3 → C9 creation and initialization contract, including the authoritative values supplied before the first ordinary retainable active-Flight update and incorporation of only approved retained categories from the effective takeoff boundary through confirmation;
+- exact bounded outcomes for successful, degraded, or failed C9 recording initialization, progressive append or retention, and finalization; observable recording health and completeness states; and the C9-to-C3 and pilot-facing handoffs for those outcomes;
 - acceptance cases for successful, degraded or incomplete, and failed in-memory recording, including completed-Flight presentation when no complete finalized record exists;
 - the exact logical representation of Takeoff Point and confirmed Landing Point within the in-memory record and the C3-to-C9 handoffs required to preserve them;
 - progressive in-memory C9 recording and finalization behavior, Flight-record lifetime and Reset behavior, and tests proving that the final segment through confirmed landing is retained;
@@ -434,7 +457,7 @@ Issue #37 must decide only what is necessary to make this selected slice impleme
 - test strategy and acceptance cases;
 - implementation decomposition.
 
-This artifact makes none of those decisions. Issue #37 must also preserve the Engineering Map's decision classes and stop at any owner-controlled semantic or difficult-to-reverse technical boundary that needs separate approval. It must not select a production database, durable schema, migration strategy, complete persistence architecture, final timestamp representation, final discontinuity-recovery behavior, offline-map architecture, provider redundancy, or final map fallback design unless separately authorized.
+This artifact fixes the selection-level constraints above but intentionally does not choose their exact implementation mechanisms or representations. Issue #37 must preserve the Engineering Map's decision classes and stop at any owner-controlled semantic or difficult-to-reverse technical boundary that needs separate approval. It must not select a whole-product framework or code-sharing strategy, permanent map-provider standard, production database, durable schema, migration strategy, complete persistence architecture, final timestamp representation, final discontinuity-recovery behavior, offline-map architecture, provider redundancy, or final map fallback design unless separately authorized.
 
 ## Candidate Follow-Up Slices
 
@@ -471,7 +494,7 @@ The selected first slice intentionally implements only the map and orientation, 
 - **Direction advanced:** the slice models a real pilot-visible Flight process, creates observable end-to-end behavior, advances map-centered Flight awareness, and reduces lifecycle, simulation, detector, derivation, orientation, and estimated-wind risk.
 - **Semantic integrity:** normal C2–C10 responsibilities remain distinct; wall-clock and monotonic time; source time and AirLink-observed time; runtime-value provenance, C10-requested handling, C4/C5 actually active handling, and Flight-level classification; Heading and Track; weather-source wind and estimated wind; unavailable and valid zero; scenario truth and AirLink estimates; and logical passive Current Waypoint state versus its excluded presentation are not collapsed.
 - **Explicit simplification:** Home, Pre-Flight, permanent navigation, live sources, durable persistence, saved review, a second Flight in the same development session, interruption recovery, manual completion, false-detection discard, final algorithms, and final UI are omitted from this first slice under the explicit owner selection recorded here. Flight Mode nevertheless remains active and returns to `Ready on Ground` after the completed Flight, preserving the broader multiple-Flight lifecycle rather than redefining it.
-- **Boundedness and reversibility:** the slice uses a temporary entry, one read-only scenario, an experimental detector and orientation policy, and a minimal progressive in-memory Flight record. It selects no framework, provider, durable schema, complete architecture, or final algorithm.
+- **Boundedness and reversibility:** the slice uses a temporary entry, one read-only scenario, an experimental detector and orientation policy, and a minimal progressive in-memory Flight record. Issue #36 selects no framework, provider, durable schema, complete architecture, or final algorithm; issue #37 may prepare only approved slice-bounded technical choices without turning them into whole-product standards.
 - **Long-term direction preserved:** it supports Android-first implementation without redefining AirLink as Android-only and does not deny or collapse Route, wider Flight Support, Pilot Ecosystem, or other future domains.
 - **Authority:** the owner decision supplied for issue #36 authorizes this selection record only. Issue #37 owns implementation-ready planning; no implementation is authorized here.
 
@@ -496,6 +519,7 @@ It partially reduces uncertainty around:
 - available, unavailable, stale, and degraded value semantics;
 - minimum validation observability across normal responsibility boundaries;
 - minimum logical retained-data contract and C3/C4/C7/C9 progressive-recording boundary;
+- takeoff-side C3 → C9 initialization and bounded effective-boundary-to-confirmation history handoff;
 - recording-health and finalization outcomes;
 - C3-to-C9 special-point handoffs;
 - preservation of the final segment through confirmed landing;
@@ -514,6 +538,6 @@ It does not materially reduce uncertainty around:
 
 ## Remaining Work
 
-Issue #36 completes candidate comparison and records the explicit owner selection when this artifact is accepted and merged. Issue #37 must create an implementation-ready plan for only the selected slice, including the bounded technical decisions and acceptance evidence explicitly handed off above. Issue #38 and the AL-0003 transition remain later work.
+Issue #36 completes candidate comparison and records the explicit owner selection when this artifact is accepted and merged. Issue #37 must create an implementation-ready plan for only the selected slice, preserving the fixed selection semantics while defining the bounded contracts, mechanisms, approved technical choices, acceptance evidence, and decomposition explicitly handed off above. Issue #38 and the AL-0003 transition remain later work.
 
 No product implementation, AL-0003 implementation issue, complete roadmap, or detailed issue #37 plan begins in this work.
