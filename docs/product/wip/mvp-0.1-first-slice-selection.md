@@ -62,7 +62,7 @@ Its strength is establishment of the spatial Flight foundation. Its weakness is 
 
 ### Candidate C — Simulation-driven Map Flight Core with early estimated wind
 
-Candidate C provides one complete bounded simulated Flight from ground waiting to Summary. It includes a real map and spatial orientation, automatic takeoff and landing detection, pressure/QNH-derived altitude, derived vertical speed, core Flight metrics, an early estimated-wind calculation with simplified in-Flight presentation, and a finalized in-memory result. It includes no durable persistence.
+Candidate C provides one complete bounded simulated Flight from ground waiting to Summary. It includes a real map and spatial orientation, automatic takeoff and landing detection, pressure/QNH-derived altitude, derived vertical speed, core Flight metrics, an early estimated-wind calculation with simplified in-Flight presentation, and progressive in-memory recording finalized as a Flight record that preserves the minimum logical history and C3-supplied Flight-level `simulated` classification required for compatibility with later durable retention. It includes no durable persistence.
 
 This is the owner-selected candidate.
 
@@ -80,7 +80,7 @@ Its strength is broader lifecycle coverage. Its weakness is that it introduces d
 | Critical risk reduction | **Moderate:** lifecycle and detector learning; little map or wind learning | **High:** lifecycle, detector, map, and orientation learning; wind remains deferred | **Very high:** combines lifecycle, simulation trust, map/orientation, derivation, and early wind evidence | **Moderate:** persistence risk is addressed early, but the highest Flight risks remain weakly exercised |
 | Responsibility and handoff coverage | **Moderate:** reaches C2, C3, C4, C6, C7, C10 and pilot presentation | **High:** adds normal C8 spatial responsibility | **Very high:** exercises the bounded lifecycle, C4/C5 input meaning, C6 detection, C7 derivation, C8 spatial context, C10 validation, and pilot-facing flow | **Broad but shallow:** reaches more workflow and C9 retention responsibility without enough depth in core Flight handoffs |
 | Simulation and no-real-flight validation | **High:** deterministic lifecycle evidence is straightforward | **High:** deterministic lifecycle and spatial evidence | **Very high:** deterministic lifecycle, spatial, pressure, and truth-wind comparison evidence through normal boundaries | **Moderate:** the breadth is demonstrable, but reduced simulator depth weakens evidence |
-| Retained result | **Moderate:** finalized in-memory Summary | **Moderate:** finalized in-memory Summary | **High:** finalized in-memory Flight result used by Summary, without durable storage | **Very high:** durable save and reopening, at the cost of an early historical contract |
+| Retained result | **Moderate:** finalized in-memory Summary | **Moderate:** finalized in-memory Summary | **High:** progressive in-memory recording finalized as a Flight record with minimum history and C3-supplied Flight-level `simulated` classification; no durable persistence | **Very high:** durable save and reopening, at the cost of an early historical contract |
 | Dependency coverage | **Moderate:** useful lifecycle spine but weak spatial and wind foundation | **High:** useful lifecycle and spatial foundation | **Very high:** covers the most important compatible lifecycle, source, derivation, spatial, and validation boundaries | **Broad:** covers workflow and storage, but defers depth in risk-bearing Flight dependencies |
 | Technical-decision burden | **Low to moderate** | **Moderate:** adds map technology and orientation choices | **High but bounded:** adds map, detector, pressure, vertical-speed, and wind decisions needed only for this slice | **Very high:** adds persistence, schema, migration, historical preservation, and reopening decisions |
 | Implementation size | **Smallest** | **Medium** | **Largest bounded core** | **Broadest overall journey** |
@@ -114,11 +114,12 @@ The selected end-to-end user-observable result is:
 8. Takeoff is detected by normal Flight Detection responsibility, not declared by the simulator.
 9. The active Flight is created through the normal Flight Mode and Flight lifecycle responsibilities.
 10. The map and Flight information update during the simulated Flight.
-11. Estimated wind becomes available after sufficient data exists.
-12. Landing is detected from normal inputs.
-13. The Flight is finalized.
-14. A Flight Summary is shown from the finalized in-memory result.
-15. The user can reset and repeat the scenario as a fresh development session.
+11. A minimal C9 boundary progressively retains selected C3/C4/C7 history in memory.
+12. Estimated wind becomes available after sufficient data exists.
+13. Landing is detected from normal inputs.
+14. The progressive recording is finalized as the in-memory Flight record for the current run.
+15. A Flight Summary is shown from the finalized Flight record.
+16. The user can reset and repeat the scenario as a fresh development session.
 
 This outcome defines observable behavior without selecting screen pixels, technical components, APIs, or detector thresholds.
 
@@ -186,7 +187,7 @@ The first detector is bounded and experimental, not the final production detecto
 
 - before confirmed takeoff, Flight Mode remains in ground waiting and no Flight exists;
 - after confirmed takeoff, C2 — Flight Mode Lifecycle authorizes C3 — Flight Lifecycle and Flight State to begin an active simulated Flight;
-- after confirmed landing, the Flight result is finalized;
+- after confirmed landing, the progressive recording is finalized as the in-memory Flight record;
 - each reset creates a fresh development session;
 - repeating the scenario does not create a second Flight inside the same Flight Mode in this slice.
 
@@ -266,7 +267,24 @@ Use `Pause`, not product-semantic `Stop`. The panel occupies the lower area bene
 
 ## Retained Result and Flight Summary
 
-The retained result is a finalized in-memory Flight result for the current run. The Flight Summary reads from that result rather than from independent UI counters.
+The retained result is not a Summary-only object. During the active Flight, selected historical information passes through the accepted C3/C4/C7 → C9 responsibility boundary. A minimal C9 implementation progressively retains that information in memory; it does not become a database, storage engine, or complete durable-retention subsystem. Independent UI counters must not replace this recording path.
+
+After confirmed landing, the progressive recording is finalized into one in-memory Flight record for the current run. That record preserves at least these logical categories:
+
+- temporary Flight identity within the current application run;
+- Flight lifecycle boundaries;
+- completion status;
+- the C3-supplied Flight-level `simulated` classification;
+- an ordered time-varying history sufficient to represent and validate the selected slice;
+- semantic status of retained values where meaning requires it;
+- availability and validity information where meaning requires it;
+- source and derivation provenance where meaning requires it;
+- calculation context required to interpret historically retained derived values;
+- final Flight aggregates used by Summary.
+
+The ordered time-varying history must be sufficient to preserve the selected slice's source and derived Flight behavior and validate position and movement; Ground Speed and Track; atmospheric pressure and relevant QNH context; calculated barometric altitude; derived vertical speed; estimated wind; and lifecycle and timing boundaries. This does not require retaining every raw runtime value. This artifact selects neither an exact schema nor an exhaustive retained parameter list. The exact retained parameters, sampling frequency, history-reduction rules, downsampling, compression, buffering, and representation are deferred to issue #37.
+
+The Flight Summary is not the retained Flight record. It reads its aggregates from the finalized in-memory Flight record rather than maintaining independent UI-owned counters.
 
 The minimum Summary contains:
 
@@ -276,7 +294,9 @@ The minimum Summary contains:
 - maximum Ground Speed;
 - maximum altitude.
 
-No durable storage is included. The selected slice has no database, storage schema, migration, saved Flight list, reopening after restart, deletion, or recovery after process termination.
+The in-memory Flight record remains available for the current completed run and Summary and may be discarded by Reset. It does not survive application-process termination and is not written to a database, file, or durable store.
+
+No durable persistence is included. The selected slice has no database or storage engine, durable schema, migrations, durable Flight identifier, saved Flight list, reopening after restart, deletion of durable records, saved-Flight review, interruption recovery, or production storage health and recovery behavior.
 
 ## Platform Direction
 
@@ -301,7 +321,7 @@ The selected slice does not include:
 - actual flown track or zero-wind reference path;
 - Takeoff Point or Landing Point markers;
 - distance or bearing to Takeoff Point;
-- durable persistence or saved Flight review;
+- durable persistence, including a database or storage engine, durable schema or migrations, durable Flight identifier, saved Flight list or review, reopening after restart, deletion of durable records, persistence across process termination, or production storage health and recovery;
 - repeated Flights within one Flight Mode;
 - interruption or recovery behavior;
 - final takeoff or landing algorithm;
@@ -326,12 +346,14 @@ Issue #37 must decide only what is necessary to make this selected slice impleme
 - vertical-speed filtering;
 - the first wind-estimation method;
 - slice-specific runtime contracts and handoffs within the accepted Engineering Map concern boundaries;
+- the minimum logical retained-data contract for the slice, including exact retained parameters, sampling or history-reduction rules, representation of semantic status, validity, and provenance, and retained calculation or version context;
+- progressive in-memory C9 recording and finalization behavior, Flight-record lifetime and Reset behavior, and tests proving that Summary is derived from the finalized Flight record;
 - compact simulation-panel behavior;
 - exact Summary contract;
 - test strategy and acceptance cases;
 - implementation decomposition.
 
-This artifact makes none of those decisions. Issue #37 must also preserve the Engineering Map's decision classes and stop at any owner-controlled semantic or difficult-to-reverse technical boundary that needs separate approval.
+This artifact makes none of those decisions. Issue #37 must also preserve the Engineering Map's decision classes and stop at any owner-controlled semantic or difficult-to-reverse technical boundary that needs separate approval. It must not select a production database, durable schema, migration strategy, or complete persistence architecture unless separately authorized.
 
 ## Candidate Follow-Up Slices
 
@@ -368,7 +390,7 @@ The selected first slice intentionally implements only the map and orientation, 
 - **Direction advanced:** the slice models a real pilot-visible Flight process, creates observable end-to-end behavior, advances map-centered Flight awareness, and reduces lifecycle, simulation, detector, derivation, orientation, and estimated-wind risk.
 - **Semantic integrity:** normal C2–C10 responsibilities remain distinct; source and derived meanings, Heading and Track, weather-source wind and estimated wind, unavailable and valid zero, and scenario truth and AirLink estimates are not collapsed.
 - **Explicit simplification:** Home, Pre-Flight, permanent navigation, live sources, durable persistence, saved review, repeated Flights, interruption recovery, final algorithms, and final UI are omitted from this first slice under the explicit owner selection recorded here.
-- **Boundedness and reversibility:** the slice uses a temporary entry, one read-only scenario, an experimental detector and orientation policy, and an in-memory result. It selects no framework, provider, schema, complete architecture, or final algorithm.
+- **Boundedness and reversibility:** the slice uses a temporary entry, one read-only scenario, an experimental detector and orientation policy, and a minimal progressive in-memory Flight record. It selects no framework, provider, durable schema, complete architecture, or final algorithm.
 - **Long-term direction preserved:** it supports Android-first implementation without redefining AirLink as Android-only and does not deny or collapse Route, wider Flight Support, Pilot Ecosystem, or other future domains.
 - **Authority:** the owner decision supplied for issue #36 authorizes this selection record only. Issue #37 owns implementation-ready planning; no implementation is authorized here.
 
@@ -389,12 +411,14 @@ The selected slice strongly reduces uncertainty around:
 It partially reduces uncertainty around:
 
 - available, unavailable, stale, and degraded value semantics;
-- Summary and in-memory result contract;
+- minimum logical retained-data contract and C3/C4/C7/C9 progressive-recording boundary;
+- Summary-from-record contract;
 - cross-platform separation.
 
 It does not materially reduce uncertainty around:
 
-- durable historical-data preservation;
+- durable historical-data persistence and saved-Flight review;
+- production storage technology, health, and recovery behavior;
 - Android background and lifecycle integration;
 - real sensor reliability;
 - interruption recovery;
