@@ -119,6 +119,12 @@ The stages should inform one another. For example, a completed Flight can contri
 
 This lifecycle describes product continuity, not a mandatory screen sequence, fixed application navigation model, workflow gate, or release order. An early product may support only a narrow part of it.
 
+## Mobile Platform Direction
+
+AirLink's intended mobile product supports both Android and iOS. Android is the initial implementation and early platform-validation target; Android-first does not mean Android-only. Concrete Android and iOS platform integrations may occur at different stages, but cross-platform support is a product constraint.
+
+Product semantics, the Flight lifecycle, simulation boundaries, derived calculations, and domain responsibilities must remain independent of Android-specific realization. Application framework, shared-code strategy, and native-versus-cross-platform realization remain engineering decisions; none is selected here.
+
 ## Fundamental Product Domains
 
 AirLink's long-term direction includes independent but related product domains:
@@ -208,6 +214,19 @@ Expectations may become stricter in higher-responsibility contexts, such as tand
 
 During Flight, the product should conceptually prioritize glanceability, low cognitive load, semantic correctness, and immediate visibility of safety-relevant information. It should preserve distinctions such as Heading versus GPS Track and estimated versus directly measured information. This principle does not design the Flight screen or define parameter behavior.
 
+## Flight Presentation Direction
+
+The map and spatial orientation are fundamental parts of the in-Flight experience, not secondary decoration. Flight presentation should be pilot-centered, glanceable, and suitable for rapid interpretation under Flight cognitive load. It should coherently combine:
+
+- current Flight state and principal Flight information;
+- spatial orientation;
+- wind context;
+- active navigation context when one exists.
+
+Weather-source wind and in-Flight estimated wind must remain semantically distinguishable and should be presented so that their different meaning and provenance are understandable. Route-specific presentation is conditional: its absence must not leave the Flight experience conceptually incomplete, and its presence must not redefine the Flight screen as only a Route-navigation surface.
+
+Map, compass or orientation context, wind presentation, and principal Flight values should evolve as one coherent Flight-awareness system rather than as unrelated widgets. That system should preserve established distinctions such as Heading versus Track and measured or source information versus estimated or derived information. This direction does not define a screen layout, map behavior, or control design.
+
 ## Automation and Reduction of Routine
 
 A central AirLink principle is:
@@ -256,6 +275,8 @@ Future product work should preserve these principles:
 - require an explicit owner decision when a local solution would materially alter product direction.
 
 Compatibility with future evolution does not require building future domains early. It requires making current simplifications visible, bounded, and honest.
+
+An early implementation slice may intentionally contain only a bounded subset of the mature Flight experience. Such omissions are explicit simplifications, not rejection of future domains or capabilities, and the slice should be a coherent step toward the intended Flight experience rather than a disposable technical prototype. This principle establishes no release sequence, roadmap, backlog, first-slice scope, or implementation authority.
 
 ## Intentionally Deferred
 
