@@ -223,7 +223,7 @@ The map and spatial orientation are fundamental parts of the in-Flight experienc
 - wind context;
 - active navigation context when one exists.
 
-Weather-source wind and independently estimated in-Flight wind must remain semantically distinguishable and should be presented so that their different meaning is understandable. Route-specific presentation is conditional: its absence must not leave the Flight experience conceptually incomplete, and its presence must not redefine the Flight screen as only a Route-navigation surface.
+Weather-source wind and in-Flight estimated wind must remain semantically distinguishable and should be presented so that their different meaning and provenance are understandable. Route-specific presentation is conditional: its absence must not leave the Flight experience conceptually incomplete, and its presence must not redefine the Flight screen as only a Route-navigation surface.
 
 Map, compass or orientation context, wind presentation, and principal Flight values should evolve as one coherent Flight-awareness system rather than as unrelated widgets. That system should preserve established distinctions such as Heading versus Track and measured or source information versus estimated or derived information. This direction does not define a screen layout, map behavior, or control design.
 
