@@ -146,7 +146,7 @@ The following constraints are accepted for this slice:
 
 The slice uses exactly one bundled scenario. It is authored outside the application as a declarative, versioned, read-only data asset and is loaded automatically. There is no scenario selector, editor, remote distribution, or scenario-specific branching embedded in simulator code.
 
-The scenario is deterministic and phase-based. It may include ground waiting, acceleration, a takeoff profile, climb, level segments, relative turns, descent, final approach, landing, ground stop, deterministic Heading variation, truth wind, initial truth conditions, and fixed initial map zoom. Scenario phase, flight-pattern template, truth trajectory, truth airspeed, air-relative Heading used as truth, generated ground-vector truth, and other scenario-only values remain privileged C10 control or truth metadata rather than product inputs.
+The scenario is deterministic and phase-based. It may include ground waiting, acceleration, a takeoff profile, climb, level segments, relative turns, descent, final approach, landing, ground stop, deterministic Heading variation, truth wind, and initial truth conditions. Scenario phase, flight-pattern template, truth trajectory, truth airspeed, air-relative Heading used as truth, generated ground-vector truth, and other scenario-only values remain privileged C10 control or truth metadata rather than product inputs.
 
 Initial Heading is derived relative to truth wind so takeoff occurs into wind. The relative maneuver profile rotates with the initial Heading, and the final direction may also be into wind. Exact return to the start point is not required. This introduces neither an autopilot nor a navigation controller.
 
@@ -250,7 +250,7 @@ The selected slice includes:
 
 - a real geographic basemap;
 - a centered pilot marker;
-- fixed zoom, with the exact zoom and area selected during implementation planning;
+- fixed zoom as C8-owned presentation configuration, with the exact initial zoom and visible area selected during issue #37 implementation-ready planning;
 - North-up presentation while on the ground before valid movement;
 - Track-up presentation after valid Track is available;
 - a compass or orientation indication that keeps True North understandable;
@@ -258,6 +258,8 @@ The selected slice includes:
 - the logical C8 state in which Takeoff Point is the passive Current Waypoint after confirmed takeoff while Active Navigation remains off.
 
 Track-up is a reversible first-slice behavior, not resolution of the final orientation policy. A real Android magnetic compass, pan, user zoom controls, map-layer selection, and offline-map scope are excluded.
+
+The fixed zoom is not part of the bundled scenario, C10 truth or control metadata, a C4/C5 source-equivalent runtime input, or runtime-value provenance or handling. C10 scenario metadata does not directly control this C8 presentation configuration. C8 applies the same fixed zoom regardless of scenario metadata and whether spatial runtime inputs have live, selected, or simulated provenance.
 
 The logical Current Waypoint state is included, but pilot-facing special-point navigation presentation is excluded. The slice therefore excludes the actual flown-track line, zero-wind reference path, Takeoff Point marker, Landing Point marker, map presentation of Landing Point, distance or bearing to Takeoff Point, and other visual passive-navigation presentation. Because that presentation is excluded, the slice does not require C7 Takeoff Point distance or bearing calculations. The logical state is not a Route, route guidance, Route Navigation, or Active Navigation.
 
@@ -463,6 +465,7 @@ Within those fixed constraints, issue #37 must define or obtain approval for, as
 
 - the bounded application or framework choice demonstrably required for this slice, without selecting a whole-product framework or code-sharing strategy;
 - the bounded map technology or provider choice demonstrably required for this slice, without establishing a permanent provider standard;
+- the exact fixed initial zoom and visible area, or an equivalent bounded map-scale setting, as a C8 presentation decision, without moving it into the scenario asset, making C10 metadata a direct C8 input, creating a general configuration subsystem or permanent whole-product map-scale policy, or adding user zoom controls;
 - exact scenario asset format;
 - scenario values and phase durations;
 - the minimum clock contract, including C4-normalized wall-clock, monotonic, source-time, and AirLink-observed-time semantics needed by the slice;
