@@ -50,6 +50,7 @@ Consult `wip/README.md` and only the WIP documents that the task explicitly conc
 ## Work in Progress
 
 - `wip/mvp-0.1-scope.md` — defines the owner-reviewed product-level boundary of MVP 0.1, its first meaningful end-to-end product slice, explicit non-scope, deferred decisions, and the mandatory Flight Simulation Framework.
+- `wip/mvp-0.1-first-slice-selection.md` — is the owner-selected, non-canonical AL-0002 planning record comparing first-slice candidates and selecting the simulation-driven Map Flight Core with early estimated wind; it is not implementation authority and is an input to issue #37.
 - `wip/flight-mode-model.md` — defines the operational lifecycle of explicit Flight Mode, including ground waiting, repeated Flights, completion, and exit behavior.
 - `wip/flight-model.md` — defines one airborne Flight, its boundaries, special points, and relationship to summary and replay.
 - `wip/navigation-model.md` — defines only the navigation state and directional concepts required by the initial local-flight scenario.
