@@ -112,14 +112,15 @@ The selected end-to-end user-observable result is:
 6. The user starts simulation input progression.
 7. Normal source-equivalent data changes over time.
 8. Takeoff is detected by normal Flight Detection responsibility, not declared by the simulator.
-9. The active Flight is created through the normal Flight Mode and Flight lifecycle responsibilities.
+9. The active Flight and its Takeoff Point are created through the normal Flight Mode and Flight lifecycle responsibilities, and C3 supplies the required Takeoff Point information to C9.
 10. The map and Flight information update during the simulated Flight.
-11. A minimal C9 boundary progressively retains selected C3/C4/C7 history in memory.
+11. A minimal C9 boundary initializes and progressively retains selected C3/C4/C7 history in memory while exposing recording health, completeness, and outcome.
 12. Estimated wind becomes available after sufficient data exists.
 13. Landing is detected from normal inputs.
-14. The progressive recording is finalized as the in-memory Flight record for the current run.
-15. A Flight Summary is shown from the finalized Flight record.
-16. The user can reset and repeat the scenario as a fresh development session.
+14. C3 completes the Flight through confirmed landing, creates the confirmed Landing Point, and supplies the required Landing Point information to C9; recording preserves the final segment through that boundary.
+15. C9 exposes the finalization outcome as it finalizes the progressive recording as the in-memory Flight record for the current run.
+16. A successful Flight Summary is shown from the complete finalized Flight record; an incomplete, degraded, unavailable, or failed recording outcome is exposed rather than presented as successful retention.
+17. The user can reset and repeat the scenario as a fresh development session.
 
 This outcome defines observable behavior without selecting screen pixels, technical components, APIs, or detector thresholds.
 
@@ -186,8 +187,10 @@ Concern identifiers are planning references only. They do not select modules, se
 The first detector is bounded and experimental, not the final production detector. C6 — Flight Detection infers takeoff and landing from normal simulated inputs; C10 does not send lifecycle events.
 
 - before confirmed takeoff, Flight Mode remains in ground waiting and no Flight exists;
-- after confirmed takeoff, C2 — Flight Mode Lifecycle authorizes C3 — Flight Lifecycle and Flight State to begin an active simulated Flight;
-- after confirmed landing, the progressive recording is finalized as the in-memory Flight record;
+- after confirmed takeoff, C2 — Flight Mode Lifecycle authorizes C3 — Flight Lifecycle and Flight State to begin an active simulated Flight; C3 logically creates the Takeoff Point, owns its identity, estimated location, and association with the active Flight, and supplies that information to C9;
+- after confirmed landing, C2 authorizes C3 to complete the Flight through the confirmed boundary; C3 logically creates the confirmed Landing Point, owns its identity, estimated location, confirmed-landing classification, and association with the completed Flight, and supplies that information to C9;
+- C9 retains all approved information through confirmed landing, including the final segment, and exposes the outcome when finalizing the in-memory Flight record;
+- recording degradation or failure does not cancel confirmed landing, reactivate the Flight, or convert it into a rejected or nonexistent Flight;
 - each reset creates a fresh development session;
 - repeating the scenario does not create a second Flight inside the same Flight Mode in this slice.
 
@@ -267,14 +270,17 @@ Use `Pause`, not product-semantic `Stop`. The panel occupies the lower area bene
 
 ## Retained Result and Flight Summary
 
-The retained result is not a Summary-only object. During the active Flight, selected historical information passes through the accepted C3/C4/C7 → C9 responsibility boundary. A minimal C9 implementation progressively retains that information in memory; it does not become a database, storage engine, or complete durable-retention subsystem. Independent UI counters must not replace this recording path.
+The retained result is not a Summary-only object. During the active Flight, selected historical information passes through the accepted C3/C4/C7 → C9 responsibility boundary. A minimal C9 implementation progressively retains that information in memory; it does not become a database, storage engine, or complete durable-retention subsystem. C9 owns recording health, completeness, and the in-memory retention outcome and exposes the outcomes of recording initialization, progressive append or retention, and finalization to C3 and the pilot-facing flow where they affect the completed-Flight result. Independent UI counters must not replace this recording path.
 
-After confirmed landing, the progressive recording is finalized into one in-memory Flight record for the current run. That record preserves at least these logical categories:
+After confirmed landing, C9 finalizes the progressive recording into one in-memory Flight record for the current run, retaining all approved information through the confirmed-landing boundary. Recording must not stop at the first landing candidate, trim history retrospectively to approximate an earlier landing point, or omit the final segment between landing-detection activity and confirmed landing. That record preserves at least these logical categories:
 
 - temporary Flight identity within the current application run;
 - Flight lifecycle boundaries;
-- completion status;
+- the authoritative confirmed-landing completion status applicable to this slice;
 - the C3-supplied Flight-level `simulated` classification;
+- Takeoff Point identity, estimated location, and Flight association;
+- confirmed Landing Point identity, estimated location, confirmed-landing classification, and Flight association;
+- C9 recording health, completeness, and in-memory retention outcome;
 - an ordered time-varying history sufficient to represent and validate the selected slice;
 - semantic status of retained values where meaning requires it;
 - availability and validity information where meaning requires it;
@@ -282,9 +288,11 @@ After confirmed landing, the progressive recording is finalized into one in-memo
 - calculation context required to interpret historically retained derived values;
 - final Flight aggregates used by Summary.
 
-The ordered time-varying history must be sufficient to preserve the selected slice's source and derived Flight behavior and validate position and movement; Ground Speed and Track; atmospheric pressure and relevant QNH context; calculated barometric altitude; derived vertical speed; estimated wind; and lifecycle and timing boundaries. This does not require retaining every raw runtime value. This artifact selects neither an exact schema nor an exhaustive retained parameter list. The exact retained parameters, sampling frequency, history-reduction rules, downsampling, compression, buffering, and representation are deferred to issue #37.
+The ordered time-varying history must be sufficient to preserve the selected slice's source and derived Flight behavior through confirmed landing, including its final segment, and validate position and movement; Ground Speed and Track; atmospheric pressure and relevant QNH context; calculated barometric altitude; derived vertical speed; estimated wind; and lifecycle and timing boundaries. This does not require retaining every raw runtime value. This artifact selects neither an exact schema nor an exhaustive retained parameter list. The exact retained parameters, sampling frequency, history-reduction rules, downsampling, compression, buffering, and representation are deferred to issue #37.
 
-The Flight Summary is not the retained Flight record. It reads its aggregates from the finalized in-memory Flight record rather than maintaining independent UI-owned counters.
+The Flight Summary is not the retained Flight record. Its aggregates come from the finalized in-memory Flight record rather than independent UI-owned counters, and the completed-Flight presentation preserves the record's C3-supplied Flight-level `simulated` classification, authoritative confirmed-landing completion status, and C9 recording health, completeness, and retention outcome. A missing, incomplete, degraded, or failed record must not be presented as successfully retained, and Summary must not mask recording failure or synthesize a successful result from independent UI counters. Where no complete finalized record exists, the pilot-facing completed-Flight flow exposes that the record is incomplete, degraded, unavailable, or failed as applicable; the exact presentation remains deferred.
+
+Recording failure does not redefine lifecycle truth: it does not cancel confirmed landing, make the Flight active again, or convert the Flight into a rejected or nonexistent Flight.
 
 The minimum Summary contains:
 
@@ -321,6 +329,9 @@ The selected slice does not include:
 - actual flown track or zero-wind reference path;
 - Takeoff Point or Landing Point markers;
 - distance or bearing to Takeoff Point;
+- passive Takeoff Point navigation presentation;
+- saved-Flight spatial review;
+- final special-point storage representation or manual-completion Landing Point semantics;
 - durable persistence, including a database or storage engine, durable schema or migrations, durable Flight identifier, saved Flight list or review, reopening after restart, deletion of durable records, persistence across process termination, or production storage health and recovery;
 - repeated Flights within one Flight Mode;
 - interruption or recovery behavior;
@@ -331,7 +342,7 @@ The selected slice does not include:
 - complete application architecture;
 - provider or framework selection.
 
-These exclusions are explicit first-slice simplifications, not changes to the broader accepted MVP 0.1 boundary or permanent rejection of future behavior.
+These exclusions are explicit first-slice simplifications, not changes to the broader accepted MVP 0.1 boundary or permanent rejection of future behavior. Excluding special-point markers and navigation presentation does not exclude C3's logical creation of the Takeoff Point and confirmed Landing Point or C9's in-memory retention of their required information.
 
 ## Technical Decisions Deferred to Issue #37
 
@@ -347,9 +358,12 @@ Issue #37 must decide only what is necessary to make this selected slice impleme
 - the first wind-estimation method;
 - slice-specific runtime contracts and handoffs within the accepted Engineering Map concern boundaries;
 - the minimum logical retained-data contract for the slice, including exact retained parameters, sampling or history-reduction rules, representation of semantic status, validity, and provenance, and retained calculation or version context;
-- progressive in-memory C9 recording and finalization behavior, Flight-record lifetime and Reset behavior, and tests proving that Summary is derived from the finalized Flight record;
+- exact bounded outcomes for C9 recording initialization, progressive append or retention, and finalization; observable recording health and completeness states; and the C9-to-C3 and pilot-facing handoffs for those outcomes;
+- acceptance cases for successful, degraded or incomplete, and failed in-memory recording, including completed-Flight presentation when no complete finalized record exists;
+- the exact logical representation of Takeoff Point and confirmed Landing Point within the in-memory record and the C3-to-C9 handoffs required to preserve them;
+- progressive in-memory C9 recording and finalization behavior, Flight-record lifetime and Reset behavior, and tests proving that the final segment through confirmed landing is retained;
 - compact simulation-panel behavior;
-- exact Summary contract;
+- the exact Summary contract and tests proving that Summary aggregates come from the finalized Flight record and preserve Flight-level `simulated` classification, authoritative confirmed-landing completion status, and C9 recording status;
 - test strategy and acceptance cases;
 - implementation decomposition.
 
@@ -412,17 +426,20 @@ It partially reduces uncertainty around:
 
 - available, unavailable, stale, and degraded value semantics;
 - minimum logical retained-data contract and C3/C4/C7/C9 progressive-recording boundary;
-- Summary-from-record contract;
+- recording-health and finalization outcomes;
+- C3-to-C9 special-point handoffs;
+- preservation of the final segment through confirmed landing;
+- completed-Flight Summary classification, completion status, recording status, and Summary-from-record contract;
 - cross-platform separation.
 
 It does not materially reduce uncertainty around:
 
-- durable historical-data persistence and saved-Flight review;
-- production storage technology, health, and recovery behavior;
+- durable historical-data persistence;
+- production storage technology, schema, migration, health, and recovery behavior;
+- process-interruption recovery;
+- saved-Flight review;
 - Android background and lifecycle integration;
 - real sensor reliability;
-- interruption recovery;
-- storage migration;
 - iOS integration.
 
 ## Remaining Work
