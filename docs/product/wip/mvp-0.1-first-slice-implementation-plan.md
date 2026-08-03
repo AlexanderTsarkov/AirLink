@@ -358,7 +358,7 @@ C4 owns the normalized AirLink-facing form of:
 - applicable pass-through or controlled-substitute handling state, kept separate from provenance;
 - platform/input interruption state.
 
-C4 accepts independent asynchronous streams. Domain logic must not require a fixed sensor frequency. C4 does not calculate magnetic declination or convert magnetic orientation to True North; it preserves the source meaning and supplies the independent position, civil-time, and orientation inputs required by C7.
+C4 accepts independent asynchronous streams, including a source-equivalent `gnssAvailability` stream that is distinct from GNSS observations. C4 normalizes explicit availability transitions immediately and derives position, GS, and Track availability from them; downstream concerns observe those effects only through C4-derived state. Domain logic must not require a fixed sensor frequency. C4 does not calculate magnetic declination or convert magnetic orientation to True North; it preserves the source meaning and supplies the independent position, civil-time, and orientation inputs required by C7.
 
 ## C5 — Weather Context
 
@@ -610,6 +610,31 @@ Observed delivery timing alone does not end a segment. Late or batched observati
 
 The active flown-distance aggregate starts at the effective takeoff boundary and applies that segment rule only to accepted position pairs. It holds its current value and is marked stale/degraded during GNSS unavailability, opens a new anchor after recovery, and never joins the final pre-gap position to the first post-gap position. The existing transient `DST` threshold behavior is unchanged. This runtime presentation aggregate is not the authoritative Summary source; completed distance is derived independently from the finalized C9 record using the same segment semantics.
 
+For every eligible accepted latitude/longitude pair `p1` and `p2`, both derivations use the same fixed first-slice haversine algorithm. With the exact mean Earth radius `distanceEarthRadiusM R = 6371008.8`, convert both coordinates to radians and calculate:
+
+```text
+deltaPhi    = phi2 − phi1
+deltaLambda = shortest signed longitude difference in radians
+
+h
+=
+sin(deltaPhi / 2)^2
++
+cos(phi1) × cos(phi2) × sin(deltaLambda / 2)^2
+
+h = clamp(h, 0, 1)
+
+centralAngle
+=
+2 × atan2(sqrt(h), sqrt(max(0, 1 − h)))
+
+distanceM
+=
+R × centralAngle
+```
+
+This pairwise formula is applied only after the segment rule has established pair eligibility. Active distance and finalized Summary distance derive independently, but use this same formula and eligibility rule. Neither derivation may use simulator truth distance, integrated truth East/North distance, GS integration, route reconstruction, or interpolation. The calculation identifier is `haversineMeanEarthR6371008_8V1`; C9 retains it with the distance-calculation context, and validation diagnostics expose it for the active aggregate.
+
 ### GS tile
 
 Displays:
@@ -832,7 +857,21 @@ endValue
 
 A heading segment additionally carries `reference: true` and, for `turnSmoothstep`, an explicit signed `turnDeltaDeg`. A speed segment carries `quantity: AS | GS` and `unit: kmh`. An altitude segment carries `reference: MSL` and `unit: m`. The exact values and segment boundaries are defined by the normative phase table below.
 
-`faultVariants.gnssOutage` contains `startS` and `endExclusiveS`. `sourceCadenceHz` contains `gnss`, `pressure`, and `orientation`; weather/QNH is represented by the initial snapshot in `environment`.
+`faultVariants.gnssOutage` contains this exact logical representation:
+
+```text
+startS: 112.0
+endExclusiveS: 117.0
+availabilityTransitions:
+  - atS: 112.0
+    state: unavailable
+    reason: controlledInterruption
+  - atS: 117.0
+    state: available
+    reason: controlledRestoration
+```
+
+The fields, values, and transition order are normative. This is sufficient to generate the separate source-equivalent `gnssAvailability` stream deterministically and does not create a generic configuration subsystem. `sourceCadenceHz` contains `gnss`, `pressure`, and `orientation`; weather/QNH is represented by the initial snapshot in `environment`.
 
 ## 12.2 Units and deterministic evaluation
 
@@ -849,6 +888,16 @@ pressure and QNH: hPa
 ```
 
 Truth is evaluated at fixed `0.1 s` steps. Airborne East/North position is integrated with the trapezoidal rule from the truth ground-velocity vector. Ground phases use the declared ground-speed/Track profile without adding wind drift. Source streams sample this truth at their exact declared cadences.
+
+At each GNSS sample time, C10 must generate the source-equivalent position in this exact order:
+
+1. evaluate and integrate truth ground displacement in local East/North metres;
+2. evaluate `gnssEastErrorM(t)` and `gnssNorthErrorM(t)`;
+3. calculate `sourceEastM = truthEastM + gnssEastErrorM(t)` and `sourceNorthM = truthNorthM + gnssNorthErrorM(t)`;
+4. convert `sourceEastM` and `sourceNorthM` to latitude/longitude using section 12.3;
+5. emit that latitude/longitude observation through the normal C10 to C4 GNSS boundary.
+
+C10 must not convert truth coordinates first and add degree-space errors, round intermediate East/North values, radians, radii, latitude, or longitude, use a library whose geodesic algorithm or version can vary, or expose truth East/North directly to product logic. The implementation language's normal IEEE-754 binary64 arithmetic is sufficient for the fixture.
 
 The following interpolation identifiers are normative:
 
@@ -877,6 +926,52 @@ weatherWind.fromDegTrue: 270.0
 The wind therefore blows toward `090° True`. Initial Air Heading and final approach are `270° True`, directly into wind.
 
 Takeoff and landing areas are locally flat at `35.0 m MSL`. Terrain variation is not modelled.
+
+### Fixed local-to-geographic conversion
+
+`scenario-v1` uses the fixed first-slice WGS84 local-tangent approximation below relative to the declared fixture origin. The exact constants are:
+
+```text
+semiMajorAxisM a = 6378137.0
+inverseFlattening = 298.257223563
+flattening f = 1 / inverseFlattening
+eccentricitySquared e2 = f × (2 − f)
+
+originLatitudeDeg  = 59.4546111
+originLongitudeDeg = 24.8922111
+
+phi0    = radians(originLatitudeDeg)
+lambda0 = radians(originLongitudeDeg)
+
+M0
+=
+a × (1 − e2)
+/
+(1 − e2 × sin(phi0)^2)^(3/2)
+
+N0
+=
+a
+/
+sqrt(1 − e2 × sin(phi0)^2)
+```
+
+For a source-like local position `eastM`, `northM`, calculate:
+
+```text
+latitudeRad
+=
+phi0 + northM / M0
+
+longitudeRad
+=
+lambda0 + eastM / (N0 × cos(phi0))
+
+latitudeDeg  = degrees(latitudeRad)
+longitudeDeg = degrees(longitudeRad)
+```
+
+This formula is normative for the local approximately `2 km` fixture and has the calculation identifier `scenarioV1Wgs84LocalTangentV1`, which is retained or exposed in the existing scenario validation/calculation-version context. It does not select production geodesy. Production geodesic libraries, ECEF/ENU conversion, map-provider projection policy, long-distance accuracy, altitude-dependent ellipsoid treatment, and whole-product geospatial architecture remain deferred.
 
 ## 12.4 Orientation fixture
 
@@ -1007,20 +1102,48 @@ weather/QNH: one snapshot at 0.0 s
 
 Normal observed monotonic time equals source monotonic time. Jitter, batching, missing samples, `1 Hz` GNSS, and timestamp-invalidity cases are deterministic test transforms and do not change `scenario-v1`.
 
+The `gnssAvailability` transitions in section 12.9 are separate logical-stream events emitted at their exact scenario times; they are not inferred from or delayed by the GNSS observation cadence.
+
 ## 12.9 Exact fault variants and estimator timing
 
-The controlled GNSS outage is:
+The controlled GNSS outage uses the asset contract in section 12.1. At exactly `112.0 s`, before any GNSS observation at that scenario time, C10 emits:
 
 ```text
-startS: 112.0
-endExclusiveS: 117.0
+stream: gnssAvailability
+state: unavailable
+reason: controlledInterruption
+sourceMonotonicTimeS: 112.0
+observedMonotonicTimeS: 112.0
 ```
 
-It occurs on the stable east-downwind leg, after directional diversity has been generated and before the next turn. No GNSS observations are emitted in that half-open interval; pressure and orientation continue normally.
+C4 normalizes that transition immediately at `112.0 s`. GNSS source availability and normalized position, GS, and Track become unavailable, and the active GNSS distance-continuity segment ends at that boundary. No GNSS position, GS, or Track observation is emitted in `[112.0, 117.0)`. Pressure and orientation continue normally.
+
+At exactly `117.0 s`, C10 emits:
+
+```text
+stream: gnssAvailability
+state: available
+reason: controlledRestoration
+sourceMonotonicTimeS: 117.0
+observedMonotonicTimeS: 117.0
+```
+
+The normative equal-time processing order is:
+
+1. normalize the availability-restoration transition;
+2. emit and normalize the first recovered GNSS observation with `sourceMonotonicTimeS: 117.0`.
+
+The availability transition and recovered observation are separate logical streams, so their equal source timestamps do not violate the same-stream duplicate/collision rule. Restoration means only that the source can supply data again; it does not synthesize position, GS, or Track. Those values become valid only when C4 accepts the recovered observation. That observation opens the new distance-continuity segment as an anchor and contributes no pre-gap chord; the normally scheduled `117.5 s` observation may form the first post-restoration pair.
+
+For the controlled first-slice fixture, GNSS silence alone is not an outage signal. The outage and restoration boundaries are defined by explicit source-equivalent availability transitions normalized by C4. No freshness timeout, cadence inference, or wall-clock delay defines this controlled outage.
+
+The outage occurs on the stable east-downwind leg, after directional diversity has been generated and before the next turn. C10 does not signal C1, C6, C7, C8, or C9 directly: `GPS unavailable`, suspended GNSS-dependent detection, blocked wind acceptance, degraded map behavior, and recorded gap evidence all arise through C4 and the existing concern boundaries.
 
 The accepted estimator configuration must produce the first accepted estimated-wind result no later than `108.0 s` in the normal fixture, so the outage always begins after an accepted estimate exists. The exact earlier acceptance time remains an algorithm result, not privileged simulator input.
 
 Map-unavailable mode is an independent C8 development toggle and is not encoded as altered scenario physics.
+
+Unexpected silent-source handling, operating-system callback loss, provider-specific timeouts, long GNSS loss, process suspension, restart recovery, and automatic source switching remain deferred production concerns.
 
 ## 12.10 Launch interpretation
 
@@ -1516,6 +1639,7 @@ Retain, when available:
 - raw Device Magnetic Azimuth and orientation quality;
 - weather-source wind;
 - accepted QNH value and unit, source/update time, validity, freshness, provenance, and applicable handling state;
+- explicit GNSS interruption/restoration transitions or equivalent normalized gap-boundary evidence;
 - validity, freshness, provenance, and applicable handling state;
 - source monotonic time;
 - observed monotonic time;
@@ -1531,6 +1655,7 @@ Retain:
 - VS;
 - derived Device True Azimuth, declination used, position/date context, and declination-provider identifier/version;
 - altitude-calculation identifier/version and constants used with the accepted QNH;
+- `scenarioV1Wgs84LocalTangentV1` projection context for fixture-generated observations and `haversineMeanEarthR6371008_8V1` distance-calculation context;
 - all accepted wind estimates with quality metadata;
 - current/retained/unavailable wind state transitions;
 - detector candidates and confirmations;
@@ -1649,7 +1774,7 @@ Wall clock is used only to display takeoff and landing civil time.
 
 ### Distance
 
-Derive distance independently from the retained C9 record by summing only accepted position-pair distances within the uninterrupted GNSS distance-continuity segments defined in section 10.4. Do not connect two retained valid positions when a recorded unavailable, invalid, interruption, continuity-gap, or source-monotonic-invalid/discontinuous interval lies between them. The first valid position after each recorded gap is an anchor only. The active runtime aggregate must not be copied into Summary.
+Derive distance independently from the retained C9 record by summing only accepted position-pair distances within the uninterrupted GNSS distance-continuity segments defined in section 10.4. Every eligible pair uses the section 10.4 haversine calculation with `R = 6371008.8 m`; pair eligibility is determined before applying the formula. Do not connect two retained valid positions when a recorded unavailable, invalid, interruption, continuity-gap, or source-monotonic-invalid/discontinuous interval lies between them. The first valid position after each recorded gap is an anchor only. The active runtime aggregate must not be copied into Summary.
 
 ### Average GS
 
@@ -1692,6 +1817,8 @@ A separate deterministic variant introduces exactly `5 s` of GNSS unavailability
 - after at least one accepted wind estimate exists;
 - before the next turn and final approach.
 
+The source-equivalent interruption transition defined in section 12.9 reaches C4 exactly at `112.0 s`, before any GNSS observation at that time. C4 immediately normalizes GNSS source, position, GS, and Track as unavailable and ends the current distance-continuity segment. C1, C6, C7, C8, and C9 receive no fault or phase metadata from C10; every downstream effect below follows only from normal C4-derived state and normal concern boundaries.
+
 During the outage:
 
 - Flight remains active;
@@ -1710,6 +1837,8 @@ After recovery:
 - the same Flight continues;
 - the last normal pre-gap GNSS sample is expected at approximately `111.5 s` under the normative cadence;
 - no GNSS sample exists in `[112.0, 117.0)`;
+- the source-equivalent restoration transition reaches C4 exactly at `117.0 s` and is normalized before the recovered GNSS observation at the same source time;
+- the restoration transition alone does not synthesize valid position, GS, or Track;
 - the valid sample at `117.0 s` opens the recovered distance-continuity segment as an anchor only and adds no distance from the pre-gap anchor;
 - the next valid sample, normally at `117.5 s`, may produce the first post-gap distance contribution;
 - the unavailable interval contributes neither GNSS-derived distance nor valid GNSS covered time, but remains part of elapsed Flight time and total Flight duration;
@@ -1718,6 +1847,8 @@ After recovery:
 - Summary remains available.
 
 No interpolation, dead reckoning, GS integration, route reconstruction, or estimated missing distance is permitted for the outage.
+
+Silence alone does not establish the controlled fixture outage. The explicit unavailable/restoration transitions define its normative boundaries; this section introduces no general production freshness or timeout policy.
 
 This behavior is an explicit owner-approved bounded reopening of the previously deferred P3 interruption boundary for this one deterministic five-second GNSS-outage validation case. It does not define general interruption retention, completion, restoration, long-loss, process-recovery, or production recovery semantics.
 
@@ -1770,7 +1901,11 @@ Tests must not depend on rendered screen text.
 
 - normal end-to-end deterministic run;
 - exact `scenario-v1` asset parsing and phase-boundary tests;
-- reference truth/observation sequence test at `1×` and `2×`;
+- local-projection tests proving zero East/North maps back to the declared origin within a tight binary64 tolerance, a known positive East offset changes longitude by the section 12.3 formula without changing latitude beyond that tolerance, and a known positive North offset changes latitude without changing longitude beyond that tolerance;
+- GNSS generation-order test proving East/North source errors are added before geographic conversion;
+- independently generated reference latitude/longitude observations match the frozen `scenario-v1` reference sequence at `1×` and `2×` without requiring platform-specific decimal text formatting;
+- truth-isolation tests proving no truth East/North or truth-distance shortcut reaches C4, C7, C8, C9, or Summary;
+- calculation-context tests proving `scenarioV1Wgs84LocalTangentV1` and `haversineMeanEarthR6371008_8V1` are exposed or retained where required;
 - takeoff candidate/confirmation boundary tests, including direct/partial headwind, crosswind, tailwind, invalid Track, stale weather, and deliberate Track-versus-Device-True-Azimuth disagreement;
 - landing candidate/confirmation boundary tests, including stationary GS with unavailable Track, moving GS with invalid Track, and invalid GS;
 - circle-fit numerical tests for ideal, noisy, incomplete, poorly conditioned, and outlier cases;
@@ -1778,9 +1913,14 @@ Tests must not depend on rendered screen text.
 - first accepted wind no later than `108.0 s` in the normal fixture;
 - estimator-continuity test proving calculation runs across climb, level-flight, and descent observations without phase gating or phase-boundary resets;
 - quality-gate test proving acceptance/rejection depends on input, residual, coverage, conditioning, and uncertainty rather than vertical phase labels;
-- exact `112.0–117.0 s` GNSS-outage and recovery test;
+- exact `112.0–117.0 s` GNSS-outage and recovery test proving C4 receives and immediately normalizes `unavailable/controlledInterruption` at `112.0 s` without timeout, cadence inference, or wall-clock delay;
+- outage-state test proving position, GS, and Track remain unavailable from interruption until valid recovered data is accepted and no GNSS observation is emitted in `[112.0, 117.0)`;
+- restoration-order test proving C4 receives `available/controlledRestoration` exactly at `117.0 s`, processes it before the recovered `117.0 s` observation, and accepts their equal timestamps because the transition and observation are separate streams;
+- C4-boundary test proving C6, C7, C8, and C9 observe the outage only through normal C4-derived state and never through C10 phase or fault metadata;
+- controlled-silence test proving silence without an explicit availability transition does not establish the normative fixture outage boundary;
+- gap-evidence test proving C9 retains explicit interruption/restoration or equivalent normalized boundaries sufficient to reproduce degraded Summary semantics;
 - map-unavailable validation;
-- active and finalized distance tests proving independently applied common segment semantics: a normal uninterrupted pair contributes distance; the final pre-gap position to first post-gap position contributes exactly zero; the first recovered position only establishes a new anchor; and the next valid position in the recovered segment resumes accumulation;
+- active and finalized distance tests proving independently applied common segment semantics and the common haversine pair calculation with exact `R = 6371008.8 m`: a normal uninterrupted pair contributes distance; the final pre-gap position to first post-gap position contributes exactly zero; the first recovered `117.0 s` position only establishes a new anchor; and the normally scheduled `117.5 s` position can resume accumulation;
 - distance-coverage tests proving the outage interval contributes neither distance nor valid covered time while elapsed Flight time and total duration still include it;
 - degraded-distance evidence proving Summary distance is lower than the corresponding uninterrupted fixture by the omitted GNSS-covered segment;
 - continuity tests proving late or batched observations with continuous valid ordered source timestamps do not create a false segment break, while invalid or source-monotonic-discontinuous GNSS input does break the segment;
@@ -1911,12 +2051,13 @@ Includes:
 
 - exact JSON `scenario-v1` asset and parser;
 - fixed phase schedule, profiles, units, cadences, variation formulas, and truth-step integration;
+- fixed WGS84 local-tangent East/North-to-geographic conversion with source errors applied before conversion;
 - privileged truth;
 - C4/C5 contracts;
-- GNSS, pressure, raw magnetic-orientation, and weather streams;
+- GNSS position, explicit GNSS availability, pressure, raw magnetic-orientation, and weather streams;
 - C7 Device Magnetic Azimuth to Device True Azimuth conversion through the replaceable declination-provider boundary;
 - timing, quality, validity, and provenance;
-- fixture reference-sequence and cadence tests;
+- fixture geographic reference-sequence, projection, generation-order, and cadence tests;
 - movement on placeholder canvas;
 - live GS and weather-wind presentation;
 - source-health diagnostics.
@@ -1935,7 +2076,7 @@ Includes:
 - Flight identity and complete Takeoff Point representation;
 - explicit C3 to C9 creation handoff and recording initialization seam;
 - elapsed Flight time and camera-adjacent `FLT`/transient `DST` presentation;
-- active flown-distance aggregate with `500 m` notifications, within-segment position-pair accumulation, value hold during GNSS unavailability, anchor-only recovery, and no pre-gap to post-gap chord;
+- active flown-distance aggregate with `500 m` notifications, the fixed haversine pairwise formula, within-segment position-pair accumulation, value hold during GNSS unavailability, anchor-only recovery, and no pre-gap to post-gap chord;
 - Device True Azimuth-up ground presentation to Track-up airborne transition;
 - one-shot, idempotency, and Takeoff Point handoff tests.
 
@@ -1994,10 +2135,10 @@ Observable result: normal Flight ends in a complete Summary derived from a final
 
 Includes:
 
-- exact five-second GNSS outage and recovery;
+- exact five-second GNSS outage and recovery through explicit source-equivalent availability transitions normalized by C4;
 - degraded record and Summary;
 - no pre-gap to post-gap distance chord, anchor-only first recovery position, resumed accumulation from the next within-segment position, and no outage contribution to valid covered time;
-- independent active and finalized-record distance derivations using the same segment semantics;
+- independent active and finalized-record distance derivations using the same segment semantics and fixed haversine pairwise formula;
 - continuous valid source-time batching that does not create a false segment break, plus invalid and source-monotonic-discontinuous inputs that do;
 - retained wind and suspended landing detection;
 - map-unavailable run;
@@ -2131,9 +2272,10 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 
 - exact asset path and JSON contract are defined;
 - origin, civil time, environment, wind, QNH, and declination are fixed;
+- fixed WGS84 constants, local-tangent conversion, GNSS generation order, and geographic reference sequence are defined;
 - phase start/end times and kinematic endpoints are fixed;
 - deterministic interpolation, integration, variation, and cadence contracts are fixed;
-- exact GNSS-outage interval is fixed;
+- exact GNSS-outage interval, availability transitions, and equal-time restoration ordering are fixed;
 - flare/float/touchdown behavior is fixed for the fixture;
 - truth isolation is explicit;
 - remaining choices are implementation mechanics or explicitly bounded algorithm/UI tuning rather than hidden scenario questions.
@@ -2150,7 +2292,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 ## 28.5 Validation readiness
 
 - normal run is defined;
-- GNSS-outage and map-unavailable cases are defined;
+- GNSS-outage and map-unavailable cases are defined, with the controlled outage crossing C4 through explicit source-equivalent availability transitions rather than silence or a production timeout policy;
 - diagnostics contract is defined;
 - truth-leakage prohibitions are defined;
 - tests do not depend on rendered screen text.
@@ -2206,6 +2348,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - physical liftoff/touchdown do not command detectors;
 - `1×` and `2×` produce equivalent domain outcomes;
 - Pause does not appear as source outage;
+- source-like GNSS East/North errors are added before the fixed local-to-geographic conversion, and truth coordinates do not reach normal concerns;
 - fixture is deterministic;
 - no uncontrolled randomness is used.
 
@@ -2234,6 +2377,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - Summary derives only from finalized record;
 - complete, degraded, and failed outcomes are distinguishable;
 - active and finalized distance independently sum only accepted position pairs within uninterrupted GNSS distance-continuity segments;
+- each eligible active and finalized pair independently uses the fixed haversine formula with `R = 6371008.8 m`;
 - unavailable, invalid, explicit interruption/continuity-gap, and source-monotonic-invalid/discontinuous intervals end a distance segment, while an idempotently ignored identical redelivery and delivery delay alone do not;
 - the first valid position after a segment break is anchor-only, so the final pre-gap to first post-gap chord contributes zero and only a subsequent valid within-segment pair resumes accumulation;
 - valid covered time sums only the source-monotonic intervals belonging to the same accepted position pairs as distance, excluding every gap-crossing interval;
@@ -2243,12 +2387,17 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - wall-clock change does not alter duration;
 - identical same-timestamp redelivery is idempotently ignored;
 - missing, backward, or conflicting same-timestamp monotonic input cannot be treated as valid ordering or duration;
-- accepted QNH and altitude-calculation context are retained with the derived altitude history.
+- accepted QNH and altitude-calculation context are retained with the derived altitude history;
+- projection and distance calculation identifiers/versions are present in the required retained or validation context.
 
 ## 29.7 Degradation
 
 - map unavailability does not stop Flight;
 - the exact `112.0–117.0 s` GNSS outage does not complete Flight;
+- C4 normalizes the explicit unavailable transition at `112.0 s` before any same-time GNSS observation and no timeout or silence inference is required;
+- C4 normalizes restoration at `117.0 s` before accepting the recovered observation at the same source time;
+- position, GS, and Track remain unavailable until that recovered observation is accepted;
+- all downstream outage behavior crosses C4 rather than using C10 fault or phase metadata;
 - the same Flight continues after recovery only under the explicit bounded P3 reopening for this validation case;
 - accepted wind is retained;
 - landing detection is suspended during outage;
@@ -2260,13 +2409,15 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 
 - automated normal end-to-end test exists;
 - exact scenario parser, phase-boundary, and reference-sequence tests exist;
-- controlled GNSS-outage test exists;
+- fixed-origin, known-East, known-North, error-before-conversion, and geographic reference-sequence tests exist with tight binary64 tolerances;
+- controlled GNSS-outage tests cover exact explicit interruption/restoration timing, restoration-before-recovered-observation ordering, separate-stream equal timestamps, unavailable derived GNSS state, absence of observations in the half-open gap, C4-only downstream propagation, retained gap evidence, and silence-without-transition behavior;
 - map-unavailable validation exists;
 - detector boundary tests include GNSS-Track headwind projection and stationary zero-vector landing behavior;
 - wind numerical and windsock-presentation tests exist;
 - active flown-distance threshold tests exist;
 - deterministic distance-segment tests cover an uninterrupted contribution, zero pre-gap to post-gap contribution, anchor-only recovery, resumed within-segment accumulation, excluded outage distance and covered time, and unchanged elapsed/total Flight duration;
-- tests prove active and finalized Summary distance apply the same rule independently and that the degraded Summary is lower than the corresponding uninterrupted fixture by the omitted GNSS-covered segment;
+- tests prove the fixed haversine formula uses `R = 6371008.8 m`, active and finalized Summary distance apply that formula and the segment rule independently, and the degraded Summary is lower than the corresponding uninterrupted fixture by the omitted GNSS-covered segment;
+- truth-leakage tests prove no truth-coordinate or truth-distance shortcut reaches C4, C7, C8, C9, or Summary, and calculation-version tests cover the projection and distance identifiers;
 - tests prove continuous valid source-time batching creates no false segment break and invalid or source-monotonic-discontinuous GNSS input does;
 - pressure/QNH round-trip tests exist;
 - magnetic-declination conversion and fallback tests exist;
@@ -2426,5 +2577,13 @@ For landing detection, valid GS at or below `1.0 km/h` defines a zero ground-vel
 ## 34.12 Takeoff headwind correction uses current GNSS Track
 
 The bounded experimental takeoff detector projects valid fresh meteorological weather wind onto the current valid GNSS Track from the same GS observation. Device orientation, candidate displacement, simulator heading, and privileged truth are excluded. Missing, stale, invalid, or insufficiently accurate direction context produces zero correction, and tailwind never lowers the threshold.
+
+## 34.13 Scenario geography and pairwise distance are deterministic
+
+The owner accepts the exact section 12.3 WGS84 constants and fixed local-tangent East/North-to-latitude/longitude approximation for `scenario-v1`. Deterministic GNSS East/North source errors are added before conversion. Active and finalized distance derive independently from accepted geographic observations using the section 10.4 haversine formula with `R = 6371008.8 m`, after the existing distance-continuity segment rule has established pair eligibility. These bounded fixture choices do not select production geodesy or whole-product geospatial architecture.
+
+## 34.14 Controlled GNSS outage crosses the normal C4 boundary
+
+The controlled fixture emits an explicit source-equivalent unavailable transition at `112.0 s` and restoration transition at `117.0 s` through C10 to C4. At restoration, C4 processes the transition before the recovered GNSS observation at the same source time. Silence alone does not define the fixture outage, and no production timeout or freshness policy is introduced. All downstream outage and recovery behavior follows from C4-derived state through the existing concern boundaries.
 
 All other unresolved values in this document are classified as bounded implementation tuning or explicitly deferred decisions.
