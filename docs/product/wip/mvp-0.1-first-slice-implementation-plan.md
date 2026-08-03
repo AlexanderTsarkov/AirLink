@@ -360,6 +360,8 @@ C4 owns the normalized AirLink-facing form of:
 
 C4 accepts independent asynchronous streams, including a source-equivalent `gnssAvailability` stream that is distinct from GNSS observations. C4 normalizes explicit availability transitions immediately and derives position, GS, and Track availability from them; downstream concerns observe those effects only through C4-derived state. For simulation, C4 also normalizes the source-equivalent virtual civil timestamp defined in section 11.3 into the AirLink-facing wall-clock value used for civil display and retention. Domain logic must not require a fixed sensor frequency. C4 does not calculate magnetic declination or convert magnetic orientation to True North; it preserves the source meaning and supplies the independent position, civil-time, and orientation inputs required by C7.
 
+For `scenario-v1`, C4 preserves the source Track availability emitted by C10. An exact-zero truth ground-velocity sample emits Track as unavailable even if source GS error produces a positive source GS. C4 receives no truth-vector shortcut and does not synthesize Track from that positive source GS.
+
 ## C5 — Weather Context
 
 C5 owns:
@@ -402,12 +404,13 @@ C8 owns:
 - pilot-centred map/spatial canvas;
 - map orientation presentation;
 - scale and north/orientation cues;
+- screen-oriented visible map attribution and its accessible licence/source action;
 - package-specific viewport calculation required to preserve the fixed target visible ground width;
 - map-unavailable/degraded spatial state.
 
 C8 consumes Device True Azimuth on the ground and Track in Flight. It does not calculate magnetic declination or reinterpret raw magnetic orientation.
 
-C8 is the complete replacement boundary for the bounded `flutter_map` and OpenStreetMap Standard raster implementation defined in section 23.3. No `flutter_map`, tile-provider, URL, attribution, HTTP-client, or package-lifecycle type or detail may escape C8. C1–C7, C9, and C10 use only neutral AirLink/C8 presentation contracts such as geographic centre, viewport orientation, target visible ground width, centred pilot marker, orientation circle, estimated-wind overlay state, spatial availability/degradation state, and any already-approved neutral special-point state.
+C8 is the complete replacement boundary for the bounded `flutter_map` and OpenStreetMap Standard raster implementation defined in section 23.3. No `flutter_map`, URL-launcher, tile-provider, attribution-widget, URL, HTTP-client, or package-lifecycle type or detail may escape C8. C1–C7, C9, and C10 use only neutral AirLink/C8 presentation contracts such as geographic centre, viewport orientation, target visible ground width, centred pilot marker, orientation circle, estimated-wind overlay state, spatial availability/degradation state, and any already-approved neutral special-point state. The OSM copyright URL and external-link realization remain internal implementation details rather than neutral-contract values.
 
 C8 does not own Flight lifecycle, Takeoff Point identity, current-value derivation, Route navigation, or scenario-controlled map configuration.
 
@@ -851,6 +854,8 @@ All detector holds use one reusable primitive evaluated from accepted normalized
 
 Takeoff and landing evaluate this primitive on accepted normalized GNSS evaluations using the current valid synchronized state required by the relevant detector.
 
+One accepted evaluation may complete a hold that activates a new detector state and then be evaluated once as the first possible observation of the next state's hold when the detector-specific processing order says so. It cannot contribute elapsed duration before its own source timestamp, and identical redelivery cannot repeat either transition or advance either hold.
+
 # 12. Deterministic Simulation Contract
 
 ## 12.1 Exact scenario asset
@@ -947,9 +952,9 @@ angles: degrees clockwise from True North unless explicitly magnetic
 pressure and QNH: hPa
 ```
 
-Truth is evaluated at fixed `0.1 s` steps. Airborne East/North position is integrated with the trapezoidal rule from the truth ground-velocity vector. Ground phases use the declared ground-speed/Track profile without adding wind drift. Source streams sample this truth at their exact declared cadences.
+Truth is evaluated at fixed `0.1 s` steps. Airborne East/North position is integrated with the trapezoidal rule from the truth ground-velocity vector. Ground phases use the declared ground-speed and non-zero movement-direction profiles without adding wind drift; source Track availability follows the exact rule below. Source streams sample this truth at their exact declared cadences.
 
-All truth-level phase variations are applied first. Every declared source-error function is evaluated at the source sample's scenario/source monotonic time `t`, after the corresponding ideal truth/source-equivalent quantity is calculated and before the value enters C4. No intermediate value is rounded, no declared error profile may be unused, and no source error creates a value when the corresponding phase/source field is unavailable.
+All truth-level phase variations are applied first. For each source field that is available at a sample, its declared source-error function is evaluated at that sample's scenario/source monotonic time `t`, after the corresponding ideal truth/source-equivalent quantity is calculated and before the value enters C4. No intermediate value is rounded, no declared error profile may be unused across the scenario's applicable samples, and no source error is evaluated to create a value when the corresponding phase/source field is unavailable.
 
 At each GNSS sample time, C10 must generate the source-equivalent position in this exact order:
 
@@ -971,28 +976,35 @@ sourceGsKmh
 max(0, truthGsKmh + sourceGsErrorKmh(t))
 ```
 
-Where Track is available under the phase contract, it is generated from the same truth vector using the True-North clockwise convention, not by differentiating noisy positions:
+Track availability is determined before Track source error is applied, using the phase contract and the ideal truth ground-velocity magnitude:
 
 ```text
-truthTrackDeg
-=
-normalize360(
-  degrees(
-    atan2(
-      truthVelocityEastMps,
-      truthVelocityNorthMps
-    )
-  )
-)
+if the phase explicitly declares Track unavailable:
+    source Track is unavailable
 
-sourceTrackDeg
-=
-normalize360(
-  truthTrackDeg + sourceTrackErrorDeg(t)
-)
+else if truthGsKmh == 0.0:
+    source Track is unavailable
+
+else:
+    truthTrackDeg
+    =
+    normalize360(
+      degrees(
+        atan2(
+          truthVelocityEastMps,
+          truthVelocityNorthMps
+        )
+      )
+    )
+
+    sourceTrackDeg
+    =
+    normalize360(
+      truthTrackDeg + sourceTrackErrorDeg(t)
+    )
 ```
 
-Track error is not evaluated to synthesize Track when Track is unavailable, including the accepted zero-speed Track-unavailable phases.
+`atan2(0, 0)` is never used to create source Track. Availability is based on `truthGsKmh` before `sourceGsErrorKmh(t)`: a positive source GS created by measurement error at an exact-zero truth vector does not make Track available, and `sourceTrackErrorDeg(t)` is not evaluated to synthesize the absent field. Once ideal truth GS is greater than zero in a phase whose Track is otherwise available, Track is derived normally from the truth vector and its source error is applied. No epsilon, speed hysteresis, production GNSS course rule, or generic platform Track threshold is introduced.
 
 C10 must not convert truth coordinates first and add degree-space errors, round intermediate East/North values, radians, radii, latitude, or longitude, use a library whose geodesic algorithm or version can vary, or expose truth East/North directly to product logic. The implementation language's normal IEEE-754 binary64 arithmetic is sufficient for the fixture.
 
@@ -1122,7 +1134,7 @@ C10 uses truth wind only to generate normal source equivalents. C8, C6, C7, and 
 
 | Phase id | Time, s | Motion | Air Heading / Track | AS or GS profile | Altitude MSL profile |
 | --- | ---: | --- | --- | --- | --- |
-| `wing_inflation_and_stabilization` | `0.0–5.0` | ground | Track `270°` | GS `0.0→1.5 km/h`, smoothstep | `35.0 m`, hold |
+| `wing_inflation_and_stabilization` | `0.0–5.0` | ground | non-zero movement Track `270°` | GS `0.0→1.5 km/h`, smoothstep | `35.0 m`, hold |
 | `launch_acceleration` | `5.0–7.4` | ground | Track `270°` | GS `1.5→10.6 km/h`, smoothstep | `35.0 m`, hold |
 | `liftoff_transition` | `7.4–11.0` | airborne | Air Heading `270°` | AS `25.0→31.0 km/h`, smoothstep | `35.0→38.0 m`, linear |
 | `post_liftoff_acceleration` | `11.0–18.0` | airborne | Air Heading `270°` | AS `31.0→36.0 km/h`, smoothstep | `38.0→50.0 m`, linear |
@@ -1139,9 +1151,9 @@ C10 uses truth wind only to generate normal source equivalents. C8, C6, C7, and 
 | `float_and_touchdown` | `190.0–192.0` | airborne until `192.0` | Air Heading `270°` | AS `22.0→18.0 km/h`, smoothstep | `35.2→35.0 m`, smoothstep |
 | `landing_run` | `192.0–197.0` | ground | Track `270°` | GS `3.6→0.0 km/h`, smoothstep | `35.0 m`, hold |
 | `landed_confirmation` | `197.0–212.0` | ground | Track unavailable at zero speed | GS `0.0 km/h`, hold | `35.0 m`, hold |
-| `completed_ground` | `[212.0, +∞)` | ground | unchanged | GS `0.0 km/h`, hold | `35.0 m`, hold |
+| `completed_ground` | `[212.0, +∞)` | ground | Track unavailable at zero speed | GS `0.0 km/h`, hold | `35.0 m`, hold |
 
-The `completed_ground` JSON item has `startS: 212.0` and `endS: null`; `null`, not the string `"212.0+"`, encodes the open-ended terminal interval. The `turn_north` altitude profile is two deterministic subsegments encoded in that phase: linear climb to `135.0 m` at `58.0 s`, then hold. Physical liftoff occurs exactly at `7.4 s`; physical touchdown occurs exactly at `192.0 s`. Neither truth event is passed to C6.
+The `completed_ground` JSON item has `startS: 212.0` and `endS: null`; `null`, not the string `"212.0+"`, encodes the open-ended terminal interval. A declared ground direction such as `270°` describes the direction of non-zero ground movement. At exact-zero truth ground velocity, source Track is unavailable under section 12.2. This applies to `ground_ready`, the exact `0.0 s` start of `wing_inflation_and_stabilization`, the zero-speed portion of `landed_confirmation`, and all of `completed_ground`. The `turn_north` altitude profile is two deterministic subsegments encoded in that phase: linear climb to `135.0 m` at `58.0 s`, then hold. Physical liftoff occurs exactly at `7.4 s`; physical touchdown occurs exactly at `192.0 s`. Neither truth event is passed to C6.
 
 This profile reaches the accepted approximately `100 m` height above takeoff by `58.0 s`, provides approximately `42 s` of level flight before descent begins, and leaves approximately `92 s` for a progressive descent, final alignment, approach, flare, float, touchdown, and confirmation. It is an engineering fixture derived from the accepted speed, climb, altitude, route-diversity, and total-duration inputs; it is not an aerodynamic performance prediction.
 
@@ -1190,14 +1202,14 @@ magneticAzimuthErrorDeg(t) = 0.9 × sin(2πt / 5.5 + 0.90)
 pressureErrorHpa(t) = 0.015 × sin(2πt / 9.0 + 1.70)
 ```
 
-No uncontrolled randomness or unspecified fixed-seed generator is permitted. Turn phases use only their explicit turn profile plus the magnetic source error; straight-leg Heading variation is not added inside turns.
+No uncontrolled randomness or unspecified fixed-seed generator is permitted. Turn phases use only their explicit turn profile plus the magnetic source error; straight-leg Heading variation is not added inside turns. `sourceTrackErrorDeg(t)` is applied only after section 12.2 has established that Track is available; it never synthesizes Track for an exact-zero truth vector or a phase-declared unavailable field.
 
 The normative source-generation order for every emitted field is:
 
 1. evaluate phase profiles and truth state;
 2. calculate truth kinematics, altitude, and orientation;
-3. calculate the ideal source-equivalent field;
-4. evaluate the declared field-specific source-error function at source time `t`;
+3. calculate the ideal source-equivalent field and determine its availability from the phase/truth contract before error application;
+4. when the field is available, evaluate the declared field-specific source-error function at source time `t`;
 5. add and normalize or clamp exactly as defined;
 6. attach source, observed, and virtual civil timestamps plus metadata;
 7. emit through the normal C10 to C4 boundary.
@@ -1327,6 +1339,18 @@ duration: 1.0 s
 
 The qualification hold begins at the first accepted observation satisfying the predicate. When the hold completes, a takeoff candidate becomes active; the first qualifying observation time `t0` becomes the provisional effective takeoff boundary, its accepted position becomes the provisional Takeoff Point source anchor, and bounded retained history begins no later than that observation. An accepted observation with `GS <= 7.0 km/h` resets an uncompleted qualification hold.
 
+When no takeoff candidate is active at the start of one accepted normalized GNSS evaluation, the exact processing order is:
+
+1. validate required normalized inputs and source-time continuity;
+2. update the `GS > 7.0 km/h` candidate-qualification hold;
+3. if qualification completes on this observation, activate the candidate while retaining the first qualification observation and its position as the provisional effective boundary and Takeoff Point anchor;
+4. evaluate this same accepted observation once as the first possible confirmation-hold observation;
+5. if it satisfies `GS >= current confirmationThresholdKmh`, establish the confirmation-hold start at this observation's source monotonic time;
+6. otherwise, do not start confirmation on this observation;
+7. continue the existing candidate semantics on later accepted observations.
+
+The qualification-completing observation can start the confirmation hold but cannot complete a new `1.0 s` confirmation hold at the same timestamp. The effective takeoff boundary remains the first observation of the completed qualification interval, not the qualification-completing observation, confirmation-hold start, or confirmation event time; those observations are distinct under the current non-zero `1.0 s` qualification rule.
+
 The candidate retains:
 
 - provisional start monotonic time;
@@ -1383,14 +1407,14 @@ For a direct `4 m/s` headwind:
 confirmation threshold ≈ 14.2 km/h GS
 ```
 
-After the candidate is active, confirmation is evaluated on accepted normalized GNSS observations using:
+After the candidate is active—including during the remainder of the qualification-completing evaluation—confirmation is evaluated on accepted normalized GNSS observations using:
 
 ```text
 predicate: GS >= current confirmationThresholdKmh
 duration: 1.0 s
 ```
 
-The threshold is recalculated for each evaluated observation using that observation's current valid synchronized Track and weather-headwind context. Every accepted observation in the hold must satisfy its recalculated threshold. Completion emits one `TakeoffConfirmed`; the effective takeoff boundary remains the candidate's first qualification observation, not the confirmation-hold start or confirmation time.
+The threshold is recalculated for each evaluated observation using that observation's current valid synchronized Track and weather-headwind context. Every accepted observation in the hold must satisfy its recalculated threshold. The qualification-completing observation starts the confirmation hold when it satisfies the predicate; otherwise a later satisfying observation starts it. In either case, confirmation requires a later accepted satisfying observation at least `1.0 s` after the confirmation-hold start. Completion emits one `TakeoffConfirmed`; the effective takeoff boundary remains the candidate's first qualification observation, not the confirmation-hold start or confirmation time.
 
 ## 13.3 Cancellation
 
@@ -1791,6 +1815,18 @@ If provider, network, tiles, or renderer are unavailable:
 
 The degraded spatial state has no product or lifecycle authority and must not change Flight detection, derivation, recording, completion, or Summary. The slice must not show a fake or misleadingly current cached map and must not silently switch to another provider.
 
+## 18.5 Map attribution and licence/source action
+
+The visible `© OpenStreetMap contributors` attribution remains present on the map and is not obscured by Product overlays or the simulation panel. It is rendered in the screen-oriented presentation layer: Track-up or Device-True-Azimuth-up rotation affects map content but does not rotate the attribution text or action.
+
+The attribution exposes an accessibility- and keyboard-discoverable action where supported by the target Flutter platform. Activating it uses an appropriate external-link mechanism to open exactly:
+
+```text
+https://www.openstreetmap.org/copyright
+```
+
+Failure to launch the external link remains a bounded presentation failure and does not alter map state, Flight lifecycle, detection, derivation, recording, or Summary. The URL, link-launch mechanism, provider details, and any package-specific attribution realization remain wholly inside C8.
+
 ---
 
 # 19. Progressive In-Memory Recording
@@ -1831,7 +1867,7 @@ Retain:
 - `scenarioV1Wgs84LocalTangentV1` projection context for fixture-generated observations and `haversineMeanEarthR6371008_8V1` distance-calculation context;
 - all accepted wind estimates with quality metadata;
 - current/retained/unavailable wind state transitions;
-- detector candidates and confirmations, including source-time hold starts, resets, completions, provisional-boundary changes, and timeout/tie evidence needed to reproduce effective boundaries;
+- detector candidates and confirmations, including qualification start/completion, candidate activation, same-observation confirmation-hold start when applicable, later confirmation time, resets, provisional-boundary changes, and timeout/tie evidence needed to reproduce effective boundaries;
 - effective takeoff and landing boundaries;
 - Flight lifecycle events;
 - orientation-source transitions;
@@ -2061,7 +2097,7 @@ An expanded interactive diagnostics overlay is out of scope. Detailed observabil
 
 The replaceable output must make available when required:
 
-- detector thresholds, corrections, source-time hold starts/elapsed/reset reasons, candidates, confirmation/timeout priority, and effective/confirmation boundaries;
+- detector thresholds, corrections, qualification start/completion, candidate activation, same-observation confirmation-hold start when applicable, hold elapsed/reset reasons, confirmation/timeout priority, and effective/confirmation boundaries;
 - wind window, residual, coverage, conditioning, uncertainty, and truth comparison;
 - source/observed clocks, latency, gaps, and batching;
 - recording counts, boundaries, and outcome;
@@ -2083,11 +2119,13 @@ Tests must not depend on rendered screen text.
 - local-projection tests proving zero East/North maps back to the declared origin within a tight binary64 tolerance, a known positive East offset changes longitude by the section 12.3 formula without changing latitude beyond that tolerance, and a known positive North offset changes latitude without changing longitude beyond that tolerance;
 - GNSS generation-order test proving East/North source errors are added before geographic conversion;
 - deterministic source-error reference tests at multiple fixed source times proving every declared error affects its intended emitted field with the correct zero, sign, and phase; GS is clamped at zero; Track and magnetic azimuth are normalized to `[0°, 360°)`; Track error does not synthesize Track in zero-speed Track-unavailable phases; pressure error follows the inverse pressure calculation; C7 receives no truth-altitude or truth-orientation shortcut; and `1×`/`2×` produce the same frozen all-errors source sequence;
+- exact-zero truth-vector Track tests proving `atan2(0,0)` is not evaluated as source Track; Track is unavailable at scenario time `0.0 s`; positive `sourceGsErrorKmh(t)` at exact-zero truth velocity does not create Track; the first later sample with `truthGsKmh > 0.0` derives Track and applies `sourceTrackErrorDeg(t)`; zero-speed `landed_confirmation` and `completed_ground` remain Track-unavailable; Track error never synthesizes the field; the frozen source reference sequence includes all of these availability outcomes; and C6's separate accepted-GS-at-or-below-`1.0 km/h` stationary landing vector remains unchanged without synthesizing source Track;
 - independently generated reference latitude/longitude observations match the frozen `scenario-v1` reference sequence at `1×` and `2×` without requiring platform-specific decimal text formatting;
 - truth-isolation tests proving no truth East/North or truth-distance shortcut reaches C4, C7, C8, C9, or Summary;
 - calculation-context tests proving `scenarioV1Wgs84LocalTangentV1` and `haversineMeanEarthR6371008_8V1` are exposed or retained where required;
 - takeoff candidate/confirmation boundary tests, including direct/partial headwind, crosswind, tailwind, invalid Track, stale weather, and deliberate Track-versus-Device-True-Azimuth disagreement;
 - detector-hold tests at normal `2 Hz`, `1 Hz`, deterministic jitter, missing samples without a declared outage, and batched delivery proving elapsed source-time rather than sample-count completion; inclusive `>= D` endpoints; independence from observed delay and `2×`; idempotent redelivery behavior; reset on explicit gaps/unavailability; the first takeoff qualification observation as effective boundary; separate exact `1.0 s` qualification, confirmation, and low-speed-cancellation holds; exact `15.0 s` timeout from the provisional boundary; and confirmation priority on an exact timeout tie;
+- takeoff same-observation ordering tests proving at normal `2 Hz` and `1 Hz` that the qualification-completing observation is evaluated as the first possible confirmation-hold observation; it starts but cannot instantly complete the `1.0 s` confirmation hold when the current threshold is satisfied; a later satisfying observation starts the hold when it is not; the effective boundary remains the first qualification observation and differs from confirmation time; batching/observed delay do not alter ordering; identical redelivery cannot repeat candidate activation or start/advance the hold twice; confirmation-first timeout tie priority remains unchanged; and retained diagnostics record qualification start/completion, candidate activation, same-observation confirmation start where applicable, and final confirmation time;
 - landing candidate/confirmation boundary tests, including stationary GS with unavailable Track, moving GS with invalid Track, invalid GS, exact `15.0 s` confirmation, confirmation/provisional-boundary reset when entry conditions fail, candidate identity retained without accumulated time in the hysteresis band, exact `1.0 s` strict hard cancellation, invalidity preventing confirmation across the invalid interval, and equivalent effective boundaries/Summary metrics under source-equivalent delivery transforms;
 - circle-fit numerical tests for ideal, noisy, incomplete, poorly conditioned, and outlier cases;
 - accepted/retained/unavailable wind-state tests;
@@ -2101,7 +2139,8 @@ Tests must not depend on rendered screen text.
 - controlled-silence test proving silence without an explicit availability transition does not establish the normative fixture outage boundary;
 - gap-evidence test proving C9 retains explicit interruption/restoration or equivalent normalized boundaries sufficient to reproduce degraded Summary semantics;
 - map-unavailable validation;
-- fixed-map tests proving C8 targets `2000 m` visible ground width within `±2%` at at least two representative portrait viewport widths; Track-up rotation and GNSS recovery preserve the scale; no `1500 m` fallback exists; scenario/C10 metadata cannot control zoom or provider; provider failure produces only the degraded spatial presentation; C8 neutral contracts contain no `flutter_map` types; visible OSM attribution is present; no offline, bulk-download, or prefetch feature exists; and provider URL/HTTP behavior remains internal to C8;
+- fixed-map tests proving C8 targets `2000 m` visible ground width within `±2%` at at least two representative portrait viewport widths; Track-up rotation and GNSS recovery preserve the scale; no `1500 m` fallback exists; scenario/C10 metadata cannot control zoom or provider; provider failure produces only the degraded spatial presentation; C8 neutral contracts contain no `flutter_map` types; and no offline, bulk-download, or prefetch feature exists;
+- OSM attribution tests using semantic presentation/accessibility state rather than a specific package widget class, proving visible `© OpenStreetMap contributors` credit is not obscured by overlays or the simulation panel; map rotation does not rotate its text/action; an accessible action targets exactly `https://www.openstreetmap.org/copyright`; provider, attribution, URL-launch, URL, and HTTP details remain internal to C8 without package-specific attribution types entering neutral contracts; launch failure has no effect outside presentation; and existing User-Agent, caching, current-view-only, no-prefetch/offline/bulk-download, and degraded-map requirements remain unchanged;
 - active and finalized distance tests proving independently applied common segment semantics and the common haversine pair calculation with exact `R = 6371008.8 m`: a normal uninterrupted pair contributes distance; the final pre-gap position to first post-gap position contributes exactly zero; the first recovered `117.0 s` position only establishes a new anchor; and the normally scheduled `117.5 s` position can resume accumulation;
 - distance-coverage tests proving the outage interval contributes neither distance nor valid covered time while elapsed Flight time and total duration still include it;
 - degraded-distance evidence proving Summary distance is lower than the corresponding uninterrupted fixture by the omitted GNSS-covered segment;
@@ -2175,13 +2214,16 @@ ownership boundary: C8 map adapter
 
 This is a bounded development choice, not a permanent whole-product provider, Flutter package, final Mapbox integration strategy, offline-map architecture, vector-map architecture, or general provider-selection subsystem. A later Mapbox implementation may replace the complete internal C8 renderer rather than merely changing a tile URL.
 
-No `flutter_map` or provider-specific type crosses C8. In particular, C8 does not expose `MapController`, `TileLayer`, package-specific `LatLng`, package layer objects, tile-provider types, package lifecycle objects, the OSM URL, attribution implementation details, or HTTP implementation details. C1–C7, C9, and C10 do not depend on `flutter_map`.
+No `flutter_map`, URL-launcher, or provider-specific type crosses C8. In particular, C8 does not expose `MapController`, `TileLayer`, package-specific `LatLng`, package layer objects, tile-provider types, attribution-widget types, link-launcher types, package lifecycle objects, the OSM tile or copyright URL, attribution implementation details, or HTTP/link implementation details. C1–C7, C9, and C10 do not depend on `flutter_map` or a link-launch package.
 
 The scenario asset contains no map package, provider, tile URL, zoom, attribution, API key, or package-specific configuration. C8 alone converts the neutral `targetVisibleGroundWidthM = 2000.0` contract into the package-specific fractional zoom needed for the current viewport width and centre latitude.
 
 Use of OpenStreetMap Standard for this bounded slice requires:
 
 - visible `© OpenStreetMap contributors` attribution on the map, not hidden behind Product UI or the simulation panel;
+- screen-oriented attribution text and action that remain readable and do not rotate with Track-up or Device-True-Azimuth-up map content;
+- an accessibility- and keyboard-discoverable attribution action where supported, targeting exactly `https://www.openstreetmap.org/copyright` through an appropriate external-link mechanism internal to C8;
+- external-link launch failure contained within presentation, with no effect on map state, Flight lifecycle, detection, derivation, recording, or Summary;
 - an application-identifying HTTP `User-Agent`, not a generic library default;
 - honouring server HTTP caching headers and never forcing no-cache behavior;
 - requesting only tiles required for the currently viewed map;
@@ -2252,6 +2294,7 @@ Includes:
 - fixed phase schedule, profiles, units, cadences, variation formulas, and truth-step integration;
 - fixed WGS84 local-tangent East/North-to-geographic conversion with source errors applied before conversion;
 - deterministic GS, Track, magnetic-azimuth, and pressure source-error application in the normative generation order;
+- exact-zero truth-vector Track-unavailable semantics before source errors, including positive source-GS-error and frozen-reference availability cases;
 - privileged truth;
 - C4/C5 contracts;
 - GNSS position, explicit GNSS availability, pressure, raw magnetic-orientation, and weather streams;
@@ -2272,6 +2315,7 @@ Includes:
 - C3 Flight lifecycle;
 - C6 takeoff candidate and confirmation;
 - reusable source-time predicate holds with exact qualification, confirmation, cancellation, timeout, and tie semantics;
+- qualification-completing-observation reuse as the first possible confirmation-hold observation, with exact event ordering and retained diagnostics;
 - weather headwind correction;
 - effective boundary and bounded history;
 - Flight identity and complete Takeoff Point representation;
@@ -2308,7 +2352,7 @@ Includes:
 
 - replaceable C8 adapter;
 - `flutter_map` Web Mercator raster renderer contained wholly inside C8;
-- OpenStreetMap Standard tiles from `https://tile.openstreetmap.org/{z}/{x}/{y}.png` with visible attribution, identifying User-Agent, honoured caching, current-view-only requests, and no prefetch/offline/bulk-download behavior;
+- OpenStreetMap Standard tiles from `https://tile.openstreetmap.org/{z}/{x}/{y}.png` with visible screen-oriented attribution, an accessible action to `https://www.openstreetmap.org/copyright`, identifying User-Agent, honoured caching, current-view-only requests, and no prefetch/offline/bulk-download behavior;
 - fixed `2000 m ±2%` full-logical-viewport ground width preserved by C8-computed fractional zoom;
 - centred pilot;
 - Device True Azimuth-up/Track-up behavior and fallbacks;
@@ -2345,7 +2389,7 @@ Includes:
 - continuous valid source-time batching that does not create a false segment break, plus invalid and source-monotonic-discontinuous inputs that do;
 - retained wind and suspended landing detection;
 - map-unavailable run;
-- playback, Pause, exact virtual-civil/wall-clock-jump, monotonic-invalidity, duplicate/collision, exact detector-hold, exact OLS VS, all-source-error, terminal-phase JSON, fixed-map-scale/C8-isolation/OSM-policy, primary-tile semantic-state, magnetic-declination, exact-scenario, headwind-projection, stationary-landing, active-distance, windsock-presentation, special-point-handoff, truth-leakage, and end-to-end tests;
+- playback, Pause, exact virtual-civil/wall-clock-jump, monotonic-invalidity, duplicate/collision, exact detector-hold and same-observation takeoff ordering, exact OLS VS, all-source-error and exact-zero Track availability, terminal-phase JSON, fixed-map-scale/C8-isolation/OSM-policy and accessible attribution action, primary-tile semantic-state, magnetic-declination, exact-scenario, headwind-projection, stationary-landing, active-distance, windsock-presentation, special-point-handoff, truth-leakage, and end-to-end tests;
 - concise validation instructions.
 
 Observable result: both pilot-visible success and deterministic boundary/degradation evidence exist.
@@ -2468,6 +2512,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - C1–C10 responsibilities are explicit;
 - takeoff and landing authority chains are explicit;
 - effective and confirmation boundaries are distinct;
+- the qualification-completing takeoff observation's same-evaluation confirmation-hold ordering is explicit;
 - AS/GS/VS, Air Heading/Track, Device Magnetic/True Azimuth, and MSL/relative-height distinctions are explicit;
 - Takeoff Point and Landing Point representations and both C3 to C9 handoffs are explicit;
 - record and Summary semantics are explicit.
@@ -2481,6 +2526,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - phase start/end times and kinematic endpoints are fixed;
 - deterministic interpolation, integration, variation, and cadence contracts are fixed;
 - every declared source-error profile has a mandatory generation order and emitted-field formula;
+- exact-zero truth-vector Track availability is fixed before source errors without an epsilon or generic low-speed Track policy;
 - virtual civil time, Pause/`2×`/Reset behavior, and the exact `80.0 s / +3600 s` jump transform are fixed independently of host wall time;
 - exact GNSS-outage interval, availability transitions, and equal-time restoration ordering are fixed;
 - flare/float/touchdown behavior is fixed for the fixture;
@@ -2493,7 +2539,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - plugin/platform boundaries are explicit;
 - `flutter_map` plus OpenStreetMap Standard raster tiles are selected as a bounded replaceable C8-only implementation;
 - the fixed `2000 m ±2%` full-logical-viewport target and C8 fractional-zoom responsibility are explicit;
-- OSM attribution, User-Agent, cache, request, no-prefetch/offline, and degraded-state requirements are explicit;
+- OSM visible screen-oriented attribution, exact accessible copyright action, C8-contained link handling, User-Agent, cache, request, no-prefetch/offline, and degraded-state requirements are explicit;
 - Flight and recording state are independent from widget/map lifetime;
 - repository increments and material stop conditions are explicit;
 - greenfield environment work is acknowledged.
@@ -2504,7 +2550,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - GNSS-outage and map-unavailable cases are defined, with the controlled outage crossing C4 through explicit source-equivalent availability transitions rather than silence or a production timeout policy;
 - diagnostics contract is defined;
 - truth-leakage prohibitions are defined;
-- exact detector holds and exact OLS VS evidence are defined across cadence/delivery transforms and invalidity boundaries;
+- exact detector holds, same-observation takeoff ordering, exact-zero Track availability, accessible OSM attribution, and exact OLS VS evidence are defined across relevant cadence/delivery/rotation/failure transforms and invalidity boundaries;
 - tests do not depend on rendered screen text.
 
 ## 28.6 Governance readiness
@@ -2540,6 +2586,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - estimated wind remains in the orientation-circle/windsock context and never replaces weather wind or VS;
 - the estimated-wind indicator uses the simple orientation circle and bounded centre-origin windsock experiment;
 - map/orientation behavior follows the contract;
+- visible screen-oriented OSM attribution exposes the accessible licence/source action;
 - landing is detected automatically;
 - Summary appears only after finalization;
 - Reset creates a new development session.
@@ -2549,6 +2596,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - no Flight exists before takeoff authorization;
 - only C3 creates Flight identity and lifecycle;
 - detector events are one-shot;
+- the qualification-completing observation is evaluated once as the first possible confirmation-hold observation, can start but cannot instantly complete that `1.0 s` hold, and does not replace the first qualification observation as effective boundary;
 - recording failure does not alter completed lifecycle truth;
 - effective boundaries drive Flight metrics;
 - confirmation tails are retained;
@@ -2564,6 +2612,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - the exact jump applies prospectively at `80.0 s` without changing monotonic calculations;
 - source-like GNSS East/North errors are added before the fixed local-to-geographic conversion, and truth coordinates do not reach normal concerns;
 - every declared source error is applied to its intended emitted field in the normative order without synthesizing unavailable Track or other absent values;
+- exact-zero truth velocity makes source Track unavailable before errors even when source GS error is positive; the first later non-zero truth sample may derive Track normally, and zero-speed landing/terminal phases remain Track-unavailable;
 - the final phase is valid JSON with `completed_ground.startS = 212.0` and `endS: null`;
 - fixture is deterministic;
 - no uncontrolled randomness is used.
@@ -2582,7 +2631,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - landing detection does not use truth wind;
 - stationary GS at or below `1.0 km/h` uses a zero ground vector without synthesizing Track;
 - moving landing evaluation still requires valid Track;
-- no landing fallback without accepted estimated wind exists.
+- no landing fallback without accepted estimated wind exists;
 - takeoff and landing holds use exact elapsed-source-time predicates, inclusive endpoints, defined reset behavior, and the accepted confirmation/timeout tie priority rather than sample counts or observed time;
 
 ## 29.6 Recording and Summary
@@ -2611,7 +2660,9 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 
 - map unavailability does not stop Flight or alter lifecycle, detection, derivation, recording, or Summary;
 - map scale remains `2000 m ±2%` across ground, active Flight, rotation, layout-size recalculation, and GNSS recovery, with no `1500 m` fallback or scenario control;
-- `flutter_map` and OSM-specific types/details remain inside C8; attribution is visible and no offline, prefetch, or bulk-download feature exists;
+- `flutter_map`, attribution, copyright URL, and external-link details remain inside C8; attribution is visible, screen-oriented, unobscured, and exposes the accessible action to `https://www.openstreetmap.org/copyright` without making launch success authoritative;
+- attribution-link launch failure does not affect map state, Flight lifecycle, detection, derivation, recording, or Summary;
+- no offline, prefetch, or bulk-download feature exists;
 - the exact `112.0–117.0 s` GNSS outage does not complete Flight;
 - C4 normalizes the explicit unavailable transition at `112.0 s` before any same-time GNSS observation and no timeout or silence inference is required;
 - C4 normalizes restoration at `117.0 s` before accepting the recovered observation at the same source time;
@@ -2629,9 +2680,11 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - automated normal end-to-end test exists;
 - exact scenario parser, phase-boundary, and reference-sequence tests exist;
 - fixed-origin, known-East, known-North, error-before-conversion, and geographic reference-sequence tests exist with tight binary64 tolerances;
+- frozen-reference tests cover exact-zero truth Track unavailability, positive source GS error without Track synthesis, later non-zero Track derivation/error, and zero-speed landing/terminal availability while preserving the separate stationary-landing rule;
 - controlled GNSS-outage tests cover exact explicit interruption/restoration timing, restoration-before-recovered-observation ordering, separate-stream equal timestamps, unavailable derived GNSS state, absence of observations in the half-open gap, C4-only downstream propagation, retained gap evidence, and silence-without-transition behavior;
 - map-unavailable validation exists;
-- primary top-row semantic-state validation and fixed-scale/C8/OSM validation exist without relying on rendered labels where semantic assertions are available;
+- primary top-row semantic-state validation and fixed-scale/C8/OSM validation exist without relying on rendered labels or package widget classes where semantic/accessibility assertions are available;
+- OSM tests cover visible/unobscured and screen-oriented attribution, the exact accessible copyright target, C8-only implementation details, and launch-failure isolation while preserving existing tile-service rules;
 - detector boundary tests include GNSS-Track headwind projection and stationary zero-vector landing behavior;
 - wind numerical and windsock-presentation tests exist;
 - active flown-distance threshold tests exist;
@@ -2644,6 +2697,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - exact virtual civil-time and `80.0 s / +3600 s` jump tests exist;
 - exact nullable-terminal-phase parser tests exist;
 - exact detector-hold tests cover `2 Hz`, `1 Hz`, jitter, missing, batched, idempotent, invalid, hysteresis, cancellation, timeout, and tie cases;
+- takeoff-order tests and retained diagnostics cover qualification start/completion, candidate activation, same-observation confirmation-hold start when applicable, later confirmation, effective-boundary custody, batching/delay equivalence, and redelivery idempotency;
 - exact OLS VS tests cover window membership, minimum data, gaps, recovery, batching, redelivery, sign, linear recovery, extrema, and calculation context;
 - magnetic-declination conversion and fallback tests exist;
 - identical-redelivery and conflicting-collision tests exist;
@@ -2737,7 +2791,7 @@ The slice omits preparation, durable history, Route, fuel, multiple Flights per 
 - no durable schema is selected;
 - source, map, and platform integrations are adapters;
 - domain semantics do not depend on Flutter widgets or plugins;
-- the OSM endpoint, HTTP behavior, attribution realization, and all `flutter_map` types remain internal to C8, so a later renderer may replace that implementation as a whole;
+- the OSM tile/copyright endpoints, HTTP behavior, attribution/link-launch realization, and all `flutter_map` or launcher types remain internal to C8, so a later renderer may replace that implementation as a whole;
 - simulator truth does not enter normal product paths;
 - provider-specific types do not define product meaning;
 - deferred domains are not collapsed into the first-slice model.
@@ -2826,7 +2880,7 @@ The target is the horizontal-centreline ground distance between the geographic p
 
 ## 34.17 The bounded renderer is `flutter_map` with OSM Standard raster tiles
 
-The first slice uses `flutter_map` and OpenStreetMap Standard raster tiles from `https://tile.openstreetmap.org/{z}/{x}/{y}.png`, wholly behind C8. Visible attribution, identifying User-Agent, normal HTTP caching, current-view-only requests, no prefetch/offline/bulk download, and degraded spatial behavior are mandatory. Package/provider types and details do not escape C8. This does not establish a permanent provider or package; a later Mapbox implementation may replace the complete C8 renderer.
+The first slice uses `flutter_map` and OpenStreetMap Standard raster tiles from `https://tile.openstreetmap.org/{z}/{x}/{y}.png`, wholly behind C8. Visible, unobscured `© OpenStreetMap contributors` attribution remains screen-oriented during map rotation and exposes an accessible action to exactly `https://www.openstreetmap.org/copyright`. Attribution, URL-launch, provider, and package types/details do not escape C8, and link-launch failure has no map, lifecycle, detector, derivation, recording, or Summary authority. Identifying User-Agent, normal HTTP caching, current-view-only requests, no prefetch/offline/bulk download, and degraded spatial behavior remain mandatory. This does not establish a permanent provider or package; a later Mapbox implementation may replace the complete C8 renderer.
 
 ## 34.18 Virtual civil time is scenario-derived
 
@@ -2838,11 +2892,11 @@ Virtual civil UTC is `civilStartUtc + scenarioTimeS + wallClockOffsetS`, indepen
 
 ## 34.20 Every declared source error is applied in a fixed order
 
-Truth profiles and ideal source-equivalent values are evaluated before field-specific source errors. GNSS position errors precede geographic conversion; GS is derived from truth velocity then error-added and clamped; available Track is truth-vector-derived then error-added and normalized; magnetic error is added to the source-equivalent magnetic azimuth; and pressure error follows inverse pressure calculation. Errors never synthesize unavailable fields, and no declared profile is unused.
+Truth profiles and ideal source-equivalent values are evaluated before field-specific source errors. GNSS position errors precede geographic conversion; GS is derived from truth velocity then error-added and clamped; magnetic error is added to the source-equivalent magnetic azimuth; and pressure error follows inverse pressure calculation. Track availability is decided before errors: a phase-declared unavailable field or exact-zero truth ground-velocity vector emits no Track, does not evaluate `atan2(0,0)`, and remains unavailable even if GS source error is positive. Only an otherwise available, non-zero truth vector is converted to Track and then receives normalized source error. Errors never synthesize unavailable fields, no declared profile is unused, and the landing-specific stationary vector remains separate and unchanged.
 
 ## 34.21 Detector holds use exact source-time semantics
 
-All takeoff and landing holds use accepted normalized source observations, elapsed source monotonic time, inclusive endpoints, explicit reset boundaries, and no sample-count, observed-time, batching, playback-speed, or host-wall-time interpretation. Takeoff uses exact `1.0 s` qualification/confirmation/cancellation holds and a `15.0 s` timeout from its provisional boundary with confirmation-first tie priority. Landing uses exact `15.0 s` confirmation, hysteresis that preserves identity but clears accumulated confirmation and boundary, and strict `1.0 s` hard cancellation.
+All takeoff and landing holds use accepted normalized source observations, elapsed source monotonic time, inclusive endpoints, explicit reset boundaries, and no sample-count, observed-time, batching, playback-speed, or host-wall-time interpretation. Takeoff uses exact `1.0 s` qualification/confirmation/cancellation holds and a `15.0 s` timeout from its provisional boundary with confirmation-first tie priority. The accepted observation that completes takeoff qualification activates the candidate and is then evaluated once as the first possible confirmation-hold observation; it may start but cannot instantly complete that `1.0 s` hold. The effective boundary remains the first qualification observation, and diagnostics retain the complete ordering. Landing uses exact `15.0 s` confirmation, hysteresis that preserves identity but clears accumulated confirmation and boundary, and strict `1.0 s` hard cancellation.
 
 ## 34.22 Vertical speed uses versioned unweighted OLS
 
