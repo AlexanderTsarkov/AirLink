@@ -267,8 +267,6 @@ Weather-source wind, truth wind, and estimated wind must remain semantically dis
 
 Calculations, windows, ordering, Flight duration, and elapsed Flight time use monotonic time, not wall clock. Monotonic validity is evaluated within a development session and within each source stream; Reset begins a new session and therefore a new monotonic domain.
 
----
-
 # 7. Slice Inputs and Outputs
 
 ## 7.1 Inputs
@@ -305,7 +303,6 @@ The slice produces:
 - structured diagnostic snapshots and a bounded event timeline;
 - deterministic automated validation evidence.
 
----
 # 8. First-Slice Concern Responsibilities
 
 Concern identifiers remain planning references and do not prescribe code modules.
@@ -690,9 +687,14 @@ Each relevant observation carries source monotonic time. AirLink also records ob
 
 C4 exposes timestamps used together for domain calculations in one normalized development-session monotonic domain. If an adapter receives a source-native clock with different origin or units, the adapter maps it explicitly and preserves source timing context where required for diagnosis.
 
-Within one source stream and one development session, source monotonic timestamps must be present and must not move backwards. A duplicate timestamp may not advance a time-based window and must be rejected or coalesced deterministically. Independent streams may legitimately contain equal timestamps.
+Within one source stream and one development session, source monotonic timestamps must be present and must not move backwards. Independent streams may legitimately contain equal timestamps.
 
-If a required monotonic timestamp is missing, decreases, or otherwise becomes invalid:
+Two same-stream observations with the same source monotonic timestamp are handled as follows:
+
+- an **identical redelivery** — the same normalized value and metadata delivered again — is ignored idempotently, does not advance a window or timer, is not retained twice, and does not degrade the Flight;
+- a **timestamp collision** — different normalized value or metadata at the same timestamp — is invalid and fails closed for the affected stream.
+
+If a required monotonic timestamp is missing, decreases, or forms a timestamp collision:
 
 - the affected observation is invalid for ordering and time-based calculation;
 - detector timers and derivation windows that depend on the affected stream are invalidated rather than continued across the discontinuity;
@@ -724,64 +726,139 @@ Requested cadence is an adapter hint, not a domain requirement. Actual cadence a
 
 ## 11.5 Fixture cadence
 
-The normal visual fixture may use approximately:
+The normal fixture uses exactly:
 
 - GNSS: `2 Hz`;
 - pressure: `10 Hz`;
 - orientation: `10 Hz`;
-- weather: initial snapshot.
+- weather and QNH: one initial snapshot at scenario time `0.0 s`.
 
-Required tests include:
+Required tests additionally include:
 
-- GNSS around `1 Hz`;
-- jitter;
+- GNSS at `1 Hz`;
+- deterministic jitter;
 - missing samples;
 - batched delivery preserving source timestamps.
 
 Insufficient cadence or gaps become quality/degraded state rather than silently changing semantics.
 
----
-
 # 12. Deterministic Simulation Contract
 
-## 12.1 Scenario asset
+## 12.1 Exact scenario asset
 
-The slice uses exactly one bundled, versioned, declarative, read-only scenario asset.
+The slice uses exactly one bundled, versioned, declarative, read-only JSON asset:
+
+```text
+assets/scenarios/mvp_0_1_first_slice_v1.json
+```
+
+The asset has:
+
+```text
+schemaVersion: 1
+scenarioId: "mvp-0.1-first-slice-v1"
+civilStartUtc: "2026-08-03T09:00:00Z"
+truthStepS: 0.1
+```
 
 There is no scenario selector, editor, remote distribution, or scenario-specific product branching.
 
-The scenario describes phases and deterministic kinematics. It is not a full aerodynamic simulator and is not a giant opaque array of sampled positions.
+The JSON top level must contain exactly these logical groups:
 
-## 12.2 Origin and surface
+- `schemaVersion`;
+- `scenarioId`;
+- `civilStartUtc`;
+- `units`;
+- `truthStepS`;
+- `origin`;
+- `environment`;
+- `sourceCadenceHz`;
+- `variationProfiles`;
+- `phases`;
+- `faultVariants`.
 
-Start coordinate:
+The logical field names define the required asset contract. Code may use typed model names internally, but it must parse this format without inventing additional required scenario semantics.
+
+Each `phases` item contains exactly:
 
 ```text
-59°27'16.60"N 24°53'31.96"E
-59.4546111, 24.8922111
+id
+startS
+endS
+motionMode: ground | airborne | airborneUntilEnd
+headingSegments[]
+speedSegments[]
+altitudeSegments[]
+variationProfileIds[]
 ```
 
-Fixture surface altitude:
+Each segment contains:
 
 ```text
-35 m MSL
+startS
+endS
+profile: hold | linear | smoothstep | turnSmoothstep | flareV1
+startValue
+endValue
 ```
 
-Takeoff and landing areas are treated as locally flat at the same surface altitude. Terrain variation is not modelled.
+A heading segment additionally carries `reference: true` and, for `turnSmoothstep`, an explicit signed `turnDeltaDeg`. A speed segment carries `quantity: AS | GS` and `unit: kmh`. An altitude segment carries `reference: MSL` and `unit: m`. The exact values and segment boundaries are defined by the normative phase table below.
 
-Local geometry is defined in a portable East/North metre coordinate system and converted to latitude/longitude relative to the origin.
+`faultVariants.gnssOutage` contains `startS` and `endExclusiveS`. `sourceCadenceHz` contains `gnss`, `pressure`, and `orientation`; weather/QNH is represented by the initial snapshot in `environment`.
 
-## 12.3 Orientation fixture
+## 12.2 Units and deterministic evaluation
 
-C10 holds a privileged truth Device True Azimuth for scenario composition but does not provide that value directly to product logic. It generates source-equivalent Device Magnetic Azimuth through the normal C4 boundary:
+The asset uses:
+
+```text
+time: seconds
+horizontal distance: metres
+altitude: metres MSL
+AS and GS: kilometres per hour in the asset
+wind: metres per second
+angles: degrees clockwise from True North unless explicitly magnetic
+pressure and QNH: hPa
+```
+
+Truth is evaluated at fixed `0.1 s` steps. Airborne East/North position is integrated with the trapezoidal rule from the truth ground-velocity vector. Ground phases use the declared ground-speed/Track profile without adding wind drift. Source streams sample this truth at their exact declared cadences.
+
+The following interpolation identifiers are normative:
+
+- `hold` — start value is held;
+- `linear` — linear interpolation over phase-local time;
+- `smoothstep` — `3u² − 2u³`, where `u` is phase-local progress in `[0,1]`;
+- `turnSmoothstep` — explicit signed turn delta multiplied by `smoothstep(u)`;
+- `flareV1` — the exact flare/float sub-boundaries defined below.
+
+## 12.3 Origin and environment
+
+The exact fixture context is:
+
+```text
+origin.latitudeDeg: 59.4546111
+origin.longitudeDeg: 24.8922111
+surfaceAltitudeMslM: 35.0
+qnhHpa: 1013.25
+fixtureDeclinationDegEast: +10.0
+truthWind.speedMps: 4.0
+truthWind.fromDegTrue: 270.0
+weatherWind.speedMps: 4.0
+weatherWind.fromDegTrue: 270.0
+```
+
+The wind therefore blows toward `090° True`. Initial Air Heading and final approach are `270° True`, directly into wind.
+
+Takeoff and landing areas are locally flat at `35.0 m MSL`. Terrain variation is not modelled.
+
+## 12.4 Orientation fixture
+
+C10 holds privileged truth Device True Azimuth for scenario composition but does not provide that value directly to product logic. It generates source-equivalent Device Magnetic Azimuth through C4:
 
 ```text
 deviceMagneticAzimuthDeg
 =
 normalize360(deviceTrueAzimuthTruthDeg − fixtureDeclinationDegEast)
 ```
-
-The deterministic first fixture uses a synthetic non-zero magnetic declination of `+10.0° east`. This value exists to prove that the product performs the conversion and is not a claim about production geomagnetic truth for the location or date.
 
 C7 obtains declination through a replaceable `MagneticDeclinationProvider` using position and civil date/time, then calculates:
 
@@ -793,24 +870,13 @@ normalize360(deviceMagneticAzimuthDeg + declinationDegEast)
 
 East declination is positive and west declination is negative. Results are normalized to `[0°, 360°)`.
 
-The first-slice provider deterministically returns the declared fixture value for the fixture context. Selection of a production WMM/IGRF implementation, native platform API, model-update mechanism, altitude treatment, and offline model-data strategy remains deferred.
+The first-slice provider deterministically returns `+10.0°` for the fixture context. This synthetic value exists to prove conversion and is not a claim about production geomagnetic truth. Production WMM/IGRF selection, native APIs, model updates, altitude treatment, and offline model-data strategy remain deferred.
 
-## 12.4 Truth wind
+For scenario truth, Device True Azimuth equals the declared ground Track in ground phases and the declared Air Heading in airborne phases before source-like magnetic error is added. This does not imply that a real phone is mechanically aligned with the wing; it is a bounded first-slice fixture assumption.
 
-The first fixture uses constant truth-wind speed:
+## 12.5 Motion model
 
-```text
-4 m/s
-14.4 km/h
-```
-
-Initial Air Heading and final approach are primarily into wind. Absolute wind direction is a bounded fixture parameter selected during numerical composition.
-
-Normal successful weather-source wind may equal truth wind. Weather/truth mismatch testing is deferred.
-
-## 12.5 Airborne and ground motion
-
-Before physical liftoff and after physical touchdown, pilot coordinates follow ground motion; wind does not add free drift.
+Before physical liftoff and after physical touchdown, pilot coordinates follow declared ground motion and wind does not add free drift.
 
 After physical liftoff and before touchdown:
 
@@ -824,166 +890,148 @@ truth wind
 
 C10 uses truth wind only to generate normal source equivalents. C8, C6, C7, and C9 never read truth wind.
 
-## 12.6 Target profile
+## 12.6 Exact phase schedule
 
-| Parameter | Target |
-| --- | ---: |
-| Surface altitude | `35 m MSL` |
-| Maximum altitude | approximately `135 m MSL` |
-| Maximum height above takeoff | approximately `100 m` |
-| Nominal physical liftoff AS | `25 km/h` |
-| Post-liftoff AS | `35–37 km/h` |
-| Cruise AS | approximately `40 km/h` |
-| Final-approach AS | approximately `45 km/h` |
-| Maximum climb VS | approximately `+2.5 m/s` |
-| Ground distance | approximately `1.5–2 km` |
-| Flight duration | approximately `3–3.5 min` |
-| Landing confirmation interval | `15 s` |
+`ground_ready` is the pre-Start state and is held indefinitely while source streams remain active. Scenario time starts at `0.0 s` when Start is pressed.
 
-GS is never prescribed by an AS row. It is calculated from AS, Air Heading, and truth wind.
+| Phase id | Time, s | Motion | Air Heading / Track | AS or GS profile | Altitude MSL profile |
+| --- | ---: | --- | --- | --- | --- |
+| `wing_inflation_and_stabilization` | `0.0–5.0` | ground | Track `270°` | GS `0.0→1.5 km/h`, smoothstep | `35.0 m`, hold |
+| `launch_acceleration` | `5.0–7.4` | ground | Track `270°` | GS `1.5→10.6 km/h`, smoothstep | `35.0 m`, hold |
+| `liftoff_transition` | `7.4–11.0` | airborne | Air Heading `270°` | AS `25.0→31.0 km/h`, smoothstep | `35.0→38.0 m`, linear |
+| `post_liftoff_acceleration` | `11.0–18.0` | airborne | Air Heading `270°` | AS `31.0→36.0 km/h`, smoothstep | `38.0→50.0 m`, linear |
+| `initial_climb_upwind` | `18.0–48.0` | airborne | Air Heading `270°` | AS `36.0→40.0 km/h`, smoothstep | `50.0→122.0 m`, linear |
+| `turn_north` | `48.0–63.0` | airborne | signed turn `+90°`, `270→000°` | AS `40.0 km/h`, hold | `122.0→135.0 m` during `48.0–58.0`, then hold |
+| `north_crosswind_level` | `63.0–88.0` | airborne | Air Heading `000°` | AS `40.0 km/h`, hold + variation | `135.0 m`, hold + variation |
+| `turn_east` | `88.0–100.0` | airborne | signed turn `+90°`, `000→090°` | AS `40.0 km/h`, hold | `135.0 m`, hold |
+| `east_downwind` | `100.0–120.0` | airborne | Air Heading `090°` | AS `40.0 km/h`, hold + variation | `135.0→130.0 m`, linear |
+| `turn_south` | `120.0–132.0` | airborne | signed turn `+90°`, `090→180°` | AS `40.0→41.0 km/h`, smoothstep | `130.0→113.0 m`, linear |
+| `south_crosswind_descent` | `132.0–157.0` | airborne | Air Heading `180°` | AS `41.0 km/h`, hold + variation | `113.0→76.0 m`, linear |
+| `turn_west_final_alignment` | `157.0–172.0` | airborne | signed turn `+90°`, `180→270°` | AS `41.0→44.0 km/h`, smoothstep | `76.0→54.0 m`, linear |
+| `final_approach_upwind` | `172.0–187.0` | airborne | Air Heading `270°` | AS `44.0→45.0 km/h`, smoothstep | `54.0→36.3 m`, linear |
+| `flare` | `187.0–190.0` | airborne | Air Heading `270°` | AS `45.0→22.0 km/h`, `flareV1` | `36.3→35.2 m`, `flareV1` |
+| `float_and_touchdown` | `190.0–192.0` | airborne until `192.0` | Air Heading `270°` | AS `22.0→18.0 km/h`, smoothstep | `35.2→35.0 m`, smoothstep |
+| `landing_run` | `192.0–197.0` | ground | Track `270°` | GS `3.6→0.0 km/h`, smoothstep | `35.0 m`, hold |
+| `landed_confirmation` | `197.0–212.0` | ground | Track unavailable at zero speed | GS `0.0 km/h`, hold | `35.0 m`, hold |
+| `completed_ground` | `212.0+` | ground | unchanged | GS `0.0 km/h`, hold | `35.0 m`, hold |
 
-## 12.7 Natural deterministic variation
+The `turn_north` altitude profile is two deterministic subsegments encoded in that phase: linear climb to `135.0 m` at `58.0 s`, then hold. Physical liftoff occurs exactly at `7.4 s`; physical touchdown occurs exactly at `192.0 s`. Neither truth event is passed to C6.
 
-Even stable phases must not contain perfectly constant values.
+This profile reaches the accepted approximately `100 m` height above takeoff by `58.0 s`, includes approximately `42 s` at nominal level altitude before descent begins, and leaves approximately `92 s` for a progressive descent, final alignment, approach, flare, float, touchdown, and confirmation. The level-altitude segment exists for route and altitude-profile coherence; it is not an estimated-wind eligibility gate. C7 evaluates estimated wind continuously throughout the active Flight whenever valid GNSS GS/Track observations and a complete candidate window are available. It is an engineering fixture derived from the accepted speed, climb, altitude, route-diversity, and total-duration inputs; it is not an aerodynamic performance prediction.
 
-### Air Heading
+## 12.7 Exact variation profiles
 
-Typical straight-leg variation:
+All variation uses scenario time `t` in seconds and radians inside trigonometric functions.
 
-- normal amplitude about `±4–6°`;
-- major corrections every roughly `10–15 s`;
-- smaller corrections about `±1–2°`;
-- occasional correction up to roughly `8–10°`;
-- no instantaneous jumps.
+Straight-leg Air Heading variation:
 
-### AS
+```text
+headingVariationDeg(t)
+=
+4.5 × sin(2πt / 12.0 + 0.30)
++
+1.5 × sin(2πt / 4.5 + 1.10)
+```
 
-Cruise AS varies smoothly by roughly `±1–2 km/h` without being mechanically synchronized with Air Heading variation.
+Cruise/descent AS variation, applied only where the phase table says `+ variation`:
 
-### Altitude and VS
+```text
+asVariationKmh(t)
+=
+1.2 × sin(2πt / 17.0 + 0.70)
++
+0.6 × sin(2πt / 6.5 + 2.00)
+```
 
-Nominal level-flight altitude may vary smoothly by roughly `±0.5–1.5 m`, producing small positive and negative VS while preserving a level mean trend.
+Level-altitude variation, applied only to `north_crosswind_level`:
 
-### Measurement variation
+```text
+altitudeVariationM(t)
+=
+0.8 × sin(2πt / 18.0 + 0.20)
++
+0.4 × sin(2πt / 7.0 + 1.40)
+```
 
-Smaller deterministic sensor-like variation may be applied to GNSS position, source GS, Track, Device Magnetic Azimuth, and pressure. Truth motion variation and measurement variation must remain separately visible in validation diagnostics.
+Deterministic source-like variation is:
 
-Uncontrolled randomness is prohibited. Explicit deterministic functions are preferred; a fixed seed alone is insufficient if the resulting sequence is opaque or unstable across implementations.
+```text
+gnssEastErrorM(t)  = 1.5 × sin(2πt / 11.0 + 0.40) + 0.5 × sin(2πt / 3.7 + 1.20)
+gnssNorthErrorM(t) = 1.3 × sin(2πt / 13.0 + 1.00) + 0.4 × sin(2πt / 4.1 + 2.10)
+sourceGsErrorKmh(t) = 0.35 × sin(2πt / 8.0 + 0.60)
+sourceTrackErrorDeg(t) = 0.8 × sin(2πt / 7.5 + 1.30)
+magneticAzimuthErrorDeg(t) = 0.9 × sin(2πt / 5.5 + 0.90)
+pressureErrorHpa(t) = 0.015 × sin(2πt / 9.0 + 1.70)
+```
 
-## 12.8 Scenario phases
+No uncontrolled randomness or unspecified fixed-seed generator is permitted. Turn phases use only their explicit turn profile plus the magnetic source error; straight-leg Heading variation is not added inside turns.
 
-The scenario contains conceptually:
+## 12.8 Source cadence and normal delivery
 
-1. `ground_ready`;
-2. `wing_inflation_and_stabilization`;
-3. `launch_acceleration`;
-4. `liftoff_transition`;
-5. `post_liftoff_acceleration`;
-6. `initial_climb`;
-7. `flight_maneuvers`;
-8. `cruise`;
-9. `descent`;
-10. `final_approach`;
-11. `flare`;
-12. `float`;
-13. `touchdown`;
-14. `landing_run`;
-15. `landed_confirmation`;
-16. `completed_ground`.
+The exact normal source cadence is:
 
-Exact phase durations, leg lengths, turn radii, and easing functions are bounded tuning parameters.
+```text
+GNSS: every 0.5 s, first sample at 0.0 s
+pressure: every 0.1 s, first sample at 0.0 s
+orientation: every 0.1 s, first sample at 0.0 s
+weather/QNH: one snapshot at 0.0 s
+```
 
-## 12.9 Ground and launch phases
+Normal observed monotonic time equals source monotonic time. Jitter, batching, missing samples, `1 Hz` GNSS, and timestamp-invalidity cases are deterministic test transforms and do not change `scenario-v1`.
 
-### Ground ready
+## 12.9 Exact fault variants and estimator timing
 
-Before Start:
+The controlled GNSS outage is:
 
-- pilot stands at origin;
-- truth Device True Azimuth and Air Heading are into wind with small orientation variation;
-- pressure corresponds to `35 m MSL`;
-- GNSS position is valid;
-- Track may be unavailable at near-zero movement;
-- weather-source wind and QNH are valid.
+```text
+startS: 112.0
+endExclusiveS: 117.0
+```
 
-### Wing inflation and stabilization
+It occurs on the stable east-downwind leg, after directional diversity has been generated and before the next turn. No GNSS observations are emitted in that half-open interval; pressure and orientation continue normally.
 
-- low ground movement;
-- larger device-orientation and Air Heading corrections than stable running;
-- `wingStabilized` exists only in privileged truth.
+The accepted estimator configuration must produce the first accepted estimated-wind result no later than `108.0 s` in the normal fixture, so the outage always begins after an accepted estimate exists. This deadline validates accumulated directional diversity and fit quality; it does not define an estimator start phase or require level flight. The exact earlier acceptance time remains an algorithm result, not privileged simulator input.
 
-### Launch acceleration
+Map-unavailable mode is an independent C8 development toggle and is not encoded as altered scenario physics.
 
-Still-air baseline for the fixture:
+## 12.10 Launch interpretation
 
-- AS increases to `25 km/h` over roughly `20 m`;
-- simplified constant acceleration is approximately `1.21 m/s²`.
+The direct `4 m/s` headwind produces approximately `14.4 km/h` air-relative flow before ground acceleration is considered. The declared launch phase therefore reaches physical liftoff at `10.6 km/h GS` and `25.0 km/h AS` at `7.4 s`.
 
-With a direct `4 m/s` headwind:
+C6 receives neither truth AS, `wingStabilized`, nor the physical-liftoff event. Its effective takeoff boundary remains detector-defined and may precede `7.4 s`.
 
-- physical liftoff occurs around `10.6 km/h GS`;
-- simplified distance after acceleration begins is about `3.6 m`;
-- simplified acceleration time is about `2.4 s`.
+## 12.11 Climb, level flight, and descent interpretation
 
-Inflation/stabilization time is separate from this acceleration interval.
+The exact altitude profile is chosen so that:
 
-Physical liftoff occurs only when:
+- climb reaches `122 m MSL` by `48.0 s`;
+- the final climb reaches `135 m MSL` at `58.0 s`;
+- level flight continues through the north leg and east turn;
+- descent starts gently on the east-downwind leg at `100.0 s`;
+- the main descent continues through the south leg and final alignment;
+- final approach begins at `172.0 s` from `54.0 m MSL`;
+- flare begins at `187.0 s` from `36.3 m MSL`;
+- touchdown occurs at `192.0 s`.
 
-- the wing is stabilized in truth;
-- AS reaches `25 km/h`.
-
-C6 receives neither condition directly.
-
-## 12.10 Climb and manoeuvre phases
-
-After liftoff:
-
-- AS rises smoothly from about `25` to `35–37 km/h` over about `6–8 s`;
-- VS rises toward about `+2.5 m/s`;
-- AS later settles around `40 km/h`;
-- climb continues toward about `135 m MSL`;
-- Air Heading changes provide upwind, crosswind, downwind, and return-to-upwind directional diversity;
-- turns use smooth entry, main turn, exit, and small post-turn correction;
-- straight legs retain natural deterministic yaw.
-
-The approximate closed pattern exists to supply broad velocity-vector coverage. It does not create an AirLink Route, autopilot, or navigation controller.
-
-## 12.11 Descent and approach
-
-Descent begins in the second half of the Flight. VS becomes negative smoothly. Final approach is primarily into wind.
-
-Final-approach AS is approximately `45 km/h`. With a full `4 m/s` headwind, corresponding GS is approximately `30.6 km/h` before flare, subject to corrections and exact geometry.
+The maximum nominal climb rate is `2.4 m/s` during `initial_climb_upwind`, within the accepted approximately `+2.5 m/s` target. Descent rates remain approximately `1.2–1.5 m/s` before flare. These vertical phases do not gate estimated-wind calculation: a steady climb or descent may retain sufficiently stable AS for the current wing, power, and brake configuration, and vertical speed or altitude trend alone is not a rejection condition.
 
 ## 12.12 Flare, float, touchdown, and landing run
 
-Flare begins at approximately `1.0–1.5 m` above the known surface, corresponding to approximately `36.0–36.5 m MSL`.
+`flareV1` is the bounded first-slice approximation:
 
-The simplified flare model includes:
-
-- rapid but smooth brake-input increase;
-- aggressive AS reduction;
-- reduction of negative VS toward zero;
-- temporary conversion of forward speed into lift;
-- transition to a short nearly horizontal path.
+- `187.0–190.0 s`: AS and altitude follow smoothstep from the declared start/end values, representing active braking and rapid reduction of descent;
+- `190.0–192.0 s`: short near-horizontal float with weaker altitude reduction and continued AS loss;
+- at `192.0 s`: airborne truth becomes false and wind drift stops affecting coordinates;
+- `192.0–197.0 s`: ground run decelerates smoothly to zero;
+- `197.0–212.0 s`: zero-speed confirmation interval.
 
 Full wing, pendulum, pitch, or brake aerodynamics are not modelled.
 
-The float segment is approximately `5 m`:
+## 12.13 Expected physical scale
 
-- height decreases toward the surface;
-- VS is near zero or weakly negative;
-- AS and GS continue to decrease;
-- no instantaneous stop occurs.
+With the declared profiles and no source-like measurement offsets, the full `0.0–212.0 s` truth path is approximately `1.92 km`. The effective detected Flight duration is expected to be approximately `3.0–3.2 min`, depending only on the accepted detector boundaries. Automated fixture tests must calculate and freeze the resulting reference values with explicit tolerances; they must not retune the phase schedule silently.
 
-At physical touchdown:
-
-- truth airborne state becomes false;
-- free wind drift no longer moves coordinates;
-- C6 receives no touchdown event.
-
-A short ground run or several steps follow, with GS decreasing smoothly into landing-candidate conditions.
-
-## 12.13 Privileged-truth prohibition
+## 12.14 Privileged-truth prohibition
 
 Normal concerns must not receive:
 
@@ -999,8 +1047,6 @@ Normal concerns must not receive:
 - intended route/leg identity as lifecycle or navigation authority.
 
 Privileged truth is available only to C10 and validation diagnostics explicitly labelled as truth comparison.
-
----
 
 # 13. Takeoff Detection
 
@@ -1178,13 +1224,11 @@ C7 derives VS by fitting altitude against source monotonic time over a `3 s` win
 
 Altitude and VS are diagnostic/derived information and do not drive first-slice takeoff or landing detection.
 
----
-
 # 16. Estimated-Wind Calculation
 
 ## 16.1 Vector model
 
-Valid GNSS GS and Track are converted into East/North ground-velocity vectors `(vE, vN)`.
+During every active Flight interval with valid GNSS GS and Track, C7 continuously converts observations into East/North ground-velocity vectors `(vE, vN)` and evaluates the available candidate windows. Estimator execution is not started, stopped, or reset by simulator phase, route leg, altitude trend, climb, level flight, or descent.
 
 The model is:
 
@@ -1192,10 +1236,12 @@ The model is:
 ground velocity = wind + air-relative velocity
 ```
 
-At approximately stable AS, ground-velocity samples lie near a circle:
+At approximately stable horizontal AS magnitude, ground-velocity samples lie near a circle:
 
 - fitted centre ≈ wind vector;
 - fitted radius ≈ AS.
+
+Approximately stable AS is a property of the observations inside the candidate window, not a synonym for level flight. A steady climb or descent can remain usable when the paramotor configuration and AS are sufficiently stable. Aggressive manoeuvres such as tight spirals may produce poor fit or observability and therefore fail the normal quality gates, but they are not rejected by a separate phase or manoeuvre label.
 
 ## 16.2 Fit method
 
@@ -1210,15 +1256,17 @@ Pratt versus Taubin remains a reversible implementation choice selected through 
 
 ## 16.3 Windows
 
-Candidates are recomputed approximately once per second for windows:
+While a Flight is active and required inputs are valid, candidates are recomputed approximately once per second for windows:
 
 ```text
 30 / 60 / 90 / 120 s
 ```
 
-The shortest accepted window is used for freshness.
+Candidate windows may span climb, level flight, descent, turns, or multiple scenario phases. Phase boundaries do not clear otherwise valid history. The shortest accepted window is used for freshness.
 
 ## 16.4 Quality gates
+
+Candidate acceptance is determined by observation and fit quality, not by a declared Flight phase. There is no explicit eligibility gate for climb, level flight, descent, route leg, vertical speed, or simulator phase.
 
 Candidate acceptance requires all of:
 
@@ -1429,17 +1477,71 @@ Retain:
 
 Rejected wind candidates remain diagnostics and are not required in the finalized Flight record.
 
-## 19.3 Boundaries
+## 19.3 Retained special-point representation
+
+C9 retains Takeoff Point and Landing Point using this logical representation:
+
+```text
+FlightSpecialPoint
+- pointId
+- flightId
+- kind: takeoff | landing
+- classification: detectedTakeoff | confirmedLanding
+- effectiveBoundaryMonotonicTime
+- confirmationMonotonicTime
+- wallClockTime
+- latitudeDeg
+- longitudeDeg
+- horizontalAccuracyM
+- sourceObservationRef
+- detectorVersion
+- locationStatus: observedAtEffectiveBoundary
+```
+
+The field names are logical retained-data requirements rather than a prescribed Dart class or storage schema.
+
+The effective boundary must be anchored to the accepted GNSS observation that begins the confirmed detector interval. `sourceObservationRef` identifies that observation. No hidden interpolation is permitted. Point identity, Flight association, kind, classification, both monotonic times, and detector version are mandatory for any complete or degraded record. In the normal fixture, point location and accuracy are also mandatory.
+
+## 19.4 C3 to C9 creation handoff
+
+After C2 authorizes takeoff, C3 creates the Flight and Takeoff Point, then supplies C9 before recording initialization with:
+
+```text
+- flightId
+- Flight-level simulated classification
+- active lifecycle state
+- effectiveTakeoffBoundary
+- takeoffConfirmationTime
+- complete Takeoff Point representation
+- detectorVersion
+- boundedHistoryStart/end reference
+```
+
+C9 initializes the record from that authoritative context before accepting the first ordinary active-Flight update. If C9 cannot retain the Flight identity, boundary, or Takeoff Point context, initialization is `failed`; it must not create an apparently valid record missing those fields.
+
+## 19.5 C3 to C9 completion handoff
+
+After C2 authorizes landing, C3 completes lifecycle and creates the Landing Point, then supplies C9 before finalization with:
+
+```text
+- flightId
+- completed lifecycle state
+- effectiveLandingBoundary
+- landingConfirmationTime
+- complete Landing Point representation
+- detectorVersion
+- finalConfirmationTailStart/end reference
+```
+
+C9 first retains the completion context and final confirmation tail, then finalizes. A complete or degraded record must contain both special points and their Flight association. Failure to retain required completion context yields a `failed` record outcome without changing C3 lifecycle truth.
+
+## 19.6 Observation and finalization boundaries
 
 C9 receives:
 
-- authoritative C3 creation context;
 - bounded history beginning at the effective takeoff boundary;
 - active Flight observations/events;
-- effective landing boundary;
 - final confirmation tail through landing confirmation time.
-
-## 19.4 Outcome
 
 C9 finalizes as:
 
@@ -1448,8 +1550,6 @@ C9 finalizes as:
 - `failed`.
 
 A complete or degraded outcome produces an immutable in-memory Flight record. A failed outcome preserves completed lifecycle truth but provides no usable Flight record.
-
----
 
 # 20. Summary
 
@@ -1521,12 +1621,11 @@ It must not imply that lifecycle completion failed.
 
 ## 21.1 GNSS outage
 
-A separate deterministic variant introduces exactly `5 s` of GNSS unavailability:
+A separate deterministic variant introduces exactly `5 s` of GNSS unavailability from scenario time `112.0 s` inclusive to `117.0 s` exclusive:
 
-- during stable cruise;
+- during the stable east-downwind leg;
 - after at least one accepted wind estimate exists;
-- before final approach;
-- not during a turn or landing sequence.
+- before the next turn and final approach.
 
 During the outage:
 
@@ -1594,18 +1693,27 @@ Tests must not depend on rendered screen text.
 ## 22.4 Required validation evidence
 
 - normal end-to-end deterministic run;
+- exact `scenario-v1` asset parsing and phase-boundary tests;
+- reference truth/observation sequence test at `1×` and `2×`;
 - takeoff candidate/confirmation boundary tests;
 - landing candidate/confirmation boundary tests;
 - circle-fit numerical tests for ideal, noisy, incomplete, poorly conditioned, and outlier cases;
 - accepted/retained/unavailable wind-state tests;
-- GNSS-outage and recovery test;
+- first accepted wind no later than `108.0 s` in the normal fixture;
+- estimator-continuity test proving calculation runs across climb, level-flight, and descent observations without phase gating or phase-boundary resets;
+- quality-gate test proving acceptance/rejection depends on input, residual, coverage, conditioning, and uncertainty rather than vertical phase labels;
+- exact `112.0–117.0 s` GNSS-outage and recovery test;
 - map-unavailable validation;
-- `1×/2×` semantic-equivalence test;
 - Pause-is-not-outage test;
 - wall-clock-jump test;
-- missing, duplicate, and backward source-monotonic timestamp tests proving that invalid time cannot produce valid detector windows, duration, VS, wind estimates, retained ordering, or successful Summary;
+- identical same-timestamp redelivery is ignored idempotently without duplicate retention or degradation;
+- conflicting same-timestamp observation fails closed;
+- missing and backward source-monotonic timestamp tests prove invalid time cannot produce valid detector windows, duration, VS, wind estimates, retained ordering, or successful Summary;
 - Device Magnetic Azimuth to Device True Azimuth tests using the non-zero fixture declination, including normalization and unavailable-declination fallback;
 - pressure/QNH forward-and-inverse round-trip tests at the surface and representative Flight altitudes;
+- Takeoff Point creation-handoff retention test;
+- Landing Point completion-handoff retention test;
+- finalized-record test proving both special points retain identity, location, effective/confirmation times, detector version, and Flight association;
 - truth-leakage tests;
 - recording complete/degraded/failed tests;
 - Summary-from-finalized-record tests.
@@ -1718,18 +1826,19 @@ Observable result: recognizable Flight Screen shell and working development sess
 
 Includes:
 
-- declarative scenario;
+- exact JSON `scenario-v1` asset and parser;
+- fixed phase schedule, profiles, units, cadences, variation formulas, and truth-step integration;
 - privileged truth;
 - C4/C5 contracts;
 - GNSS, pressure, raw magnetic-orientation, and weather streams;
 - C7 Device Magnetic Azimuth to Device True Azimuth conversion through the replaceable declination-provider boundary;
 - timing, quality, validity, and provenance;
-- fixture cadence and timing tests;
+- fixture reference-sequence and cadence tests;
 - movement on placeholder canvas;
 - live GS and weather-wind presentation;
 - source-health diagnostics.
 
-Observable result: Start runs the physical scenario and updates Product UI from source-equivalent inputs, without Flight lifecycle creation.
+Observable result: Start runs the exact physical fixture and updates Product UI from source-equivalent inputs, without Flight lifecycle creation.
 
 ## Increment 3 — Takeoff detection and active Flight lifecycle
 
@@ -1740,13 +1849,13 @@ Includes:
 - C6 takeoff candidate and confirmation;
 - weather headwind correction;
 - effective boundary and bounded history;
-- Flight identity and Takeoff Point;
-- recording initialization seam;
+- Flight identity and complete Takeoff Point representation;
+- explicit C3 to C9 creation handoff and recording initialization seam;
 - elapsed Flight time;
 - Device True Azimuth-up ground presentation to Track-up airborne transition;
-- one-shot and idempotency tests.
+- one-shot, idempotency, and Takeoff Point handoff tests.
 
-Observable result: automatic transition from `Waiting for Takeoff` to active Flight.
+Observable result: automatic transition from `Waiting for Takeoff` to active Flight with an authoritative retained creation context.
 
 ## Increment 4 — Altitude, VS, estimated wind, landing, and completion
 
@@ -1759,11 +1868,12 @@ Includes:
 - accepted/retained/unavailable states;
 - estimated AS;
 - landing candidate and confirmation;
-- Landing Point;
+- complete Landing Point representation;
+- explicit C3 to C9 completion handoff seam;
 - completed lifecycle;
 - VS and compact estimated-wind presentation.
 
-Observable result: the scenario automatically completes one Flight from takeoff through landing.
+Observable result: the scenario automatically completes one Flight from takeoff through landing with authoritative completion context ready for C9 finalization.
 
 ## Increment 5 — Real map adapter and spatial presentation
 
@@ -1784,27 +1894,28 @@ Observable result: real map replaces the placeholder without changing lifecycle 
 
 Includes:
 
-- C9 initialization;
+- C9 initialization from the complete C3 creation handoff;
 - bounded preconfirmation history;
 - two-layer record;
-- effective boundaries and final tail;
+- retained Takeoff Point and Landing Point logical representations;
+- C3 completion handoff and final tail;
 - complete/degraded/failed outcomes;
 - immutable finalized record;
 - Summary from record;
 - Reset/discard semantics.
 
-Observable result: normal Flight ends in a complete Summary derived from the finalized record.
+Observable result: normal Flight ends in a complete Summary derived from a finalized record containing both authoritative special points.
 
 ## Increment 7 — Degradation and final acceptance evidence
 
 Includes:
 
-- five-second GNSS outage and recovery;
+- exact five-second GNSS outage and recovery;
 - degraded record and Summary;
 - no distance interpolation;
 - retained wind and suspended landing detection;
 - map-unavailable run;
-- playback, Pause, wall-clock, monotonic-invalidity, magnetic-declination, truth-leakage, and end-to-end tests;
+- playback, Pause, wall-clock, monotonic-invalidity, duplicate/collision, magnetic-declination, exact-scenario, special-point-handoff, truth-leakage, and end-to-end tests;
 - concise validation instructions.
 
 Observable result: both pilot-visible success and deterministic boundary/degradation evidence exist.
@@ -1872,7 +1983,7 @@ Validate real Android:
 - Track;
 - horizontal, speed, and course accuracy;
 - source timestamps;
-- cadence, gaps, and batching;
+- cadence, gaps, redelivery, collisions, and batching;
 - Device Magnetic Azimuth and orientation accuracy;
 - pressure;
 - recovery behavior.
@@ -1927,16 +2038,19 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - takeoff and landing authority chains are explicit;
 - effective and confirmation boundaries are distinct;
 - AS/GS/VS, Air Heading/Track, Device Magnetic/True Azimuth, and MSL/relative-height distinctions are explicit;
+- Takeoff Point and Landing Point representations and both C3 to C9 handoffs are explicit;
 - record and Summary semantics are explicit.
 
 ## 28.3 Simulation readiness
 
-- origin and surface altitude are known;
-- flight profile and phases are accepted;
-- natural deterministic variation is specified;
-- flare/float/touchdown behavior is specified;
+- exact asset path and JSON contract are defined;
+- origin, civil time, environment, wind, QNH, and declination are fixed;
+- phase start/end times and kinematic endpoints are fixed;
+- deterministic interpolation, integration, variation, and cadence contracts are fixed;
+- exact GNSS-outage interval is fixed;
+- flare/float/touchdown behavior is fixed for the fixture;
 - truth isolation is explicit;
-- remaining numeric choices are bounded tuning rather than hidden product questions.
+- remaining choices are implementation mechanics or explicitly bounded algorithm/UI tuning rather than hidden scenario questions.
 
 ## 28.4 Technical readiness
 
@@ -2014,7 +2128,8 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - Device True Azimuth is derived by C7 from raw Device Magnetic Azimuth plus east-positive declination obtained through the replaceable provider;
 - C8 never receives raw magnetic orientation as a ready-made True-North value;
 - VS is unavailable with insufficient history;
-- wind is accepted only through quality gates;
+- wind candidates are evaluated continuously during active Flight whenever required observations are valid, without climb/level/descent or scenario-phase gating;
+- wind is accepted only through quality gates and no later than `108.0 s` in the normal fixture;
 - rejected candidates do not overwrite accepted wind;
 - landing detection does not use truth wind;
 - no GS-only landing fallback exists.
@@ -2022,18 +2137,22 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 ## 29.6 Recording and Summary
 
 - C9 creates the approved two-layer record;
+- C9 initialization consumes the complete C3 creation handoff;
+- C9 finalization consumes the complete C3 completion handoff;
+- finalized complete/degraded records contain both special points with required identity, location, boundary, confirmation, detector, and Flight-association fields;
 - Summary derives only from finalized record;
 - complete, degraded, and failed outcomes are distinguishable;
 - distance does not interpolate across GNSS gaps;
 - duration uses monotonic effective boundaries;
 - wall-clock change does not alter duration;
-- missing, duplicate, or backward monotonic time cannot be treated as valid ordering or duration;
+- identical same-timestamp redelivery is idempotently ignored;
+- missing, backward, or conflicting same-timestamp monotonic input cannot be treated as valid ordering or duration;
 - accepted QNH and altitude-calculation context are retained with the derived altitude history.
 
 ## 29.7 Degradation
 
 - map unavailability does not stop Flight;
-- five-second GNSS outage does not complete Flight;
+- the exact `112.0–117.0 s` GNSS outage does not complete Flight;
 - the same Flight continues after recovery only under the explicit bounded P3 reopening for this validation case;
 - accepted wind is retained;
 - landing detection is suspended during outage;
@@ -2044,13 +2163,16 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 ## 29.8 Evidence
 
 - automated normal end-to-end test exists;
+- exact scenario parser, phase-boundary, and reference-sequence tests exist;
 - controlled GNSS-outage test exists;
 - map-unavailable validation exists;
 - detector boundary tests exist;
 - wind numerical tests exist;
 - pressure/QNH round-trip tests exist;
 - magnetic-declination conversion and fallback tests exist;
+- identical-redelivery and conflicting-collision tests exist;
 - monotonic-invalidity tests exist;
+- Takeoff Point and Landing Point handoff/retention tests exist;
 - truth-leakage tests exist;
 - diagnostics explain significant transitions.
 
@@ -2058,25 +2180,30 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 
 # 30. Bounded Implementation Tuning
 
-The following do not require a new owner decision when accepted semantics remain unchanged:
+The following do not require a new owner decision when accepted semantics and the exact `scenario-v1` reference sequence remain unchanged:
 
-- exact scenario phase durations;
-- exact leg lengths and turn radii;
-- exact deterministic yaw functions;
-- exact AS/altitude variation functions;
-- exact sensor-like variation functions;
-- absolute truth-wind direction;
-- exact first accepted-wind time;
-- Pratt versus Taubin initialization;
-- exact numerical quality thresholds;
+- internal parser/model organization for the fixed JSON asset;
+- mathematically equivalent implementation of the specified interpolation and integration formulas within accepted numeric tolerance;
+- Pratt versus Taubin circle initialization;
+- exact numerical wind-quality thresholds, provided the normal fixture accepts by `108.0 s` and all quality tests pass;
 - exact Track-loss grace period;
-- exact flare curve and touchdown coordinates;
-- exact GNSS-outage timestamp;
 - exact Flutter map package within the stated stop conditions;
 - pixel geometry, typography, spacing, and animation;
 - exact compact estimated-wind placement.
 
-Tuning becomes an owner decision when it changes product meaning, authority, scope, accepted outcome, or difficult-to-reverse technical direction.
+The following are no longer implementation tuning for `scenario-v1` and require an explicit plan update:
+
+- phase start/end times;
+- phase kinematic endpoints;
+- truth-wind direction or speed;
+- QNH, origin, civil start time, or fixture declination;
+- variation formulas;
+- source cadences;
+- truth integration step/method;
+- physical liftoff/touchdown times;
+- GNSS-outage interval.
+
+Tuning becomes an owner decision when it changes product meaning, authority, scope, accepted outcome, reference fixture, or difficult-to-reverse technical direction.
 
 # 31. Explicitly Deferred Decisions
 
@@ -2160,5 +2287,19 @@ This decision does not define general interruption recovery, long-loss behavior,
 The simulator supplies Device Magnetic Azimuth through C4 rather than supplying a ready-made Device True Azimuth. C4 preserves the raw source meaning; C7 owns magnetic-declination lookup and conversion to True North; C8 consumes the derived Device True Azimuth on the ground. The deterministic fixture uses a synthetic non-zero east declination so validation proves that the product performs the conversion.
 
 Production geomagnetic-model selection and update strategy remain deferred.
+
+## 34.5 Scenario-v1 timing and format are fixed
+
+The owner accepts the exact `212.0 s` scenario schedule, JSON asset contract, altitude profile, route headings, source cadences, deterministic variation formulas, and `112.0–117.0 s` GNSS outage defined in section 12 as the normative first-slice fixture.
+
+The schedule is an engineering approximation derived from the previously accepted launch speed, climb rate, target height, route diversity, approach, flare, and total-duration inputs. It intentionally determines when climb reaches approximately `100 m` above takeoff, when the nominal altitude plateau occurs, and when descent begins so implementation agents do not invent incompatible fixtures. Those altitude phases do not control estimated-wind eligibility. It is not a claim about exact real-world paramotor performance.
+
+## 34.6 Special-point retention and handoffs are explicit
+
+The owner accepts the logical Takeoff Point and Landing Point representation and the explicit C3 to C9 creation/completion handoffs defined in section 19. Visible passive Takeoff Point navigation remains deferred, but both points remain mandatory authoritative retained Flight context.
+
+## 34.7 Estimated-wind calculation is phase-independent
+
+C7 evaluates estimated-wind candidates continuously throughout the active Flight whenever required GNSS observations are valid and a candidate window exists. Climb, nominal level flight, descent, route-leg identity, vertical speed, and simulator phase are not estimator eligibility gates and do not reset valid history. Acceptance or rejection is determined by the defined input-quality, residual, angular-coverage, conditioning, and uncertainty gates. Flight conditions that violate the circle-model assumptions are rejected through those measured quality characteristics rather than through privileged phase labels.
 
 All other unresolved values in this document are classified as bounded implementation tuning or explicitly deferred decisions.
