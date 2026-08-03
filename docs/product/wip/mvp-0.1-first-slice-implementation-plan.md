@@ -263,7 +263,7 @@ Weather-source wind, truth wind, and estimated wind must remain semantically dis
 - **Scenario time:** virtual deterministic progression controlled by Start, Pause, and playback speed.
 - **Source monotonic time:** time of observation occurrence at the source.
 - **Observed monotonic time:** time the observation reaches AirLink.
-- **Wall-clock time:** civil time used for displayed takeoff and landing timestamps.
+- **Virtual civil UTC / AirLink-facing wall-clock time:** scenario-derived civil time normalized by C4 and used for displayed and retained takeoff/landing timestamps; host wall time is not authoritative.
 
 Calculations, windows, ordering, Flight duration, and elapsed Flight time use monotonic time, not wall clock. Monotonic validity is evaluated within a development session and within each source stream; Reset begins a new session and therefore a new monotonic domain.
 
@@ -279,7 +279,7 @@ Normal first-slice inputs are:
 - Device Magnetic Azimuth and orientation quality where available;
 - atmospheric pressure;
 - weather-source wind and QNH;
-- source monotonic time, observed monotonic time, and wall-clock time;
+- source monotonic time, observed monotonic time, and source-equivalent virtual civil UTC normalized by C4;
 - availability, validity, freshness, quality, provenance, and applicable handling metadata;
 - platform/input interruption state;
 - pilot development controls: Start, Pause, playback speed, and Reset;
@@ -358,7 +358,7 @@ C4 owns the normalized AirLink-facing form of:
 - applicable pass-through or controlled-substitute handling state, kept separate from provenance;
 - platform/input interruption state.
 
-C4 accepts independent asynchronous streams, including a source-equivalent `gnssAvailability` stream that is distinct from GNSS observations. C4 normalizes explicit availability transitions immediately and derives position, GS, and Track availability from them; downstream concerns observe those effects only through C4-derived state. Domain logic must not require a fixed sensor frequency. C4 does not calculate magnetic declination or convert magnetic orientation to True North; it preserves the source meaning and supplies the independent position, civil-time, and orientation inputs required by C7.
+C4 accepts independent asynchronous streams, including a source-equivalent `gnssAvailability` stream that is distinct from GNSS observations. C4 normalizes explicit availability transitions immediately and derives position, GS, and Track availability from them; downstream concerns observe those effects only through C4-derived state. For simulation, C4 also normalizes the source-equivalent virtual civil timestamp defined in section 11.3 into the AirLink-facing wall-clock value used for civil display and retention. Domain logic must not require a fixed sensor frequency. C4 does not calculate magnetic declination or convert magnetic orientation to True North; it preserves the source meaning and supplies the independent position, civil-time, and orientation inputs required by C7.
 
 ## C5 — Weather Context
 
@@ -402,11 +402,14 @@ C8 owns:
 - pilot-centred map/spatial canvas;
 - map orientation presentation;
 - scale and north/orientation cues;
+- package-specific viewport calculation required to preserve the fixed target visible ground width;
 - map-unavailable/degraded spatial state.
 
 C8 consumes Device True Azimuth on the ground and Track in Flight. It does not calculate magnetic declination or reinterpret raw magnetic orientation.
 
-C8 does not own Flight lifecycle, Takeoff Point identity, current-value derivation, or Route navigation.
+C8 is the complete replacement boundary for the bounded `flutter_map` and OpenStreetMap Standard raster implementation defined in section 23.3. No `flutter_map`, tile-provider, URL, attribution, HTTP-client, or package-lifecycle type or detail may escape C8. C1–C7, C9, and C10 use only neutral AirLink/C8 presentation contracts such as geographic centre, viewport orientation, target visible ground width, centred pilot marker, orientation circle, estimated-wind overlay state, spatial availability/degradation state, and any already-approved neutral special-point state.
+
+C8 does not own Flight lifecycle, Takeoff Point identity, current-value derivation, Route navigation, or scenario-controlled map configuration.
 
 ## C9 — Flight Recording and In-Memory Retention
 
@@ -453,7 +456,7 @@ When Flight Screen loads:
 - C1 displays `Waiting for Takeoff`;
 - no Flight exists;
 - C10 emits valid ground-state source equivalents;
-- weather-source wind is available;
+- weather-source wind is available in the primary left tile while GS and Flight VS are absent as primary values;
 - estimated wind is unavailable;
 - C4 supplies valid Device Magnetic Azimuth and C7 derives Device True Azimuth for ground map orientation;
 - bounded rolling history may exist only in memory.
@@ -545,10 +548,10 @@ Flight Screen contains three distinct layers.
 
 - Flight state or elapsed time;
 - transient flown-distance presentation;
-- GS;
+- a primary left tile that shows weather-source wind on the ground and switches to GS only after confirmed takeoff;
 - altitude MSL;
-- VS;
-- weather-source or estimated-wind information;
+- VS only during active Flight;
+- estimated-wind information only in the separate orientation-circle/windsock context after estimator acceptance;
 - source/map warnings.
 
 ### Development-only simulation layer
@@ -565,26 +568,29 @@ Simulation controls must not appear to be future pilot-facing product controls.
 
 The pilot marker remains at the geometric centre of the full map viewport, including the area behind the temporary bottom simulation panel.
 
-Target visible map width is approximately `2 km` on a typical portrait phone. A bounded prototype adjustment toward approximately `1.5 km` is allowed if 2 km materially harms readability.
+The first slice uses one fixed spatial scale:
 
-The first slice uses fixed scale. It does not use automatic zoom, speed-dependent zoom, user pan/zoom, or glide-range-driven zoom.
+```text
+targetVisibleGroundWidthM = 2000.0
+accepted tolerance = ±2%
+```
+
+Visible ground width is the ground distance between the geographic positions under the left and right edges of the full logical map viewport along its horizontal centreline, with the pilot at the viewport centre. The full logical viewport includes the area behind the temporary bottom simulation panel.
+
+C8 computes the package-specific fractional zoom required to maintain the target for the current full logical viewport width, the current pilot/centre latitude, and the selected Web Mercator raster renderer. A layout-size change may cause C8 to recalculate that fractional zoom only to preserve the same target. Track-up rotation changes orientation, not the accepted spatial scale.
+
+The same `2000 m ±2%` target applies on the ground, during active Flight, after GNSS recovery, regardless of live or simulated provenance, and independently of scenario metadata. The first slice does not use automatic or speed-dependent zoom, a readability fallback, user pan/zoom, glide-range-driven zoom, scenario-controlled zoom, or C10-controlled map scale.
 
 ## 10.4 Primary overlay zones
 
 The conceptual top layout is:
 
 ```text
-┌────────────────────────────────────┐
-│         status / Flight time       │
-│                                    │
-│   GS          ALT       contextual │
-│                                    │
-│             map                    │
-│         centred pilot              │
-│                                    │
-├────────────────────────────────────┤
-│ temporary simulation panel         │
-└────────────────────────────────────┘
+Ground:
+[ WEATHER WIND ] [ ALT ] [ no Flight VS ]
+
+Active Flight:
+[ GS ]           [ ALT ] [ VS ]
 ```
 
 Exact geometry, typography, spacing, and colors are bounded UI tuning.
@@ -635,13 +641,17 @@ R × centralAngle
 
 This pairwise formula is applied only after the segment rule has established pair eligibility. Active distance and finalized Summary distance derive independently, but use this same formula and eligibility rule. Neither derivation may use simulator truth distance, integrated truth East/North distance, GS integration, route reconstruction, or interpolation. The calculation identifier is `haversineMeanEarthR6371008_8V1`; C9 retains it with the distance-calculation context, and validation diagnostics expose it for the active aggregate.
 
-### GS tile
+### Primary left tile
 
-Displays:
+Before confirmed takeoff, the primary left tile displays weather-source wind and Ground Speed is absent as a primary value. It shows the weather wind's direction and speed with its source-state semantics. Unavailable, valid zero, stale/degraded, and valid weather states remain distinguishable; estimated wind is never substituted for weather wind.
+
+After confirmed takeoff, the same tile switches to:
 
 - `GS`;
 - Ground Speed;
 - unit.
+
+The switch occurs only from the confirmed C2/C3 Flight transition. Product UI does not show both primary GS and weather wind before takeoff, and weather-source wind disappears after takeoff.
 
 ### Altitude tile
 
@@ -653,11 +663,7 @@ Displays:
 
 ### Contextual right tile
 
-Before confirmed takeoff it displays weather-source wind:
-
-- directional arrow;
-- direction above the arrow;
-- speed below the arrow.
+Before confirmed takeoff it does not display Flight VS. Estimated wind is not moved into this tile.
 
 After confirmed takeoff it displays VS:
 
@@ -729,9 +735,11 @@ It does not show:
 
 ## 11.1 Scenario time
 
-- Start advances scenario time;
-- Pause freezes scenario time;
+- Start advances scenario time and virtual civil time together;
+- Pause freezes scenario time and virtual civil time;
 - `2×` changes wall-duration playback but not source sequence or domain result;
+- `2×` changes only how quickly scenario time advances relative to host elapsed time and does not alter the mapping from scenario/source time to virtual civil UTC;
+- Reset returns scenario time to `0.0 s`, restores `wallClockOffsetS = 0`, and restores virtual civil time to `civilStartUtc`;
 - Pause is not an input outage.
 
 ## 11.2 Source and observed time
@@ -762,7 +770,38 @@ Logic uses time windows and durations, not sample counts.
 
 ## 11.3 Wall clock
 
-Wall clock is used only for civil timestamps. A wall-clock jump must not alter detector timing, Flight duration, VS, wind windows, or ordering.
+The deterministic first-slice virtual civil-time contract is independent from host wall time:
+
+```text
+virtualCivilUtc(t)
+=
+civilStartUtc
++ scenarioTimeS(t)
++ wallClockOffsetS(t)
+```
+
+For the normal scenario, `wallClockOffsetS(t) = 0`, so `virtualCivilUtc(t) = civilStartUtc + scenarioTimeS(t)`. The host computer or device wall clock is not a source of scenario civil timestamps.
+
+Each source-equivalent observation retains the virtual civil timestamp corresponding to its source scenario time. Batched or delayed delivery does not rewrite that timestamp. C4 normalizes the source-equivalent virtual timestamp into the AirLink-facing wall-clock value used for civil display and retention. Observed monotonic delivery time remains separate and does not redefine civil time.
+
+Any optional diagnostic host-arrival timestamp is non-authoritative and must not be used for detector timing, Flight duration, VS, wind windows, ordering, effective boundaries, or retained Flight civil timestamps.
+
+The exact wall-clock-jump validation transform is:
+
+```text
+jumpSourceMonotonicTimeS = 80.0
+jumpAmountS = +3600.0
+
+for t < 80.0:
+    wallClockOffsetS(t) = 0
+
+for t >= 80.0:
+    wallClockOffsetS(t) = 3600.0
+```
+
+The jump applies prospectively. Civil timestamps already emitted or retained before `80.0 s` are not rewritten. The Takeoff Point remains pre-jump; the Landing Point and its retained civil timestamp are post-jump and include the `+3600 s` offset. Summary displays those retained boundary timestamps. Monotonic Flight duration, source ordering, detector holds, VS, and wind windows remain unchanged, and `1×` and `2×` produce identical civil timestamps for identical source times.
+
+The civil timestamp for a Takeoff Point or Landing Point is the C4-normalized virtual civil timestamp associated with the accepted source observation at its effective boundary, not host arrival time or confirmation wall time. This transform does not alter source monotonic time and does not introduce general timezone, locale, DST, NTP, or production clock-recovery architecture.
 
 ## 11.4 Asynchronous streams
 
@@ -794,6 +833,23 @@ Required tests additionally include:
 - batched delivery preserving source timestamps.
 
 Insufficient cadence or gaps become quality/degraded state rather than silently changing semantics.
+
+## 11.6 Source-time predicate holds
+
+All detector holds use one reusable primitive evaluated from accepted normalized source observations. For predicate `P` and duration `D`:
+
+1. the hold begins at source monotonic time `t0` of the first accepted relevant evaluation for which `P` is true;
+2. it completes at the first later accepted evaluation at source monotonic time `t` for which `P` remains true and `t - t0 >= D`;
+3. every accepted relevant evaluation from `t0` through `t` must satisfy `P`;
+4. an accepted relevant evaluation for which `P` is false immediately resets that hold;
+5. an explicit required-input unavailable, invalid, continuity-gap, or source-monotonic-invalid/discontinuous boundary resets every dependent hold;
+6. identical idempotent redelivery does not advance or reset a hold;
+7. observed delivery time, batching, host wall time, and playback speed do not affect a hold;
+8. missing delivery alone does not reset a hold unless C4 records unavailable, invalid, gap, or discontinuity state;
+9. elapsed source monotonic time, never sample count, defines completion;
+10. the endpoint comparison is inclusive: `t - t0 >= D`.
+
+Takeoff and landing evaluate this primitive on accepted normalized GNSS evaluations using the current valid synchronized state required by the relevant detector.
 
 # 12. Deterministic Simulation Contract
 
@@ -837,7 +893,7 @@ Each `phases` item contains exactly:
 ```text
 id
 startS
-endS
+endS: number | null
 motionMode: ground | airborne | airborneUntilEnd
 headingSegments[]
 speedSegments[]
@@ -845,15 +901,19 @@ altitudeSegments[]
 variationProfileIds[]
 ```
 
+Every non-terminal phase has finite numeric `startS` and `endS`, with `endS > startS`. Exactly one phase may use `endS: null`: it must be the final phase, have `id: completed_ground`, and represent the half-open interval `[startS, +∞)`. No phase may follow it. Reset, not an artificial terminal time, ends this held state. The parser must reject `null` on a non-final phase, more than one open-ended phase, any phase after the open-ended phase, string or sentinel encodings such as `"212.0+"`, and a terminal phase with incompatible non-hold values.
+
 Each segment contains:
 
 ```text
 startS
-endS
+endS: number | null
 profile: hold | linear | smoothstep | turnSmoothstep | flareV1
 startValue
 endValue
 ```
+
+Only terminal hold segments belonging to `completed_ground` may use `endS: null`, subject to the same final/open-ended rules.
 
 A heading segment additionally carries `reference: true` and, for `turnSmoothstep`, an explicit signed `turnDeltaDeg`. A speed segment carries `quantity: AS | GS` and `unit: kmh`. An altitude segment carries `reference: MSL` and `unit: m`. The exact values and segment boundaries are defined by the normative phase table below.
 
@@ -889,6 +949,8 @@ pressure and QNH: hPa
 
 Truth is evaluated at fixed `0.1 s` steps. Airborne East/North position is integrated with the trapezoidal rule from the truth ground-velocity vector. Ground phases use the declared ground-speed/Track profile without adding wind drift. Source streams sample this truth at their exact declared cadences.
 
+All truth-level phase variations are applied first. Every declared source-error function is evaluated at the source sample's scenario/source monotonic time `t`, after the corresponding ideal truth/source-equivalent quantity is calculated and before the value enters C4. No intermediate value is rounded, no declared error profile may be unused, and no source error creates a value when the corresponding phase/source field is unavailable.
+
 At each GNSS sample time, C10 must generate the source-equivalent position in this exact order:
 
 1. evaluate and integrate truth ground displacement in local East/North metres;
@@ -896,6 +958,41 @@ At each GNSS sample time, C10 must generate the source-equivalent position in th
 3. calculate `sourceEastM = truthEastM + gnssEastErrorM(t)` and `sourceNorthM = truthNorthM + gnssNorthErrorM(t)`;
 4. convert `sourceEastM` and `sourceNorthM` to latitude/longitude using section 12.3;
 5. emit that latitude/longitude observation through the normal C10 to C4 GNSS boundary.
+
+GNSS GS is generated from the truth ground-velocity vector, not by differentiating noisy positions:
+
+```text
+truthGsKmh
+=
+hypot(truthVelocityEastMps, truthVelocityNorthMps) × 3.6
+
+sourceGsKmh
+=
+max(0, truthGsKmh + sourceGsErrorKmh(t))
+```
+
+Where Track is available under the phase contract, it is generated from the same truth vector using the True-North clockwise convention, not by differentiating noisy positions:
+
+```text
+truthTrackDeg
+=
+normalize360(
+  degrees(
+    atan2(
+      truthVelocityEastMps,
+      truthVelocityNorthMps
+    )
+  )
+)
+
+sourceTrackDeg
+=
+normalize360(
+  truthTrackDeg + sourceTrackErrorDeg(t)
+)
+```
+
+Track error is not evaluated to synthesize Track when Track is unavailable, including the accepted zero-speed Track-unavailable phases.
 
 C10 must not convert truth coordinates first and add degree-space errors, round intermediate East/North values, radians, radii, latitude, or longitude, use a library whose geodesic algorithm or version can vary, or expose truth East/North directly to product logic. The implementation language's normal IEEE-754 binary64 arithmetic is sufficient for the fixture.
 
@@ -978,10 +1075,16 @@ This formula is normative for the local approximately `2 km` fixture and has the
 C10 holds privileged truth Device True Azimuth for scenario composition but does not provide that value directly to product logic. It generates source-equivalent Device Magnetic Azimuth through C4:
 
 ```text
-deviceMagneticAzimuthDeg
+sourceDeviceMagneticAzimuthDeg
 =
-normalize360(deviceTrueAzimuthTruthDeg − fixtureDeclinationDegEast)
+normalize360(
+  deviceTrueAzimuthTruthDeg
+  − fixtureDeclinationDegEast
+  + magneticAzimuthErrorDeg(t)
+)
 ```
+
+C4 receives this source-equivalent magnetic value. The error profile does not bypass C4 and does not provide ready-made True orientation.
 
 C7 obtains declination through a replaceable `MagneticDeclinationProvider` using position and civil date/time, then calculates:
 
@@ -1036,9 +1139,9 @@ C10 uses truth wind only to generate normal source equivalents. C8, C6, C7, and 
 | `float_and_touchdown` | `190.0–192.0` | airborne until `192.0` | Air Heading `270°` | AS `22.0→18.0 km/h`, smoothstep | `35.2→35.0 m`, smoothstep |
 | `landing_run` | `192.0–197.0` | ground | Track `270°` | GS `3.6→0.0 km/h`, smoothstep | `35.0 m`, hold |
 | `landed_confirmation` | `197.0–212.0` | ground | Track unavailable at zero speed | GS `0.0 km/h`, hold | `35.0 m`, hold |
-| `completed_ground` | `212.0+` | ground | unchanged | GS `0.0 km/h`, hold | `35.0 m`, hold |
+| `completed_ground` | `[212.0, +∞)` | ground | unchanged | GS `0.0 km/h`, hold | `35.0 m`, hold |
 
-The `turn_north` altitude profile is two deterministic subsegments encoded in that phase: linear climb to `135.0 m` at `58.0 s`, then hold. Physical liftoff occurs exactly at `7.4 s`; physical touchdown occurs exactly at `192.0 s`. Neither truth event is passed to C6.
+The `completed_ground` JSON item has `startS: 212.0` and `endS: null`; `null`, not the string `"212.0+"`, encodes the open-ended terminal interval. The `turn_north` altitude profile is two deterministic subsegments encoded in that phase: linear climb to `135.0 m` at `58.0 s`, then hold. Physical liftoff occurs exactly at `7.4 s`; physical touchdown occurs exactly at `192.0 s`. Neither truth event is passed to C6.
 
 This profile reaches the accepted approximately `100 m` height above takeoff by `58.0 s`, provides approximately `42 s` of level flight before descent begins, and leaves approximately `92 s` for a progressive descent, final alignment, approach, flare, float, touchdown, and confirmation. It is an engineering fixture derived from the accepted speed, climb, altitude, route-diversity, and total-duration inputs; it is not an aerodynamic performance prediction.
 
@@ -1088,6 +1191,16 @@ pressureErrorHpa(t) = 0.015 × sin(2πt / 9.0 + 1.70)
 ```
 
 No uncontrolled randomness or unspecified fixed-seed generator is permitted. Turn phases use only their explicit turn profile plus the magnetic source error; straight-leg Heading variation is not added inside turns.
+
+The normative source-generation order for every emitted field is:
+
+1. evaluate phase profiles and truth state;
+2. calculate truth kinematics, altitude, and orientation;
+3. calculate the ideal source-equivalent field;
+4. evaluate the declared field-specific source-error function at source time `t`;
+5. add and normalize or clamp exactly as defined;
+6. attach source, observed, and virtual civil timestamps plus metadata;
+7. emit through the normal C10 to C4 boundary.
 
 ## 12.8 Source cadence and normal delivery
 
@@ -1203,15 +1316,16 @@ Privileged truth is available only to C10 and validation diagnostics explicitly 
 
 ## 13.1 Candidate
 
-C6 monitors GS continuously.
+C6 evaluates accepted normalized GNSS observations using the source-time hold primitive in section 11.6.
 
-A candidate begins when:
+Candidate qualification uses:
 
 ```text
-GS > 7 km/h
+predicate: GS > 7.0 km/h
+duration: 1.0 s
 ```
 
-sustainably for approximately `1 s`.
+The qualification hold begins at the first accepted observation satisfying the predicate. When the hold completes, a takeoff candidate becomes active; the first qualifying observation time `t0` becomes the provisional effective takeoff boundary, its accepted position becomes the provisional Takeoff Point source anchor, and bounded retained history begins no later than that observation. An accepted observation with `GS <= 7.0 km/h` resets an uncompleted qualification hold.
 
 The candidate retains:
 
@@ -1269,14 +1383,34 @@ For a direct `4 m/s` headwind:
 confirmation threshold ≈ 14.2 km/h GS
 ```
 
-The threshold must be held for approximately `1 s`.
+After the candidate is active, confirmation is evaluated on accepted normalized GNSS observations using:
+
+```text
+predicate: GS >= current confirmationThresholdKmh
+duration: 1.0 s
+```
+
+The threshold is recalculated for each evaluated observation using that observation's current valid synchronized Track and weather-headwind context. Every accepted observation in the hold must satisfy its recalculated threshold. Completion emits one `TakeoffConfirmed`; the effective takeoff boundary remains the candidate's first qualification observation, not the confirmation-hold start or confirmation time.
 
 ## 13.3 Cancellation
 
-The candidate is cancelled if:
+While a candidate is active, low-speed cancellation uses:
 
-- GS sustainably falls below `7 km/h`; or
-- candidate duration reaches approximately `15 s` without confirmation.
+```text
+predicate: GS <= 7.0 km/h
+duration: 1.0 s
+```
+
+If this hold completes before confirmation, C6 cancels the candidate and discards its provisional boundary. If GS rises above `7.0 km/h` before completion, only the cancellation hold resets.
+
+The exact candidate timeout is `15.0 s`, measured in source monotonic time from the provisional effective candidate boundary `t0`. At the first accepted evaluation for which `currentSourceTime - t0 >= 15.0 s`, the candidate times out unless confirmation completes on that same evaluation. Tie priority is normative:
+
+```text
+confirmation first
+timeout second
+```
+
+Required-input unavailable/invalid state, an explicit continuity gap, or source-monotonic invalidity/discontinuity clears the takeoff candidate, its provisional boundary, and all associated holds. No takeoff boundary may span such a discontinuity.
 
 ## 13.4 Event and authority
 
@@ -1369,14 +1503,20 @@ The normal fixture uses fixed QNH:
 C10 generates source-equivalent pressure from truth altitude through the inverse of the same contract:
 
 ```text
-pressureHpa
+idealPressureHpa
 =
 qnhHpa
 ×
-(1 − altitudeMslM / 44330.76923076923)^(1 / 0.1902632365)
+(1 − truthAltitudeMslM / 44330.76923076923)^(1 / 0.1902632365)
+
+sourcePressureHpa
+=
+idealPressureHpa + pressureErrorHpa(t)
 ```
 
-At the `35 m MSL` fixture surface this yields approximately `1009.052 hPa`. Round-trip tests must prove that C10 pressure generation and C7 derivation use compatible constants without C7 receiving truth altitude.
+The pressure error is applied after the inverse calculation. The resulting `sourcePressureHpa` must still be finite and positive before C4 accepts it. C7 receives only source-equivalent pressure and QNH, never truth altitude.
+
+At the `35 m MSL` fixture surface the ideal inverse calculation, before `pressureErrorHpa(t)`, yields approximately `1009.052 hPa`. Round-trip and error-order tests must prove that C10 pressure generation and C7 derivation use compatible constants without C7 receiving truth altitude.
 
 QNH remains fixed for the duration of the first-slice Flight. The pilot-facing primary altitude is MSL altitude.
 
@@ -1388,11 +1528,32 @@ It is retained and used in Summary, but is not required as a second large Flight
 
 ## 15.3 Vertical speed
 
-C7 derives VS by fitting altitude against source monotonic time over a `3 s` window.
+C7 evaluates VS on every newly accepted valid pressure/altitude sample using unweighted ordinary least squares over all distinct accepted valid C7-derived altitude MSL samples whose source monotonic time lies in the inclusive window `[t - 3.0 s, t]`.
 
-- insufficient history means unavailable, not zero;
-- a pressure gap invalidates current VS and breaks the fit window;
-- history must accumulate again after recovery.
+For samples `(ti, hi)`:
+
+```text
+meanT = arithmetic mean of ti
+meanH = arithmetic mean of hi
+
+numerator
+=
+Σ((ti - meanT) × (hi - meanH))
+
+denominator
+=
+Σ((ti - meanT)^2)
+
+verticalSpeedMps
+=
+numerator / denominator
+```
+
+The output is available only with at least `20` distinct samples, a source-time span of at least `2.0 s`, and a finite denominator greater than zero. There is no interpolation, endpoint slope, weighting, robust regression, host/observed-time input, or phase-label input. An identical same-timestamp redelivery is ignored and does not increase the sample count.
+
+A pressure unavailable/invalid/gap boundary or pressure source-monotonic discontinuity makes current VS unavailable and clears the complete fit window. After recovery, VS remains unavailable until at least `20` fresh distinct accepted samples span at least `2.0 s`. Missing samples without an explicit gap remain usable only when both minimum rules still hold. Batched delivery preserving valid ordered source timestamps produces the same VS series as normal delivery.
+
+The calculation identifier is `olsAltitudeSlope3sMin20Span2sV1` and is retained or exposed in the required calculation context. Finalized maximum climb and descent values derive only from retained valid outputs of this algorithm; unavailable intervals do not create zero VS samples.
 
 Altitude and VS are diagnostic/derived information and do not drive first-slice takeoff or landing detection.
 
@@ -1517,32 +1678,43 @@ Automatic landing detection is available only when:
 - required GNSS GS is valid;
 - Track is valid whenever GS is above the stationary threshold.
 
-The normal fixture may therefore keep Track unavailable during the zero-speed `197.0–212.0 s` interval while still confirming the candidate that began near touchdown. With the accepted schedule, the `15 s` hold completes at approximately `207.0 s`.
+The normal fixture may therefore keep Track unavailable during the zero-speed `197.0–212.0 s` interval while still confirming the candidate that began near touchdown. With the accepted schedule, the exact `15.0 s` hold completes at approximately `207.0 s`.
 
 There is no landing fallback that omits the accepted estimated-wind requirement.
 
 ## 17.3 Candidate and confirmation
 
-A landing candidate begins when both conditions hold continuously:
+Landing entry uses this predicate on accepted evaluations:
 
 ```text
 estimated AS < 25 km/h
 GS < 4 km/h
 ```
 
-The beginning of this interval becomes the provisional/effective landing boundary after confirmation.
+The first accepted evaluation satisfying both conditions creates the landing candidate, begins the confirmation hold, and establishes the provisional effective landing boundary. Confirmation duration is exactly `15.0 s` and completes at the first accepted evaluation that still satisfies both conditions and for which:
 
-Confirmation requires `15 s` continuous satisfaction.
+```text
+currentSourceTime - provisionalBoundaryTime >= 15.0 s
+```
 
 ## 17.4 Hysteresis
 
-The candidate is cancelled if, sustainably for approximately `1 s`:
+Whenever an established landing candidate leaves the entry predicate, C6 resets the confirmation hold and clears the provisional effective boundary. If the hard-cancellation predicate is not satisfied, candidate identity is retained and no confirmation time accumulates in the hysteresis band. On later re-entry into both entry conditions, a new `15.0 s` confirmation hold begins and the re-entry observation becomes the new provisional boundary. No elapsed time from an earlier incomplete hold is reused.
+
+Hard cancellation uses:
 
 ```text
-estimated AS > 28 km/h
+predicate:
+estimated AS > 28.0 km/h
 or
-GS > 7 km/h
+GS > 7.0 km/h
+
+duration: 1.0 s
 ```
+
+If the predicate remains true for the full source-time hold, C6 cancels the candidate entirely. If it becomes false before `1.0 s`, only the cancellation hold resets while candidate identity is preserved subject to the hysteresis rules above. Values exactly equal to `28.0 km/h` or `7.0 km/h` do not satisfy the strict hard-cancellation predicate.
+
+Unavailable or invalid required GNSS input, a GNSS continuity gap, hard-invalidated wind, or source-monotonic discontinuity resets all landing holds, clears the candidate and provisional boundary, and does not complete the Flight. The accepted controlled outage occurs before the normal landing candidate and therefore does not change the bounded P3 outcome.
 
 ## 17.5 Event and authority
 
@@ -1607,7 +1779,7 @@ Exact grace duration is a bounded implementation parameter.
 
 ## 18.4 Map unavailable
 
-If map tiles or provider rendering are unavailable:
+If provider, network, tiles, or renderer are unavailable:
 
 - Flight continues;
 - the spatial viewport remains;
@@ -1617,7 +1789,7 @@ If map tiles or provider rendering are unavailable:
 - `Map unavailable` is shown;
 - weak grid/rings may be used to make rotation visible.
 
-The slice must not show a fake or misleadingly current cached map.
+The degraded spatial state has no product or lifecycle authority and must not change Flight detection, derivation, recording, completion, or Summary. The slice must not show a fake or misleadingly current cached map and must not silently switch to another provider.
 
 ---
 
@@ -1643,7 +1815,7 @@ Retain, when available:
 - validity, freshness, provenance, and applicable handling state;
 - source monotonic time;
 - observed monotonic time;
-- wall-clock time.
+- C4-normalized virtual civil UTC used as AirLink-facing wall-clock time.
 
 ## 19.2 Derived/domain timeline
 
@@ -1655,10 +1827,11 @@ Retain:
 - VS;
 - derived Device True Azimuth, declination used, position/date context, and declination-provider identifier/version;
 - altitude-calculation identifier/version and constants used with the accepted QNH;
+- VS calculation identifier `olsAltitudeSlope3sMin20Span2sV1` with the retained valid VS outputs used for finalized extrema;
 - `scenarioV1Wgs84LocalTangentV1` projection context for fixture-generated observations and `haversineMeanEarthR6371008_8V1` distance-calculation context;
 - all accepted wind estimates with quality metadata;
 - current/retained/unavailable wind state transitions;
-- detector candidates and confirmations;
+- detector candidates and confirmations, including source-time hold starts, resets, completions, provisional-boundary changes, and timeout/tie evidence needed to reproduce effective boundaries;
 - effective takeoff and landing boundaries;
 - Flight lifecycle events;
 - orientation-source transitions;
@@ -1691,6 +1864,8 @@ FlightSpecialPoint
 The field names are logical retained-data requirements rather than a prescribed Dart class or storage schema.
 
 The effective boundary must be anchored to the accepted GNSS observation that begins the confirmed detector interval. `sourceObservationRef` identifies that observation. No hidden interpolation is permitted. Point identity, Flight association, kind, classification, both monotonic times, and detector version are mandatory for any complete or degraded record. In the normal fixture, point location and accuracy are also mandatory.
+
+`wallClockTime` is the C4-normalized virtual civil timestamp associated with that accepted effective-boundary source observation. It is not host-arrival time or confirmation wall time.
 
 ## 19.4 C3 to C9 creation handoff
 
@@ -1770,7 +1945,7 @@ effective landing monotonic time
 effective takeoff monotonic time
 ```
 
-Wall clock is used only to display takeoff and landing civil time.
+Takeoff and landing civil times come from the retained C4-normalized virtual civil timestamps attached to the effective-boundary observations. The normal mapping and exact `80.0 s / +3600 s` transform in section 11.3 do not change monotonic duration.
 
 ### Distance
 
@@ -1789,6 +1964,10 @@ Valid covered time is the sum of source-monotonic time intervals for the same ac
 ### Maximum GS
 
 Maximum valid system GS observation.
+
+### Maximum climb and descent VS
+
+Maximum climb and descent derive only from retained valid VS outputs produced by `olsAltitudeSlope3sMin20Span2sV1`. Unavailable intervals contribute no synthetic zero values.
 
 ### Wind
 
@@ -1882,7 +2061,7 @@ An expanded interactive diagnostics overlay is out of scope. Detailed observabil
 
 The replaceable output must make available when required:
 
-- detector thresholds, corrections, timers, candidates, and boundaries;
+- detector thresholds, corrections, source-time hold starts/elapsed/reset reasons, candidates, confirmation/timeout priority, and effective/confirmation boundaries;
 - wind window, residual, coverage, conditioning, uncertainty, and truth comparison;
 - source/observed clocks, latency, gaps, and batching;
 - recording counts, boundaries, and outcome;
@@ -1900,14 +2079,16 @@ Tests must not depend on rendered screen text.
 ## 22.4 Required validation evidence
 
 - normal end-to-end deterministic run;
-- exact `scenario-v1` asset parsing and phase-boundary tests;
+- exact `scenario-v1` asset parsing and phase-boundary tests proving the asset is valid JSON, `completed_ground` begins at `212.0 s` with `endS: null`, remains active for arbitrary later scenario times until Reset, preserves normal completion and Summary behavior, and rejects non-final/multiple/followed open ends, string sentinels such as `"212.0+"`, and incompatible terminal values;
 - local-projection tests proving zero East/North maps back to the declared origin within a tight binary64 tolerance, a known positive East offset changes longitude by the section 12.3 formula without changing latitude beyond that tolerance, and a known positive North offset changes latitude without changing longitude beyond that tolerance;
 - GNSS generation-order test proving East/North source errors are added before geographic conversion;
+- deterministic source-error reference tests at multiple fixed source times proving every declared error affects its intended emitted field with the correct zero, sign, and phase; GS is clamped at zero; Track and magnetic azimuth are normalized to `[0°, 360°)`; Track error does not synthesize Track in zero-speed Track-unavailable phases; pressure error follows the inverse pressure calculation; C7 receives no truth-altitude or truth-orientation shortcut; and `1×`/`2×` produce the same frozen all-errors source sequence;
 - independently generated reference latitude/longitude observations match the frozen `scenario-v1` reference sequence at `1×` and `2×` without requiring platform-specific decimal text formatting;
 - truth-isolation tests proving no truth East/North or truth-distance shortcut reaches C4, C7, C8, C9, or Summary;
 - calculation-context tests proving `scenarioV1Wgs84LocalTangentV1` and `haversineMeanEarthR6371008_8V1` are exposed or retained where required;
 - takeoff candidate/confirmation boundary tests, including direct/partial headwind, crosswind, tailwind, invalid Track, stale weather, and deliberate Track-versus-Device-True-Azimuth disagreement;
-- landing candidate/confirmation boundary tests, including stationary GS with unavailable Track, moving GS with invalid Track, and invalid GS;
+- detector-hold tests at normal `2 Hz`, `1 Hz`, deterministic jitter, missing samples without a declared outage, and batched delivery proving elapsed source-time rather than sample-count completion; inclusive `>= D` endpoints; independence from observed delay and `2×`; idempotent redelivery behavior; reset on explicit gaps/unavailability; the first takeoff qualification observation as effective boundary; separate exact `1.0 s` qualification, confirmation, and low-speed-cancellation holds; exact `15.0 s` timeout from the provisional boundary; and confirmation priority on an exact timeout tie;
+- landing candidate/confirmation boundary tests, including stationary GS with unavailable Track, moving GS with invalid Track, invalid GS, exact `15.0 s` confirmation, confirmation/provisional-boundary reset when entry conditions fail, candidate identity retained without accumulated time in the hysteresis band, exact `1.0 s` strict hard cancellation, invalidity preventing confirmation across the invalid interval, and equivalent effective boundaries/Summary metrics under source-equivalent delivery transforms;
 - circle-fit numerical tests for ideal, noisy, incomplete, poorly conditioned, and outlier cases;
 - accepted/retained/unavailable wind-state tests;
 - first accepted wind no later than `108.0 s` in the normal fixture;
@@ -1920,19 +2101,23 @@ Tests must not depend on rendered screen text.
 - controlled-silence test proving silence without an explicit availability transition does not establish the normative fixture outage boundary;
 - gap-evidence test proving C9 retains explicit interruption/restoration or equivalent normalized boundaries sufficient to reproduce degraded Summary semantics;
 - map-unavailable validation;
+- fixed-map tests proving C8 targets `2000 m` visible ground width within `±2%` at at least two representative portrait viewport widths; Track-up rotation and GNSS recovery preserve the scale; no `1500 m` fallback exists; scenario/C10 metadata cannot control zoom or provider; provider failure produces only the degraded spatial presentation; C8 neutral contracts contain no `flutter_map` types; visible OSM attribution is present; no offline, bulk-download, or prefetch feature exists; and provider URL/HTTP behavior remains internal to C8;
 - active and finalized distance tests proving independently applied common segment semantics and the common haversine pair calculation with exact `R = 6371008.8 m`: a normal uninterrupted pair contributes distance; the final pre-gap position to first post-gap position contributes exactly zero; the first recovered `117.0 s` position only establishes a new anchor; and the normally scheduled `117.5 s` position can resume accumulation;
 - distance-coverage tests proving the outage interval contributes neither distance nor valid covered time while elapsed Flight time and total duration still include it;
 - degraded-distance evidence proving Summary distance is lower than the corresponding uninterrupted fixture by the omitted GNSS-covered segment;
 - continuity tests proving late or batched observations with continuous valid ordered source timestamps do not create a false segment break, while invalid or source-monotonic-discontinuous GNSS input does break the segment;
 - active flown-distance tests proving effective-boundary start, value hold during unavailability, `500 m` threshold notifications, and `3 s` return to `FLT`;
 - windsock-presentation tests proving downwind body orientation, simple-circle containment, numeric `0.5 m/s` display granularity, valid-zero versus unavailable distinction, and visual capping above `8 m/s` without estimator quantization;
+- semantic presentation-state tests proving GS is absent as a primary value before confirmed takeoff, weather wind occupies the primary left tile on the ground with unavailable/zero/stale/valid distinctions, that tile switches to GS only after confirmation, VS exists only during active Flight, weather wind disappears from Product UI after takeoff, and estimated wind remains in the separate orientation context; these tests do not depend on rendered text when semantic widget/state assertions are available;
 - Pause-is-not-outage test;
-- wall-clock-jump test;
+- virtual-civil-time tests proving the normal `civilStartUtc + scenarioTime` mapping, Pause freezes both clocks, `2×` changes host playback duration but not observation civil timestamps, batching preserves source civil timestamps, host wall time is not an input, and Reset restores scenario/offset/civil start state;
+- exact wall-clock-jump tests proving the offset changes from `0` to `+3600 s` at `80.0 s`, pre-jump observations and Takeoff Point remain unchanged, observations at/after the boundary and Landing Point include the offset, Summary uses the retained boundary timestamps, and duration, detector holds, ordering, VS, wind, and `1×`/`2×` source-time equivalence remain unchanged;
 - identical same-timestamp redelivery is ignored idempotently without duplicate retention or degradation;
 - conflicting same-timestamp observation fails closed;
 - missing and backward source-monotonic timestamp tests prove invalid time cannot produce valid detector windows, duration, VS, wind estimates, retained ordering, or successful Summary;
 - Device Magnetic Azimuth to Device True Azimuth tests using the non-zero fixture declination, including normalization and unavailable-declination fallback;
 - pressure/QNH forward-and-inverse round-trip tests at the surface and representative Flight altitudes;
+- VS reference tests proving exact synthetic linear-ramp recovery, climb/descent sign, unavailable output until both `20` distinct samples and `2.0 s` span exist, inclusive `[t - 3.0, t]` membership and deterministic eviction, redelivery idempotency, batching equivalence, missing-sample eligibility only when both minimum rules remain met, pressure-gap reset, fresh-history recovery, wall-clock/playback independence, finalized maximum climb/descent from retained valid outputs, and retained/exposed `olsAltitudeSlope3sMin20Span2sV1` context;
 - Takeoff Point creation-handoff retention test;
 - Landing Point completion-handoff retention test;
 - finalized-record test proving both special points retain identity, location, effective/confirmation times, detector version, and Flight association;
@@ -1978,22 +2163,35 @@ Custom Kotlin/Swift or federated plugin code remains allowed if later platform q
 
 ## 23.3 Map implementation
 
-The first slice may use an OSM-compatible source and a replaceable Flutter map package.
+The bounded first-slice map implementation is:
 
-Package selection occurs during the map delivery increment using:
+```text
+Flutter renderer package: flutter_map
+map technology: raster tiles
+tile source/provider: OpenStreetMap Standard raster tiles
+tile template: https://tile.openstreetmap.org/{z}/{x}/{y}.png
+ownership boundary: C8 map adapter
+```
 
-- Android and iOS support;
-- centred-pilot behavior;
-- programmatic rotation;
-- custom overlays;
-- degraded-canvas compatibility;
-- acceptable performance;
-- understandable licensing;
-- containment behind C8.
+This is a bounded development choice, not a permanent whole-product provider, Flutter package, final Mapbox integration strategy, offline-map architecture, vector-map architecture, or general provider-selection subsystem. A later Mapbox implementation may replace the complete internal C8 renderer rather than merely changing a tile URL.
 
-Mapbox remains a long-term direction, not a first-slice dependency.
+No `flutter_map` or provider-specific type crosses C8. In particular, C8 does not expose `MapController`, `TileLayer`, package-specific `LatLng`, package layer objects, tile-provider types, package lifecycle objects, the OSM URL, attribution implementation details, or HTTP implementation details. C1–C7, C9, and C10 do not depend on `flutter_map`.
 
-A package choice must stop for owner review if it introduces material licensing consequences, provider-specific domain coupling, or an irreversible architecture.
+The scenario asset contains no map package, provider, tile URL, zoom, attribution, API key, or package-specific configuration. C8 alone converts the neutral `targetVisibleGroundWidthM = 2000.0` contract into the package-specific fractional zoom needed for the current viewport width and centre latitude.
+
+Use of OpenStreetMap Standard for this bounded slice requires:
+
+- visible `© OpenStreetMap contributors` attribution on the map, not hidden behind Product UI or the simulation panel;
+- an application-identifying HTTP `User-Agent`, not a generic library default;
+- honouring server HTTP caching headers and never forcing no-cache behavior;
+- requesting only tiles required for the currently viewed map;
+- no bulk download, scraping, pre-seeding, prefetching, offline download, or tile archive;
+- best-effort tile availability with no product or lifecycle authority;
+- the section 18.4 degraded spatial canvas on provider, network, tile, or renderer failure;
+- a replaceable endpoint and HTTP implementation wholly internal to C8;
+- owner review rather than silent provider switching if the selected service becomes unsuitable.
+
+A compatible stable `flutter_map` version is selected during implementation and locked through normal repository dependency management. The plan selects the package and provider, not a permanent package version.
 
 ---
 
@@ -2035,11 +2233,11 @@ Includes:
 - spatial placeholder;
 - centred pilot marker;
 - simple orientation circle;
-- status/time, GS, altitude, and contextual zones;
+- status/time plus state-specific primary-left, altitude, and contextual-right zones;
 - warning placeholders;
 - simulation panel;
 - Start/Pause, `1×/2×`, Reset;
-- virtual/manual clock;
+- deterministic virtual civil clock with normal and exact wall-clock-jump transforms;
 - diagnostic snapshot skeleton;
 - formatting, analysis, tests, and Android debug build in CI.
 
@@ -2050,8 +2248,10 @@ Observable result: recognizable Flight Screen shell and working development sess
 Includes:
 
 - exact JSON `scenario-v1` asset and parser;
+- nullable final-phase and terminal-hold parsing with invalid-arrangement rejection;
 - fixed phase schedule, profiles, units, cadences, variation formulas, and truth-step integration;
 - fixed WGS84 local-tangent East/North-to-geographic conversion with source errors applied before conversion;
+- deterministic GS, Track, magnetic-azimuth, and pressure source-error application in the normative generation order;
 - privileged truth;
 - C4/C5 contracts;
 - GNSS position, explicit GNSS availability, pressure, raw magnetic-orientation, and weather streams;
@@ -2059,7 +2259,7 @@ Includes:
 - timing, quality, validity, and provenance;
 - fixture geographic reference-sequence, projection, generation-order, and cadence tests;
 - movement on placeholder canvas;
-- live GS and weather-wind presentation;
+- live weather-wind primary-tile and altitude presentation, with normalized GS available to detection/diagnostics but absent as a pre-takeoff primary value;
 - source-health diagnostics.
 
 Observable result: Start runs the exact physical fixture and updates Product UI from source-equivalent inputs, without Flight lifecycle creation.
@@ -2071,6 +2271,7 @@ Includes:
 - C2 state;
 - C3 Flight lifecycle;
 - C6 takeoff candidate and confirmation;
+- reusable source-time predicate holds with exact qualification, confirmation, cancellation, timeout, and tie semantics;
 - weather headwind correction;
 - effective boundary and bounded history;
 - Flight identity and complete Takeoff Point representation;
@@ -2088,11 +2289,12 @@ Includes:
 
 - versioned pressure/QNH altitude contract and round-trip fixture tests;
 - height above takeoff;
-- VS fit;
+- exact `olsAltitudeSlope3sMin20Span2sV1` VS fit and gap/recovery semantics;
 - circle-fit estimator and quality gates;
 - accepted/retained/unavailable states;
 - estimated AS;
 - landing candidate and confirmation;
+- exact landing confirmation, hysteresis, hard-cancellation, and invalidity holds;
 - complete Landing Point representation;
 - explicit C3 to C9 completion handoff seam;
 - completed lifecycle;
@@ -2105,8 +2307,9 @@ Observable result: the scenario automatically completes one Flight from takeoff 
 Includes:
 
 - replaceable C8 adapter;
-- selected OSM-compatible implementation;
-- fixed physical viewport scale;
+- `flutter_map` Web Mercator raster renderer contained wholly inside C8;
+- OpenStreetMap Standard tiles from `https://tile.openstreetmap.org/{z}/{x}/{y}.png` with visible attribution, identifying User-Agent, honoured caching, current-view-only requests, and no prefetch/offline/bulk-download behavior;
+- fixed `2000 m ±2%` full-logical-viewport ground width preserved by C8-computed fractional zoom;
 - centred pilot;
 - Device True Azimuth-up/Track-up behavior and fallbacks;
 - north/orientation cue and scale;
@@ -2142,7 +2345,7 @@ Includes:
 - continuous valid source-time batching that does not create a false segment break, plus invalid and source-monotonic-discontinuous inputs that do;
 - retained wind and suspended landing detection;
 - map-unavailable run;
-- playback, Pause, wall-clock, monotonic-invalidity, duplicate/collision, magnetic-declination, exact-scenario, headwind-projection, stationary-landing, active-distance, windsock-presentation, special-point-handoff, truth-leakage, and end-to-end tests;
+- playback, Pause, exact virtual-civil/wall-clock-jump, monotonic-invalidity, duplicate/collision, exact detector-hold, exact OLS VS, all-source-error, terminal-phase JSON, fixed-map-scale/C8-isolation/OSM-policy, primary-tile semantic-state, magnetic-declination, exact-scenario, headwind-projection, stationary-landing, active-distance, windsock-presentation, special-point-handoff, truth-leakage, and end-to-end tests;
 - concise validation instructions.
 
 Observable result: both pilot-visible success and deterministic boundary/degradation evidence exist.
@@ -2256,6 +2459,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - pilot-visible outcome is approved;
 - included scope and explicit non-goals are approved;
 - Flight Screen semantics are approved;
+- ground weather-wind to active-Flight GS primary-tile switching and active-only VS are explicit;
 - weather-source and estimated-wind meanings are separated;
 - complete, degraded, and failed outcomes are defined.
 
@@ -2271,10 +2475,13 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 ## 28.3 Simulation readiness
 
 - exact asset path and JSON contract are defined;
+- the terminal phase uses the validated `endS: number | null` contract and no string sentinel;
 - origin, civil time, environment, wind, QNH, and declination are fixed;
 - fixed WGS84 constants, local-tangent conversion, GNSS generation order, and geographic reference sequence are defined;
 - phase start/end times and kinematic endpoints are fixed;
 - deterministic interpolation, integration, variation, and cadence contracts are fixed;
+- every declared source-error profile has a mandatory generation order and emitted-field formula;
+- virtual civil time, Pause/`2×`/Reset behavior, and the exact `80.0 s / +3600 s` jump transform are fixed independently of host wall time;
 - exact GNSS-outage interval, availability transitions, and equal-time restoration ordering are fixed;
 - flare/float/touchdown behavior is fixed for the fixture;
 - truth isolation is explicit;
@@ -2284,7 +2491,9 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 
 - provisional Flutter decision is accepted;
 - plugin/platform boundaries are explicit;
-- map implementation is replaceable;
+- `flutter_map` plus OpenStreetMap Standard raster tiles are selected as a bounded replaceable C8-only implementation;
+- the fixed `2000 m ±2%` full-logical-viewport target and C8 fractional-zoom responsibility are explicit;
+- OSM attribution, User-Agent, cache, request, no-prefetch/offline, and degraded-state requirements are explicit;
 - Flight and recording state are independent from widget/map lifetime;
 - repository increments and material stop conditions are explicit;
 - greenfield environment work is acknowledged.
@@ -2295,6 +2504,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - GNSS-outage and map-unavailable cases are defined, with the controlled outage crossing C4 through explicit source-equivalent availability transitions rather than silence or a production timeout policy;
 - diagnostics contract is defined;
 - truth-leakage prohibitions are defined;
+- exact detector holds and exact OLS VS evidence are defined across cadence/delivery transforms and invalidity boundaries;
 - tests do not depend on rendered screen text.
 
 ## 28.6 Governance readiness
@@ -2322,10 +2532,12 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - ground movement is visible;
 - takeoff is detected automatically;
 - active Flight is created only through C2/C3 authority;
-- GS, altitude MSL, VS, and elapsed Flight time are shown;
+- before takeoff the primary left tile shows weather-source wind, GS is absent as a primary value, altitude remains central, and Flight VS is absent;
+- after takeoff the primary left tile shows GS, altitude remains central, and the right tile shows VS;
 - active flown distance is accumulated from the effective boundary and appears as transient `DST` notifications at each `500 m` threshold;
 - weather wind disappears after takeoff;
 - estimated wind appears only after acceptance;
+- estimated wind remains in the orientation-circle/windsock context and never replaces weather wind or VS;
 - the estimated-wind indicator uses the simple orientation circle and bounded centre-origin windsock experiment;
 - map/orientation behavior follows the contract;
 - landing is detected automatically;
@@ -2348,7 +2560,11 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - physical liftoff/touchdown do not command detectors;
 - `1×` and `2×` produce equivalent domain outcomes;
 - Pause does not appear as source outage;
+- deterministic observation civil timestamps derive from `civilStartUtc + scenarioTime + wallClockOffsetS`, never host wall time;
+- the exact jump applies prospectively at `80.0 s` without changing monotonic calculations;
 - source-like GNSS East/North errors are added before the fixed local-to-geographic conversion, and truth coordinates do not reach normal concerns;
+- every declared source error is applied to its intended emitted field in the normative order without synthesizing unavailable Track or other absent values;
+- the final phase is valid JSON with `completed_ground.startS = 212.0` and `endS: null`;
 - fixture is deterministic;
 - no uncontrolled randomness is used.
 
@@ -2358,7 +2574,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - simulator pressure generation round-trips through the same contract without exposing truth altitude to C7;
 - Device True Azimuth is derived by C7 from raw Device Magnetic Azimuth plus east-positive declination obtained through the replaceable provider;
 - C8 never receives raw magnetic orientation as a ready-made True-North value;
-- VS is unavailable with insufficient history;
+- VS uses unweighted OLS over the inclusive `3.0 s` source-time window, requires `20` distinct samples spanning at least `2.0 s`, exposes `olsAltitudeSlope3sMin20Span2sV1`, and clears/rebuilds its window across pressure invalidity or gaps;
 - wind candidates are evaluated continuously during active Flight whenever required observations are valid, without climb/level/descent or scenario-phase gating;
 - wind is accepted only through quality gates and no later than `108.0 s` in the normal fixture;
 - rejected candidates do not overwrite accepted wind;
@@ -2367,6 +2583,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - stationary GS at or below `1.0 km/h` uses a zero ground vector without synthesizing Track;
 - moving landing evaluation still requires valid Track;
 - no landing fallback without accepted estimated wind exists.
+- takeoff and landing holds use exact elapsed-source-time predicates, inclusive endpoints, defined reset behavior, and the accepted confirmation/timeout tie priority rather than sample counts or observed time;
 
 ## 29.6 Recording and Summary
 
@@ -2384,7 +2601,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - Flight duration still includes GNSS outages;
 - the transient active-distance display is not the authoritative Summary source;
 - duration uses monotonic effective boundaries;
-- wall-clock change does not alter duration;
+- wall-clock change does not alter duration, detector holds, VS, wind, or ordering, while retained boundary civil timestamps follow the exact prospective offset mapping;
 - identical same-timestamp redelivery is idempotently ignored;
 - missing, backward, or conflicting same-timestamp monotonic input cannot be treated as valid ordering or duration;
 - accepted QNH and altitude-calculation context are retained with the derived altitude history;
@@ -2392,7 +2609,9 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 
 ## 29.7 Degradation
 
-- map unavailability does not stop Flight;
+- map unavailability does not stop Flight or alter lifecycle, detection, derivation, recording, or Summary;
+- map scale remains `2000 m ±2%` across ground, active Flight, rotation, layout-size recalculation, and GNSS recovery, with no `1500 m` fallback or scenario control;
+- `flutter_map` and OSM-specific types/details remain inside C8; attribution is visible and no offline, prefetch, or bulk-download feature exists;
 - the exact `112.0–117.0 s` GNSS outage does not complete Flight;
 - C4 normalizes the explicit unavailable transition at `112.0 s` before any same-time GNSS observation and no timeout or silence inference is required;
 - C4 normalizes restoration at `117.0 s` before accepting the recovered observation at the same source time;
@@ -2412,6 +2631,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - fixed-origin, known-East, known-North, error-before-conversion, and geographic reference-sequence tests exist with tight binary64 tolerances;
 - controlled GNSS-outage tests cover exact explicit interruption/restoration timing, restoration-before-recovered-observation ordering, separate-stream equal timestamps, unavailable derived GNSS state, absence of observations in the half-open gap, C4-only downstream propagation, retained gap evidence, and silence-without-transition behavior;
 - map-unavailable validation exists;
+- primary top-row semantic-state validation and fixed-scale/C8/OSM validation exist without relying on rendered labels where semantic assertions are available;
 - detector boundary tests include GNSS-Track headwind projection and stationary zero-vector landing behavior;
 - wind numerical and windsock-presentation tests exist;
 - active flown-distance threshold tests exist;
@@ -2420,6 +2640,11 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - truth-leakage tests prove no truth-coordinate or truth-distance shortcut reaches C4, C7, C8, C9, or Summary, and calculation-version tests cover the projection and distance identifiers;
 - tests prove continuous valid source-time batching creates no false segment break and invalid or source-monotonic-discontinuous GNSS input does;
 - pressure/QNH round-trip tests exist;
+- every declared source-error profile has deterministic reference-sequence coverage;
+- exact virtual civil-time and `80.0 s / +3600 s` jump tests exist;
+- exact nullable-terminal-phase parser tests exist;
+- exact detector-hold tests cover `2 Hz`, `1 Hz`, jitter, missing, batched, idempotent, invalid, hysteresis, cancellation, timeout, and tie cases;
+- exact OLS VS tests cover window membership, minimum data, gaps, recovery, batching, redelivery, sign, linear recovery, extrema, and calculation context;
 - magnetic-declination conversion and fallback tests exist;
 - identical-redelivery and conflicting-collision tests exist;
 - monotonic-invalidity tests exist;
@@ -2438,7 +2663,7 @@ The following do not require a new owner decision when accepted semantics and th
 - Pratt versus Taubin circle initialization;
 - exact numerical wind-quality thresholds, provided the normal fixture accepts by `108.0 s` and all quality tests pass;
 - exact Track-loss grace period;
-- exact Flutter map package within the stated stop conditions;
+- compatible stable `flutter_map` version selected and locked through normal dependency management without changing the C8 boundary or accepted behavior;
 - pixel geometry, typography, spacing, and animation;
 - exact compact estimated-wind placement within the fixed simple-circle/windsock semantics;
 - exact visual stroke, section count, colour, animation, and pilot-marker layering;
@@ -2456,6 +2681,8 @@ The following are no longer implementation tuning for `scenario-v1` and require 
 - physical liftoff/touchdown times;
 - GNSS-outage interval.
 
+The fixed primary-tile state switch, `2000 m ±2%` map target, `flutter_map`/OSM Standard bounded implementation, virtual civil mapping and jump transform, nullable terminal phase, source-error order, detector holds, and OLS VS algorithm are not implementation tuning.
+
 Tuning becomes an owner decision when it changes product meaning, authority, scope, accepted outcome, reference fixture, or difficult-to-reverse technical direction.
 
 # 31. Explicitly Deferred Decisions
@@ -2464,7 +2691,7 @@ Tuning becomes an owner decision when it changes product meaning, authority, sco
 - live Android source implementation;
 - Android background architecture;
 - iOS source and background implementation;
-- final map provider and Mapbox integration;
+- post-slice whole-product map-provider standard, final Mapbox replacement/integration strategy, vector-map architecture, and offline-map architecture;
 - durable persistence, schema, and migrations;
 - saved-Flight reopening and replay;
 - multiple Flights in one implemented Flight Mode session;
@@ -2503,13 +2730,14 @@ The slice advances the Flight Support pillar through one coherent map-centred Fl
 
 ## Explicit simplifications
 
-The slice omits preparation, durable history, Route, fuel, multiple Flights per session, live platform integration, and broader application flow. It also uses provisional Flutter and a replaceable first map implementation.
+The slice omits preparation, durable history, Route, fuel, multiple Flights per session, live platform integration, and broader application flow. It also uses provisional Flutter and the owner-approved bounded `flutter_map` plus OpenStreetMap Standard raster implementation behind a replaceable C8 boundary.
 
 ## Reversibility
 
 - no durable schema is selected;
 - source, map, and platform integrations are adapters;
 - domain semantics do not depend on Flutter widgets or plugins;
+- the OSM endpoint, HTTP behavior, attribution realization, and all `flutter_map` types remain internal to C8, so a later renderer may replace that implementation as a whole;
 - simulator truth does not enter normal product paths;
 - provider-specific types do not define product meaning;
 - deferred domains are not collapsed into the first-slice model.
@@ -2517,6 +2745,8 @@ The slice omits preparation, durable history, Route, fuel, multiple Flights per 
 ## Outcome
 
 `Aligned with explicit simplification`.
+
+The owner-approved presentation, time, detector, derivation, and bounded map decisions support a real pilot-visible Flight process, preserve semantic distinctions and lifecycle authority, and do not require Product Vision or Product Direction revision. The map choice is explicitly limited to the first slice and leaves permanent provider, vector/offline, and Mapbox strategy deferred.
 
 # 34. Final Owner Decisions
 
@@ -2585,5 +2815,37 @@ The owner accepts the exact section 12.3 WGS84 constants and fixed local-tangent
 ## 34.14 Controlled GNSS outage crosses the normal C4 boundary
 
 The controlled fixture emits an explicit source-equivalent unavailable transition at `112.0 s` and restoration transition at `117.0 s` through C10 to C4. At restoration, C4 processes the transition before the recovered GNSS observation at the same source time. Silence alone does not define the fixture outage, and no production timeout or freshness policy is introduced. All downstream outage and recovery behavior follows from C4-derived state through the existing concern boundaries.
+
+## 34.15 Ground primary tile switches from weather wind to GS
+
+Before confirmed takeoff, weather-source wind occupies the primary left tile, GS is absent as a primary value, altitude remains central, and Flight VS is absent. After confirmed takeoff, that same left tile switches to GS, altitude remains central, and the right tile shows VS. Weather wind disappears from Product UI after takeoff; estimated wind appears only in its separate orientation-circle/windsock context after acceptance. Unavailable, valid-zero, stale/degraded, and valid weather states remain distinct.
+
+## 34.16 Map scale is fixed at `2000 m ±2%`
+
+The target is the horizontal-centreline ground distance between the geographic positions under the left and right edges of the full logical viewport, including the area behind the temporary simulation panel. C8 computes only the fractional Web Mercator zoom needed to preserve that target for viewport width and centre latitude. Rotation, ground/Flight state, GNSS recovery, provenance, scenario metadata, and C10 do not select another scale; there is no `1500 m` fallback.
+
+## 34.17 The bounded renderer is `flutter_map` with OSM Standard raster tiles
+
+The first slice uses `flutter_map` and OpenStreetMap Standard raster tiles from `https://tile.openstreetmap.org/{z}/{x}/{y}.png`, wholly behind C8. Visible attribution, identifying User-Agent, normal HTTP caching, current-view-only requests, no prefetch/offline/bulk download, and degraded spatial behavior are mandatory. Package/provider types and details do not escape C8. This does not establish a permanent provider or package; a later Mapbox implementation may replace the complete C8 renderer.
+
+## 34.18 Virtual civil time is scenario-derived
+
+Virtual civil UTC is `civilStartUtc + scenarioTimeS + wallClockOffsetS`, independent from host wall time. Pause freezes it, `2×` changes only host playback duration, Reset restores the zero offset and civil start, and batching preserves source civil timestamps. The exact validation jump begins at source time `80.0 s` and adds `+3600 s` prospectively, leaving the Takeoff Point pre-jump and the Landing Point post-jump without altering monotonic duration, holds, ordering, VS, or wind.
+
+## 34.19 The terminal scenario phase uses nullable JSON end time
+
+`endS` is `number | null`. The sole open-ended phase is the final `completed_ground` item with `startS: 212.0` and `endS: null`, meaning `[212.0, +∞)` until Reset. String/sentinel encodings and invalid nullable-end arrangements are rejected.
+
+## 34.20 Every declared source error is applied in a fixed order
+
+Truth profiles and ideal source-equivalent values are evaluated before field-specific source errors. GNSS position errors precede geographic conversion; GS is derived from truth velocity then error-added and clamped; available Track is truth-vector-derived then error-added and normalized; magnetic error is added to the source-equivalent magnetic azimuth; and pressure error follows inverse pressure calculation. Errors never synthesize unavailable fields, and no declared profile is unused.
+
+## 34.21 Detector holds use exact source-time semantics
+
+All takeoff and landing holds use accepted normalized source observations, elapsed source monotonic time, inclusive endpoints, explicit reset boundaries, and no sample-count, observed-time, batching, playback-speed, or host-wall-time interpretation. Takeoff uses exact `1.0 s` qualification/confirmation/cancellation holds and a `15.0 s` timeout from its provisional boundary with confirmation-first tie priority. Landing uses exact `15.0 s` confirmation, hysteresis that preserves identity but clears accumulated confirmation and boundary, and strict `1.0 s` hard cancellation.
+
+## 34.22 Vertical speed uses versioned unweighted OLS
+
+C7 uses unweighted ordinary least squares over the inclusive `[t - 3.0 s, t]` source-time window, requiring at least `20` distinct accepted altitude samples spanning at least `2.0 s`. Invalidity or a pressure gap clears the window; recovery requires fresh minimum history. The calculation identifier is `olsAltitudeSlope3sMin20Span2sV1`, and finalized climb/descent extrema come only from retained valid outputs.
 
 All other unresolved values in this document are classified as bounded implementation tuning or explicitly deferred decisions.
