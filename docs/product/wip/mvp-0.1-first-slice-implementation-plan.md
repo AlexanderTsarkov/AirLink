@@ -900,6 +900,38 @@ The JSON top level must contain exactly these logical groups:
 
 The logical field names define the required asset contract. Code may use typed model names internally, but it must parse this format without inventing additional required scenario semantics.
 
+`variationProfiles` has exactly this JSON-representable shape for `scenario-v1`:
+
+```json
+{
+  "variationProfiles": {
+    "truthProfileIds": [
+      "straightAirHeadingVariationV1",
+      "cruiseAsVariationV1",
+      "levelAltitudeVariationV1"
+    ],
+    "sourceErrorProfileIds": [
+      "gnssEastErrorV1",
+      "gnssNorthErrorV1",
+      "sourceGsErrorV1",
+      "sourceTrackErrorV1",
+      "magneticAzimuthErrorV1",
+      "pressureErrorV1"
+    ],
+    "sourceErrorByField": {
+      "gnssEastPosition": "gnssEastErrorV1",
+      "gnssNorthPosition": "gnssNorthErrorV1",
+      "gnssGs": "sourceGsErrorV1",
+      "gnssTrack": "sourceTrackErrorV1",
+      "deviceMagneticAzimuth": "magneticAzimuthErrorV1",
+      "pressure": "pressureErrorV1"
+    }
+  }
+}
+```
+
+The object shape, the three key names, both array orders, every profile ID, all six field names, and every mapping value are normative. `truthProfileIds` is the complete registry of truth-level profiles that may appear in `phases[].variationProfileIds[]`; `sourceErrorProfileIds` is the complete registry of source-error profiles used by the fixture; and `sourceErrorByField` is their exact global one-profile-per-field assignment. Source-error IDs never appear in a phase array, and source errors cannot be reassigned by a phase. The `gnssTrack` mapping is applied only after section 12.2 establishes that Track is available and never creates Track when it is unavailable.
+
 `sourceMetadata` is fixed fixture configuration, not a product settings or general metadata system. It contains exactly these logical subgroups and values:
 
 ```text
@@ -1025,7 +1057,20 @@ pressure and QNH: hPa
 
 Truth is evaluated at fixed `0.1 s` steps. Airborne East/North position is integrated with the trapezoidal rule from the truth ground-velocity vector. Ground phases use the declared ground-speed and non-zero movement-direction profiles without adding wind drift; source Track availability follows the exact rule below. Source streams sample this truth at their exact declared cadences.
 
-All truth-level phase variations are applied first. For each source field that is available at a sample, its declared source-error function is evaluated at that sample's scenario/source monotonic time `t`, after the corresponding ideal truth/source-equivalent quantity is calculated and before the value enters C4. No intermediate value is rounded, no declared error profile may be unused across the scenario's applicable samples, and no source error is evaluated to create a value when the corresponding phase/source field is unavailable.
+All truth-level phase variations are selected only through the registered IDs in that phase's exact `variationProfileIds` array and are applied first. For each source field that is available at a sample, the one profile selected by `variationProfiles.sourceErrorByField` is evaluated at that sample's scenario/source monotonic time `t`, after the corresponding ideal truth/source-equivalent quantity is calculated and before the value enters C4. No intermediate value is rounded, no registered profile may be unused across the scenario's applicable samples, no unregistered or implicit profile may be applied, and no source error is evaluated to create a value when the corresponding phase/source field is unavailable.
+
+The complete deterministic application contract is:
+
+1. select the phase;
+2. evaluate base segments;
+3. apply only truth-level IDs listed in that phase's exact `variationProfileIds`;
+4. calculate truth kinematics and state;
+5. determine source-field availability;
+6. apply the one globally mapped source-error profile to each available source field;
+7. attach timestamps and source metadata;
+8. emit through C10 → C4.
+
+The detailed per-field generation rules below refine these steps without changing their order.
 
 At each GNSS sample time, C10 must generate the source-equivalent position in this exact order:
 
@@ -1255,13 +1300,15 @@ Every phase has this exact authoritative `variationProfileIds` array:
 
 `ground_ready` is a pre-Start state, not a `phases[]` item, and uses no truth-level phase variation. Turn phases use only their explicit `turnSmoothstep` heading profile. Ground phases use their declared GS and movement direction. Flare and float/touchdown use their specialized profiles. None of those phases receives additional Heading, AS, or altitude truth variation. This bounded fixture simplification is not a statement about real-world flare stability.
 
+Every non-empty ID in the table must be present in the exact ordered `variationProfiles.truthProfileIds` registry in section 12.1. The table remains the authority for all 18 arrays; registration alone does not apply a profile. Every registered truth-profile ID is used by at least one phase. No ID from `variationProfiles.sourceErrorProfileIds` may appear in any phase array.
+
 This profile reaches the accepted approximately `100 m` height above takeoff by `58.0 s`, provides approximately `42 s` of level flight before descent begins, and leaves approximately `92 s` for a progressive descent, final alignment, approach, flare, float, touchdown, and confirmation. It is an engineering fixture derived from the accepted speed, climb, altitude, route-diversity, and total-duration inputs; it is not an aerodynamic performance prediction.
 
 ## 12.7 Exact variation profiles
 
 All variation uses scenario time `t` in seconds and radians inside trigonometric functions.
 
-The exact truth-level profile IDs are `straightAirHeadingVariationV1`, `cruiseAsVariationV1`, and `levelAltitudeVariationV1`. `phases[].variationProfileIds[]` contains only these truth-level phase profiles according to section 12.6.
+The exact ordered truth-level profile registry is `variationProfiles.truthProfileIds` in section 12.1: `straightAirHeadingVariationV1`, `cruiseAsVariationV1`, and `levelAltitudeVariationV1`. `phases[].variationProfileIds[]` contains only these truth-level phase profiles according to section 12.6. Registry membership permits a phase reference; it does not apply a profile implicitly.
 
 `straightAirHeadingVariationV1` maps to straight-leg Air Heading variation:
 
@@ -1293,14 +1340,14 @@ altitudeVariationM(t)
 0.4 × sin(2πt / 7.0 + 1.40)
 ```
 
-The exact source-error profile IDs and global source-field mapping are:
+The exact ordered source-error registry is `variationProfiles.sourceErrorProfileIds` in section 12.1. Its IDs and the exact `variationProfiles.sourceErrorByField` mapping are:
 
 ```text
-GNSS East position: gnssEastErrorV1
-GNSS North position: gnssNorthErrorV1
-GNSS GS: sourceGsErrorV1
-GNSS Track when Track is available: sourceTrackErrorV1
-Device Magnetic Azimuth: magneticAzimuthErrorV1
+gnssEastPosition: gnssEastErrorV1
+gnssNorthPosition: gnssNorthErrorV1
+gnssGs: sourceGsErrorV1
+gnssTrack: sourceTrackErrorV1
+deviceMagneticAzimuth: magneticAzimuthErrorV1
 pressure: pressureErrorV1
 ```
 
@@ -1315,7 +1362,9 @@ magneticAzimuthErrorDeg(t) = 0.9 × sin(2πt / 5.5 + 0.90)
 pressureErrorHpa(t) = 0.015 × sin(2πt / 9.0 + 1.70)
 ```
 
-No uncontrolled randomness or unspecified fixed-seed generator is permitted. Phase truth variation and source measurement error are distinct stages. Source-error IDs are globally assigned by field, are never repeated or reassigned in a phase array, and do not depend on phase identity except that an unavailable field does not evaluate an error to create a value. Turn phases use only their explicit truth turn profile plus the globally applied magnetic source error; straight-leg Heading variation is not added inside turns. `sourceTrackErrorDeg(t)` is applied only after section 12.2 has established that Track is available; it never synthesizes Track for an exact-zero truth vector or a phase-declared unavailable field.
+The JSON asset contains stable IDs and mappings, not executable formulas. It contains no expression strings, coefficients, periods, phases, formula AST nodes, scripts, or executable code. Implementation maps each fixed ID to the exact corresponding formula above; changing a formula while retaining its profile ID is not permitted. Adding an ID requires a separately reviewed change to this exact fixture contract. This registry does not establish a generic profile-plugin, scenario-profile engine, formula-evaluation architecture, or runtime-configurable formula system.
+
+No uncontrolled randomness or unspecified fixed-seed generator is permitted. Phase truth variation and source measurement error are distinct stages. Each source field receives exactly its one globally mapped source-error profile; each registered source-error ID is used exactly once in that mapping. Source-error IDs are never repeated or reassigned in a phase array and do not depend on phase identity except that an unavailable field does not evaluate an error to create a value. Turn phases use only their explicit truth turn profile plus the globally applied magnetic source error; straight-leg Heading variation is not added inside turns. `sourceTrackErrorDeg(t)` is applied only after section 12.2 has established that Track is available; it never synthesizes Track for an exact-zero truth vector or a phase-declared unavailable field.
 
 For each phase, C10 applies profiles in this exact order:
 
@@ -1327,7 +1376,30 @@ For each phase, C10 applies profiles in this exact order:
 
 Truth Heading variation is never applied to ground Track, cruise AS variation is never applied to GS-based ground phases, and altitude variation appears only in `north_crosswind_level`. Straight Heading variation is absent from turns, flare, and float/touchdown. Phase boundaries and endpoints remain unchanged.
 
-The fixed parser rejects an unknown or duplicate profile ID, a source-error ID in a phase array, a truth profile assigned to an incompatible phase, any array different from the exact `scenario-v1` assignment, missing `variationProfileIds`, `null` instead of an array, and any implicitly applied truth variation absent from the array. The fixed global source-error mapping rejects unknown field/profile mappings, duplicate or missing field assignments, phase-local reassignment, and error evaluation that would create an unavailable field.
+The fixed `scenario-v1` parser rejects all of the following:
+
+1. missing `variationProfiles`;
+2. `variationProfiles: null`;
+3. a non-object `variationProfiles`;
+4. missing or additional keys inside `variationProfiles`;
+5. a non-array `truthProfileIds`;
+6. a non-array `sourceErrorProfileIds`;
+7. a non-object `sourceErrorByField`;
+8. an unknown profile ID;
+9. a duplicate profile ID;
+10. either registry in a different array order;
+11. a missing or additional field mapping;
+12. a mapping to an ID absent from `sourceErrorProfileIds`;
+13. a truth-profile ID used as a source-error mapping;
+14. a source-error ID appearing in a phase array;
+15. a phase reference to an ID absent from `truthProfileIds`;
+16. any per-phase array different from the exact section 12.6 assignment, including a missing array or `null` instead of an array;
+17. an unused registered truth-profile ID;
+18. an unused registered source-error-profile ID;
+19. phase-local source-error reassignment; or
+20. an implicit profile application not represented by the accepted registry, phase array, or field mapping.
+
+These are fixed-contract checks for `scenario-v1`; no generic extensibility is required for another scenario version.
 
 The normative source-generation order for every emitted field is:
 
@@ -2257,8 +2329,10 @@ Tests must not depend on rendered screen text.
 - metadata behavior tests proving normal position/GS are available, valid, and fresh; unavailable Track has no value or course accuracy; positive GS error at zero truth velocity creates neither; pressure/orientation accuracy adds no numerical noise; GNSS availability events carry fixed provenance/handling and no values/accuracies; restoration synthesizes nothing; and the frozen source sequence includes metadata and all field-availability outcomes;
 - weather/QNH freshness tests proving both are fresh through `600.0 s` inclusive, stale immediately after without validity/provenance change, and fresh for every normal `0–212 s` outcome without synthetic refresh;
 - takeoff course-quality tests at `3.0°`, exactly `10.0°`, just above `10.0°`, and unavailable/non-finite accuracy, proving the exact inclusive gate and zero weather-headwind correction on unacceptable input;
-- exact profile-assignment parser tests proving every phase has its authoritative array, including explicit empties; unknown, duplicate, incompatible, missing, `null`, implicit, or misplaced source-error IDs are rejected; and the global field mapping rejects missing, duplicate, unknown, or phase-local source-error assignments;
-- profile-application reference tests proving turns, ground, flare, and float/touchdown have no added truth variation; `north_crosswind_level` has all three profiles; east/south operational legs have Heading and AS only; final approach has Heading only; application order is base segment, truth variation, truth kinematics, then source error; and no phase identity crosses C10;
+- exact variation-profile parser tests proving the section 12.1 JSON snippet parses; `variationProfiles` contains exactly the three keys `truthProfileIds`, `sourceErrorProfileIds`, and `sourceErrorByField`; both registries contain their exact ordered IDs; the mapping contains exactly the six accepted field/profile pairs; every phase reference belongs to the truth registry; all 18 phase arrays match section 12.6 unchanged, including explicit empties; no source-error ID appears in a phase array; every source-error ID is used exactly once in the global mapping; and every mapped field uses its exact registered profile;
+- negative variation-profile parser tests proving missing, `null`, non-object, extra-key, non-array, unknown, duplicate, reordered, missing/extra mapping, mismatched-registry, truth-as-source, source-in-phase, unregistered phase reference, changed phase array, unused registered ID, phase-local reassignment, and implicit application content is rejected;
+- profile-application reference tests proving turns, ground, flare, and float/touchdown have no added truth variation; `north_crosswind_level` has all three profiles; east/south operational legs have Heading and AS only; final approach has Heading only; application order is phase selection, base segments, phase-listed truth variation, truth kinematics/state, field availability, one globally mapped source error per available field, timestamps/metadata, then C10 → C4 emission; no phase identity crosses C10; and no formula expression, coefficient, period, phase, AST, script, or executable code is read from JSON;
+- fixed-ID formula-binding tests proving each registered profile ID maps to the exact section 12.7 formula, all registered IDs are used, and no generic profile engine or runtime-configurable formula system is introduced;
 - local-projection tests proving zero East/North maps back to the declared origin within a tight binary64 tolerance, a known positive East offset changes longitude by the section 12.3 formula without changing latitude beyond that tolerance, and a known positive North offset changes latitude without changing longitude beyond that tolerance;
 - GNSS generation-order test proving East/North source errors are added before geographic conversion;
 - deterministic source-error reference tests at multiple fixed source times proving every declared error affects its intended emitted field with the correct zero, sign, and phase; GS is clamped at zero; Track and magnetic azimuth are normalized to `[0°, 360°)`; Track error does not synthesize Track in zero-speed Track-unavailable phases; pressure error follows the inverse pressure calculation; C7 receives no truth-altitude or truth-orientation shortcut; and `1×`/`2×` produce the same frozen all-errors source sequence;
@@ -2434,6 +2508,7 @@ Includes:
 
 - exact JSON `scenario-v1` asset and parser;
 - exact fixed `sourceMetadata` groups, vocabulary, values, field availability, parser rejection, and weather/QNH inclusive freshness semantics;
+- exact three-key `variationProfiles` JSON object, ordered truth/source-error registries, six global field mappings, fixed-ID formula bindings, and exhaustive fixed-parser rejection;
 - nullable final-phase and terminal-hold parsing with invalid-arrangement rejection;
 - fixed phase schedule, exact per-phase truth-profile arrays, global field-to-source-error mapping, units, cadences, variation formulas, and truth-step integration;
 - fixed WGS84 local-tangent East/North-to-geographic conversion with source errors applied before conversion;
@@ -2529,7 +2604,7 @@ Observable result: normal Flight ends in a complete Summary derived from a final
 Includes:
 
 - exact five-second GNSS outage and recovery through explicit source-equivalent availability transitions normalized by C4;
-- metadata-bearing availability transitions, Track-unavailable accuracy absence, weather/QNH freshness boundaries, course-accuracy gate boundaries, exact profile assignment/parser rejection, and frozen metadata/profile reference evidence;
+- metadata-bearing availability transitions, Track-unavailable accuracy absence, weather/QNH freshness boundaries, course-accuracy gate boundaries, exact `variationProfiles` encoding/profile assignment/parser rejection/formula-binding, and frozen metadata/profile reference evidence;
 - degraded record and Summary;
 - no pre-gap to post-gap distance chord, anchor-only first recovery position, resumed accumulation from the next within-segment position, and no outage contribution to valid covered time;
 - independent active and finalized-record distance derivations using the same segment semantics and fixed haversine pairwise formula;
@@ -2668,11 +2743,12 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 
 - exact asset path and JSON contract are defined;
 - exact `sourceMetadata` subgroups, vocabulary, values, accuracy/noise distinction, Track-unavailable behavior, event metadata, and inclusive weather/QNH freshness rule are fixed;
+- exact `variationProfiles` object shape, three keys, ordered registries, six global field mappings, registry/phase/mapping consistency rules, and fixed-parser rejection set are defined;
 - the terminal phase uses the validated `endS: number | null` contract and no string sentinel;
 - origin, civil time, environment, wind, QNH, and declination are fixed;
 - fixed WGS84 constants, local-tangent conversion, GNSS generation order, and geographic reference sequence are defined;
 - phase start/end times and kinematic endpoints are fixed;
-- deterministic interpolation, integration, exact per-phase truth-profile arrays, global field-to-source-error mapping, and cadence contracts are fixed;
+- deterministic interpolation, integration, exact per-phase truth-profile arrays, exact ordered profile registries, global field-to-source-error mapping, fixed-ID formula binding, and cadence contracts are fixed;
 - every declared source-error profile has a mandatory generation order and emitted-field formula;
 - exact-zero truth-vector Track availability is fixed before source errors without an epsilon or generic low-speed Track policy;
 - the inclusive `courseAccuracyDeg <= 10.0` takeoff correction gate is fixed without becoming production GNSS policy;
@@ -2691,6 +2767,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - OSM visible screen-oriented attribution, exact accessible copyright action, C8-contained link handling, User-Agent, cache, request, no-prefetch/offline, and degraded-state requirements are explicit;
 - Flight and recording state are independent from widget/map lifetime;
 - repository increments and material stop conditions are explicit;
+- the fixture parser needs no generic profile-plugin, scenario-profile, or executable-formula architecture;
 - greenfield environment work is acknowledged.
 
 ## 28.5 Validation readiness
@@ -2700,7 +2777,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - diagnostics contract is defined;
 - truth-leakage prohibitions are defined;
 - exact detector holds, same-observation takeoff ordering, exact-zero Track availability, accessible OSM attribution, and exact OLS VS evidence are defined across relevant cadence/delivery/rotation/failure transforms and invalidity boundaries;
-- exact metadata parsing/behavior/freshness and profile assignment/application/frozen-reference evidence is defined;
+- exact metadata parsing/behavior/freshness and variation-profile JSON parsing/rejection/assignment/application/formula-binding/frozen-reference evidence is defined;
 - tests do not depend on rendered screen text.
 
 ## 28.6 Governance readiness
@@ -2762,7 +2839,9 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - the exact jump applies prospectively at `80.0 s` without changing monotonic calculations;
 - source-like GNSS East/North errors are added before the fixed local-to-geographic conversion, and truth coordinates do not reach normal concerns;
 - every declared source error is applied to its intended emitted field in the normative order without synthesizing unavailable Track or other absent values;
-- every phase carries its exact truth-level profile array, all required empty arrays are explicit, and source-error profiles are globally field-mapped rather than phase-assigned;
+- `variationProfiles` has exactly the accepted three-key JSON shape, ordered registries, and six global field mappings, with no executable formula content;
+- every phase carries its exact truth-level profile array, all required empty arrays are explicit, every phase ID is registered, and source-error profiles are globally field-mapped rather than phase-assigned;
+- each fixed profile ID selects its exact section 12.7 formula, and no generic profile engine or runtime-configurable formula system exists;
 - the exact fixed metadata accompanies source-equivalent inputs without extra numerical noise, observed-delay rewriting, or phase/fault authority leakage;
 - exact-zero truth velocity makes source Track unavailable before errors even when source GS error is positive; the first later non-zero truth sample may derive Track normally, and zero-speed landing/terminal phases remain Track-unavailable;
 - the final phase is valid JSON with `completed_ground.startS = 212.0` and `endS: null`;
@@ -2833,7 +2912,8 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - automated normal end-to-end test exists;
 - exact scenario parser, phase-boundary, and reference-sequence tests exist;
 - exact source-metadata parser, semantics, freshness, no-extra-noise, Track-accuracy absence, availability-event, course-gate, isolation, and frozen-reference tests exist;
-- exact per-phase profile arrays, global source-error mapping, parser rejection, application-order, compatibility, isolation, and frozen heading/AS/altitude/source-sequence tests exist;
+- exact three-key `variationProfiles` JSON parsing; ordered registry; six-mapping; per-phase reference; all-18-array; profile-use; fixed-ID formula-binding; negative parser; application-order; compatibility; isolation; and frozen heading/AS/altitude/position/GS/Track/magnetic-orientation/pressure source-sequence tests exist;
+- normal, `1×`, `2×`, and batched runs are identical at the source-sequence level, phase/fault identity remains private to C10, and tests prove no expression is read from JSON or generic profile/formula engine is introduced;
 - fixed-origin, known-East, known-North, error-before-conversion, and geographic reference-sequence tests exist with tight binary64 tolerances;
 - frozen-reference tests cover exact-zero truth Track unavailability, positive source GS error without Track synthesis, later non-zero Track derivation/error, and zero-speed landing/terminal availability while preserving the separate stationary-landing rule;
 - controlled GNSS-outage tests cover exact explicit interruption/restoration timing, restoration-before-recovered-observation ordering, separate-stream equal timestamps, unavailable derived GNSS state, absence of observations in the half-open gap, C4-only downstream propagation, retained gap evidence, and silence-without-transition behavior;
@@ -2868,6 +2948,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 The following do not require a new owner decision when accepted semantics and the exact `scenario-v1` reference sequence remain unchanged:
 
 - internal parser/model organization for the fixed JSON asset;
+- internal fixed-ID dispatch organization, provided it parses only the exact registry/mapping contract and binds every ID to its exact section 12.7 formula without evaluating JSON expressions;
 - mathematically equivalent implementation of the specified interpolation and integration formulas within accepted numeric tolerance;
 - Pratt versus Taubin circle initialization;
 - exact numerical wind-quality thresholds, provided the normal fixture accepts by `108.0 s` and all quality tests pass;
@@ -2885,8 +2966,9 @@ The following are no longer implementation tuning for `scenario-v1` and require 
 - truth-wind direction or speed;
 - QNH, origin, civil start time, or fixture declination;
 - variation formulas;
+- exact `variationProfiles` object shape, key set, ordered registries, profile IDs, and field names;
 - exact truth-level profile IDs and per-phase assignments;
-- global field-to-source-error profile assignments;
+- global field-to-source-error profile assignments and mapping values;
 - fixed source metadata values and the inclusive takeoff course-accuracy gate;
 - weather/QNH `sourceTimeS`, `freshForS`, and inclusive freshness rule;
 - source cadences;
@@ -3067,6 +3149,8 @@ The owner accepts the exact section 12.1 `sourceMetadata` structure and fixed GN
 
 ## 34.24 Truth-profile assignment and source-error mapping are exact
 
-The owner accepts the truth-level IDs `straightAirHeadingVariationV1`, `cruiseAsVariationV1`, and `levelAltitudeVariationV1`; every exact per-phase `variationProfileIds` array in section 12.6, including all explicit empty arrays; and the global mappings from GNSS East/North position, GNSS GS, available GNSS Track, Device Magnetic Azimuth, and pressure to `gnssEastErrorV1`, `gnssNorthErrorV1`, `sourceGsErrorV1`, `sourceTrackErrorV1`, `magneticAzimuthErrorV1`, and `pressureErrorV1`. Source-error IDs cannot appear or be reassigned in phase arrays. Base segments, assigned truth variations, truth kinematics, and available-field source errors execute in that order without changing accepted phase boundaries, kinematic endpoints, timing, detector results, estimated-wind deadline, or lifecycle outcomes.
+The owner accepts the exact section 12.1 `variationProfiles` JSON object with only `truthProfileIds`, `sourceErrorProfileIds`, and `sourceErrorByField`; the exact ordered truth registry containing `straightAirHeadingVariationV1`, `cruiseAsVariationV1`, and `levelAltitudeVariationV1`; the exact ordered six-ID source-error registry; every exact per-phase `variationProfileIds` array in section 12.6, including all explicit empty arrays; and the exact six global mappings from `gnssEastPosition`, `gnssNorthPosition`, `gnssGs`, available `gnssTrack`, `deviceMagneticAzimuth`, and `pressure` to `gnssEastErrorV1`, `gnssNorthErrorV1`, `sourceGsErrorV1`, `sourceTrackErrorV1`, `magneticAzimuthErrorV1`, and `pressureErrorV1`. Source-error IDs cannot appear or be reassigned in phase arrays. The fixed parser rejects every registry, mapping, phase-reference, use, order, or shape deviation enumerated in section 12.7.
+
+The JSON stores identifiers and mappings only; each ID selects its unchanged exact section 12.7 formula in implementation. It contains no executable expression language or formula data and creates no generic profile engine. Phase selection, base segments, assigned truth variations, truth kinematics/state, field availability, one mapped source error per available field, timestamps/metadata, and C10 → C4 emission execute in that order without changing accepted phase boundaries, kinematic endpoints, timing, frozen source sequences, detector results, estimated-wind deadline, lifecycle outcomes, or Summary results.
 
 All other unresolved values in this document are classified as bounded implementation tuning or explicitly deferred decisions.
