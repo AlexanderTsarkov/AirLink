@@ -1,0 +1,474 @@
+name: PR44 apply final review fixes
+
+on:
+  push:
+    branches:
+      - agent/al-0002-05-first-slice-implementation-plan
+    paths:
+      - .github/workflows/pr44-final-review-fixes.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply owner-approved review corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/product/wip/mvp-0.1-first-slice-implementation-plan.md')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old: str, new: str) -> None:
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected exactly one match, found {count}: {old[:120]!r}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              'A complex compass ring and pilot-controlled scale are deferred.',
+              'A complex graduated compass ring and pilot-controlled scale are deferred. The slice retains one simple, thin orientation circle centred on the pilot, approximately `80%` of screen width, with no degree scale, dense ticks, cardinal labels, or additional rings. It provides only a bounded visual frame for orientation and the estimated-wind comprehension experiment.'
+          )
+
+          replace_once(
+              '- a compact simulation panel and expandable inspector;',
+              '- a compact simulation panel and replaceable structured developer observability;'
+          )
+
+          replace_once(
+              '''- Flight elapsed time;
+- orientation context;
+- compact estimated wind after first acceptance;''',
+              '''- Flight elapsed time;
+- flown distance;
+- orientation context;
+- compact estimated wind after first acceptance;'''
+          )
+
+          replace_once(
+              '''### Spatial layer
+
+- basemap or degraded spatial canvas;
+- centred pilot marker;
+- orientation behavior;
+- north/orientation cue;
+- scale indicator.
+
+### Product overlay layer
+
+- Flight state or elapsed time;
+- GS;
+- altitude MSL;
+- VS;
+- weather-source or estimated-wind information;
+- source/map warnings.
+
+### Development-only simulation layer
+
+- Start/Pause;
+- `1×/2×`;
+- Reset;
+- scenario phase and time;
+- compact concern/source state;
+- expandable inspector.''',
+              '''### Spatial layer
+
+- basemap or degraded spatial canvas;
+- centred pilot marker;
+- one simple orientation circle approximately `80%` of screen width;
+- orientation behavior;
+- north/orientation cue;
+- scale indicator.
+
+### Product overlay layer
+
+- Flight state or elapsed time;
+- transient flown-distance presentation;
+- GS;
+- altitude MSL;
+- VS;
+- weather-source or estimated-wind information;
+- source/map warnings.
+
+### Development-only simulation layer
+
+- Start/Pause;
+- `1×/2×`;
+- Reset;
+- scenario phase and time;
+- compact concern/source state.'''
+          )
+
+          replace_once(
+              '''### Status / Flight-time zone
+
+- before takeoff: `Waiting for Takeoff`;
+- after takeoff: elapsed Flight time from the effective takeoff boundary;
+- after landing: no technical lifecycle/finalization messages; transition to completed outcome after C9 finalization.''',
+              '''### Camera-adjacent status / Flight-progress zone
+
+For the initial portrait prototype, the compact top-centre status zone uses the oval area around the camera cutout where the device layout permits it. A device without that geometry uses the same logical top-centre zone.
+
+- before takeoff: `Waiting for Takeoff`;
+- after takeoff, the default presentation is `FLT mm:ss`, using elapsed Flight time from the effective takeoff boundary;
+- whenever cumulative flown distance crosses the next `500 m` threshold, the zone temporarily shows `DST` with the crossed distance for `3 s`, then returns to `FLT`;
+- the normal approximately `1.92 km` fixture therefore produces bounded notifications at approximately `0.5 km`, `1.0 km`, and `1.5 km`;
+- `ELT` is not used as the elapsed-time label because it is an established aviation abbreviation for Emergency Locator Transmitter;
+- after landing: no technical lifecycle/finalization messages; transition to completed outcome after C9 finalization.
+
+The active flown-distance aggregate starts at the effective takeoff boundary and sums consecutive valid GNSS positions. It does not interpolate across gaps. During GNSS unavailability the displayed value is held and marked stale/degraded rather than advanced. This runtime presentation aggregate is not the authoritative Summary source; completed distance is derived independently from the finalized C9 record.'''
+          )
+
+          old_wind = '''## 10.5 Estimated-wind presentation
+
+Estimated wind is mandatory but does not replace VS in the contextual right tile.
+
+Before the first accepted estimate:
+
+- no wind value is shown as estimated wind;
+- `0` is not shown;
+- weather wind is not substituted;
+- persistent `Estimating…` is not used as the value.
+
+After acceptance, Product UI shows a compact indicator for the last accepted estimated wind. Exact placement is bounded UI tuning provided that it:
+
+- does not obstruct the central spatial region;
+- is visibly different from weather-source wind;
+- remains readable at a glance.
+
+Technical state, age, fit window, rejection reasons, and truth comparison remain in diagnostics.'''
+
+          new_wind = '''## 10.5 Estimated-wind presentation
+
+Estimated wind is mandatory but does not replace VS in the contextual right tile.
+
+The first slice retains one simple, thin orientation circle centred on the pilot and approximately `80%` of screen width. It is not a full graduated compass ring: it has no degree scale, dense ticks, cardinal labels, or additional rings. The existing north/orientation cue remains sufficient.
+
+Before the first accepted estimate:
+
+- no windsock-like glyph or numeric value is shown as estimated wind;
+- `0` is not shown;
+- weather wind is not substituted;
+- persistent `Estimating…` is not used as the value.
+
+After acceptance, Product UI shows a bounded windsock-like comprehension experiment inside the orientation context:
+
+- the wide mouth/head of the windsock is centred on the pilot/map centre;
+- the pilot marker is rendered above it or retains clear central separation;
+- the windsock body extends downwind from the centre, so the opposite direction is the intuitive into-wind direction;
+- its screen-relative angle is calculated from the accepted estimated-wind vector and the current C8 orientation frame;
+- visible body length or simple sections encode wind speed over a display range of `0–8 m/s`;
+- maximum visual length remains inside the simple orientation circle;
+- a visible numeric value in `m/s` remains present and is displayed at approximately `0.5 m/s` granularity;
+- display rounding does not quantize the estimator's retained value;
+- above `8 m/s`, visual length is capped while the numeric value continues to show the rounded estimated result;
+- warning colour, blinking, operational thresholds, and safety policy above the display range are deferred.
+
+An accepted valid zero-wind estimate is distinguishable from unavailable state: it shows `0.0 m/s` with a minimal/collapsed glyph, while unavailable state shows neither a false zero nor a windsock.
+
+Exact stroke, section count, dimensions, colours, animation, and placement within the fixed orientation context are bounded UI tuning. Weather-source wind and estimated wind remain visibly distinct. Technical state, age, fit window, rejection reasons, and truth comparison remain in replaceable developer diagnostics.'''
+          replace_once(old_wind, new_wind)
+
+          old_takeoff = '''Usable correction requires valid, fresh weather wind and enough valid directional information to calculate a headwind component. Otherwise correction is zero.
+
+For a direct `4 m/s` headwind:
+
+```text
+confirmation threshold ≈ 14.2 km/h GS
+```
+
+The threshold must be held for approximately `1 s`.'''
+
+          new_takeoff = '''Weather wind uses meteorological `from` direction relative to True North. The authoritative launch direction for the correction is the current valid GNSS Track from the same normalized observation whose GS is being evaluated. Device True Azimuth, phone orientation, candidate displacement, simulator Air Heading, and privileged truth are not used.
+
+For each evaluated observation:
+
+```text
+deltaDeg
+=
+shortest signed angular difference between
+weatherWindFromDegTrue and trackDegTrue
+
+usableHeadwindMps
+=
+max(0, weatherWindSpeedMps × cos(deltaDeg))
+
+confirmationThresholdKmh
+=
+25
+−
+0.75 × usableHeadwindMps × 3.6
+```
+
+The cosine uses radians internally. Usable correction requires valid and fresh weather-wind speed and direction plus valid and fresh GNSS Track with acceptable course accuracy. If any required value is missing, stale, invalid, or insufficiently accurate, correction is zero. A crosswind contributes zero; a tailwind never lowers the threshold. The threshold is recalculated for each observation during the confirmation hold.
+
+For a direct `4 m/s` headwind:
+
+```text
+confirmation threshold ≈ 14.2 km/h GS
+```
+
+The threshold must be held for approximately `1 s`.'''
+          replace_once(old_takeoff, new_takeoff)
+
+          old_landing = '''## 17.1 Estimated AS
+
+C6 uses:
+
+```text
+estimated air velocity
+=
+ground velocity
+−
+last accepted estimated wind
+```
+
+The vector magnitude is estimated AS.
+
+## 17.2 Availability
+
+Automatic landing detection is available only when:
+
+- a Flight is active;
+- a last accepted wind estimate exists;
+- the estimate is not hard-invalidated;
+- required GNSS/Track data is valid.
+
+There is no GS-only landing fallback.'''
+
+          new_landing = '''## 17.1 Estimated AS and stationary ground vector
+
+C6 uses:
+
+```text
+estimated air velocity
+=
+ground velocity
+−
+last accepted estimated wind
+```
+
+The vector magnitude is estimated AS.
+
+For landing detection only, C6 constructs the ground-velocity vector with this exact stationary rule:
+
+```text
+stationaryGsThresholdKmh = 1.0
+```
+
+- when valid GS is greater than `1.0 km/h`, valid Track is required and the normal GS/Track vector is used;
+- when valid GS is less than or equal to `1.0 km/h`, ground velocity is defined as `(0, 0)` and Track is not required;
+- missing or invalid GS is never treated as stationary;
+- unavailable Track at stationary GS is not converted into a synthetic Track and does not become valid input for C8 or C9.
+
+This is not a GS-only landing fallback: a valid last accepted estimated wind remains mandatory, and estimated AS is still derived from the vector difference.
+
+## 17.2 Availability
+
+Automatic landing detection is available only when:
+
+- a Flight is active;
+- a last accepted wind estimate exists;
+- the estimate is not hard-invalidated;
+- required GNSS GS is valid;
+- Track is valid whenever GS is above the stationary threshold.
+
+The normal fixture may therefore keep Track unavailable during the zero-speed `197.0–212.0 s` interval while still confirming the candidate that began near touchdown. With the accepted schedule, the `15 s` hold completes at approximately `207.0 s`.
+
+There is no landing fallback that omits the accepted estimated-wind requirement.'''
+          replace_once(old_landing, new_landing)
+
+          old_obs = '''## 22.2 Expandable inspector
+
+The inspector includes:
+
+- detector thresholds, corrections, timers, candidates, and boundaries;
+- wind window, residual, coverage, conditioning, uncertainty, and truth comparison;
+- source/observed clocks, latency, gaps, and batching;
+- recording counts, boundaries, and outcome;
+- orientation source, age, and fallback;
+- map state and viewport information.'''
+
+          new_obs = '''## 22.2 Replaceable detailed developer output
+
+An expanded interactive diagnostics overlay is out of scope. Detailed observability is exposed through tests, structured logs, a bounded developer dump, or another replaceable non-product mechanism using the shared diagnostic snapshot and event timeline.
+
+The replaceable output must make available when required:
+
+- detector thresholds, corrections, timers, candidates, and boundaries;
+- wind window, residual, coverage, conditioning, uncertainty, and truth comparison;
+- source/observed clocks, latency, gaps, and batching;
+- recording counts, boundaries, and outcome;
+- orientation source, age, and fallback;
+- map state and viewport information.
+
+No separate inspector information architecture, interaction model, or placement work is required in the first slice.'''
+          replace_once(old_obs, new_obs)
+
+          replace_once(
+              '''- takeoff candidate/confirmation boundary tests;
+- landing candidate/confirmation boundary tests;''',
+              '''- takeoff candidate/confirmation boundary tests, including direct/partial headwind, crosswind, tailwind, invalid Track, stale weather, and deliberate Track-versus-Device-True-Azimuth disagreement;
+- landing candidate/confirmation boundary tests, including stationary GS with unavailable Track, moving GS with invalid Track, and invalid GS;'''
+          )
+
+          replace_once(
+              '''- map-unavailable validation;
+- Pause-is-not-outage test;''',
+              '''- map-unavailable validation;
+- active flown-distance tests proving effective-boundary start, `500 m` threshold notifications, `3 s` return to `FLT`, and no interpolation across GNSS gaps;
+- windsock-presentation tests proving downwind body orientation, simple-circle containment, numeric `0.5 m/s` display granularity, valid-zero versus unavailable distinction, and visual capping above `8 m/s` without estimator quantization;
+- Pause-is-not-outage test;'''
+          )
+
+          replace_once(
+              '''- spatial placeholder;
+- centred pilot marker;
+- status/time, GS, altitude, and contextual zones;''',
+              '''- spatial placeholder;
+- centred pilot marker;
+- simple orientation circle;
+- status/time, GS, altitude, and contextual zones;'''
+          )
+
+          replace_once(
+              '''- elapsed Flight time;
+- Device True Azimuth-up ground presentation to Track-up airborne transition;''',
+              '''- elapsed Flight time and camera-adjacent `FLT`/transient `DST` presentation;
+- active flown-distance aggregate with `500 m` notifications and GNSS-gap semantics;
+- Device True Azimuth-up ground presentation to Track-up airborne transition;'''
+          )
+
+          replace_once(
+              '''- completed lifecycle;
+- VS and compact estimated-wind presentation.''',
+              '''- completed lifecycle;
+- VS and simple-circle windsock-like estimated-wind presentation.'''
+          )
+
+          replace_once(
+              '''- playback, Pause, wall-clock, monotonic-invalidity, duplicate/collision, magnetic-declination, exact-scenario, special-point-handoff, truth-leakage, and end-to-end tests;''',
+              '''- playback, Pause, wall-clock, monotonic-invalidity, duplicate/collision, magnetic-declination, exact-scenario, headwind-projection, stationary-landing, active-distance, windsock-presentation, special-point-handoff, truth-leakage, and end-to-end tests;'''
+          )
+
+          replace_once(
+              '''- GS, altitude MSL, VS, and elapsed Flight time are shown;
+- weather wind disappears after takeoff;
+- estimated wind appears only after acceptance;''',
+              '''- GS, altitude MSL, VS, and elapsed Flight time are shown;
+- active flown distance is accumulated from the effective boundary and appears as transient `DST` notifications at each `500 m` threshold;
+- weather wind disappears after takeoff;
+- estimated wind appears only after acceptance;
+- the estimated-wind indicator uses the simple orientation circle and bounded centre-origin windsock experiment;'''
+          )
+
+          replace_once(
+              '''- landing detection does not use truth wind;
+- no GS-only landing fallback exists.''',
+              '''- takeoff weather correction uses current valid GNSS Track and the meteorological weather-wind `from` direction, with zero correction when required direction/quality context is unavailable;
+- landing detection does not use truth wind;
+- stationary GS at or below `1.0 km/h` uses a zero ground vector without synthesizing Track;
+- moving landing evaluation still requires valid Track;
+- no landing fallback without accepted estimated wind exists.'''
+          )
+
+          replace_once(
+              '''- distance does not interpolate across GNSS gaps;
+- duration uses monotonic effective boundaries;''',
+              '''- active and finalized distance do not interpolate across GNSS gaps;
+- the transient active-distance display is not the authoritative Summary source;
+- duration uses monotonic effective boundaries;'''
+          )
+
+          replace_once(
+              '''- detector boundary tests exist;
+- wind numerical tests exist;''',
+              '''- detector boundary tests include GNSS-Track headwind projection and stationary zero-vector landing behavior;
+- wind numerical and windsock-presentation tests exist;
+- active flown-distance threshold and GNSS-gap tests exist;'''
+          )
+
+          replace_once(
+              '''- exact compact estimated-wind placement.''',
+              '''- exact compact estimated-wind placement within the fixed simple-circle/windsock semantics;
+- exact visual stroke, section count, colour, animation, and pilot-marker layering;
+- bounded typography and animation of the fixed `FLT`/`DST` status-zone behavior.'''
+          )
+
+          replace_once(
+              '''- final visual design and accessibility policy;
+- settings/units system;''',
+              '''- final visual design and accessibility policy;
+- a full graduated compass ring;
+- expanded interactive diagnostics overlay;
+- operational wind-warning thresholds, colour/blink policy, and safety behavior above the `0–8 m/s` visual scale;
+- settings/units system;'''
+          )
+
+          append_anchor = '''## 34.7 Estimated-wind calculation is phase-independent
+
+C7 evaluates estimated-wind candidates continuously throughout the active Flight whenever required GNSS observations are valid and a candidate window exists. Climb, nominal level flight, descent, route-leg identity, vertical speed, and simulator phase are not estimator eligibility gates and do not reset valid history. Acceptance or rejection is determined by the defined input-quality, residual, angular-coverage, conditioning, and uncertainty gates. Flight conditions that violate the circle-model assumptions are rejected through those measured quality characteristics rather than through privileged phase labels.
+
+All other unresolved values in this document are classified as bounded implementation tuning or explicitly deferred decisions.'''
+
+          append_replacement = '''## 34.7 Estimated-wind calculation is phase-independent
+
+C7 evaluates estimated-wind candidates continuously throughout the active Flight whenever required GNSS observations are valid and a candidate window exists. Climb, nominal level flight, descent, route-leg identity, vertical speed, and simulator phase are not estimator eligibility gates and do not reset valid history. Acceptance or rejection is determined by the defined input-quality, residual, angular-coverage, conditioning, and uncertainty gates. Flight conditions that violate the circle-model assumptions are rejected through those measured quality characteristics rather than through privileged phase labels.
+
+## 34.8 Active Flight progress uses `FLT` with transient `DST`
+
+The top-centre camera-adjacent zone shows `Waiting for Takeoff` on the ground, defaults to elapsed Flight time as `FLT` while active, and temporarily shows `DST` for `3 s` whenever cumulative flown distance crosses another `500 m` threshold. Distance starts at the effective takeoff boundary, does not interpolate across GNSS gaps, and is not the completed Summary's authoritative source.
+
+## 34.9 The first wind UI keeps a simple circle and bounded windsock experiment
+
+The first slice includes one simple orientation circle approximately `80%` of screen width rather than a complex graduated compass ring. After the first accepted estimate, a windsock-like glyph begins at the pilot centre and extends downwind. Length/sections encode `0–8 m/s`, the numeric value is shown at approximately `0.5 m/s` display granularity, and visual length is capped above `8 m/s` without quantizing the estimator. Warning and safety policy remain deferred.
+
+## 34.10 Expanded diagnostics overlay remains out of scope
+
+The earlier considered expandable inspector is not implemented. The compact simulation panel remains, while detailed observability uses replaceable tests, structured logs, bounded developer output, the shared diagnostic snapshot, and the event timeline.
+
+## 34.11 Stationary landing evaluation does not require Track
+
+For landing detection, valid GS at or below `1.0 km/h` defines a zero ground-velocity vector and does not require Track. Above that threshold, Track remains mandatory. This rule does not synthesize Track for map presentation or retention and does not remove the requirement for a valid accepted estimated wind.
+
+## 34.12 Takeoff headwind correction uses current GNSS Track
+
+The bounded experimental takeoff detector projects valid fresh meteorological weather wind onto the current valid GNSS Track from the same GS observation. Device orientation, candidate displacement, simulator heading, and privileged truth are excluded. Missing, stale, invalid, or insufficiently accurate direction context produces zero correction, and tailwind never lowers the threshold.
+
+All other unresolved values in this document are classified as bounded implementation tuning or explicitly deferred decisions.'''
+          replace_once(append_anchor, append_replacement)
+
+          if 'expandable inspector' in text.lower():
+              raise SystemExit('Stale expandable-inspector requirement remains')
+          for required in (
+              'FLT mm:ss',
+              'stationaryGsThresholdKmh = 1.0',
+              'weatherWindFromDegTrue',
+              'windsock-like comprehension experiment',
+              '## 34.12 Takeoff headwind correction uses current GNSS Track',
+          ):
+              if required not in text:
+                  raise SystemExit(f'Missing required final text: {required}')
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          rm .github/workflows/pr44-final-review-fixes.yml
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Address final implementation plan review findings'
+          git push
