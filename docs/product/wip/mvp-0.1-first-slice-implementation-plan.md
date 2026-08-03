@@ -146,7 +146,7 @@ The broader Engineering Map assigns C8 a compass ring or scale and pilot-control
 - fixed target physical viewport width;
 - degraded spatial canvas.
 
-A complex compass ring and pilot-controlled scale are deferred.
+A complex graduated compass ring and pilot-controlled scale are deferred. The slice retains one simple, thin orientation circle centred on the pilot, approximately `80%` of screen width, with no degree scale, dense ticks, cardinal labels, or additional rings. It provides a bounded visual frame for orientation and the estimated-wind comprehension experiment.
 
 ## 3.4 No durable retained Flight
 
@@ -179,7 +179,7 @@ The slice includes:
 - finalized complete, degraded, or failed recording outcome;
 - Summary derived only from the finalized record;
 - product-facing unavailable/degraded states;
-- a compact simulation panel and expandable inspector;
+- a compact simulation panel and replaceable structured developer observability;
 - a normal successful scenario;
 - a controlled five-second GNSS-outage scenario variant;
 - a map-unavailable validation mode;
@@ -487,6 +487,7 @@ During the Flight, C1 presents:
 - altitude MSL;
 - VS;
 - Flight elapsed time;
+- flown distance;
 - orientation context;
 - compact estimated wind after first acceptance;
 - pilot-visible unavailable or degraded states.
@@ -535,6 +536,7 @@ Flight Screen contains three distinct layers.
 
 - basemap or degraded spatial canvas;
 - centred pilot marker;
+- one simple orientation circle approximately `80%` of screen width;
 - orientation behavior;
 - north/orientation cue;
 - scale indicator.
@@ -542,6 +544,7 @@ Flight Screen contains three distinct layers.
 ### Product overlay layer
 
 - Flight state or elapsed time;
+- transient flown-distance presentation;
 - GS;
 - altitude MSL;
 - VS;
@@ -554,8 +557,7 @@ Flight Screen contains three distinct layers.
 - `1×/2×`;
 - Reset;
 - scenario phase and time;
-- compact concern/source state;
-- expandable inspector.
+- compact concern/source state.
 
 Simulation controls must not appear to be future pilot-facing product controls.
 
@@ -587,11 +589,18 @@ The conceptual top layout is:
 
 Exact geometry, typography, spacing, and colors are bounded UI tuning.
 
-### Status / Flight-time zone
+### Camera-adjacent status / Flight-progress zone
+
+For the initial portrait prototype, the compact top-centre status zone uses the oval area around the camera cutout where the device layout permits it. A device without that geometry uses the same logical top-centre zone.
 
 - before takeoff: `Waiting for Takeoff`;
-- after takeoff: elapsed Flight time from the effective takeoff boundary;
+- after takeoff, the default presentation is `FLT mm:ss`, using elapsed Flight time from the effective takeoff boundary;
+- whenever cumulative flown distance crosses the next `500 m` threshold, the zone temporarily shows `DST` with the crossed distance for `3 s`, then returns to `FLT`;
+- the normal approximately `1.92 km` fixture therefore produces bounded notifications at approximately `0.5 km`, `1.0 km`, and `1.5 km`;
+- `ELT` is not used as the elapsed-time label because it is an established aviation abbreviation for Emergency Locator Transmitter;
 - after landing: no technical lifecycle/finalization messages; transition to completed outcome after C9 finalization.
+
+The active flown-distance aggregate starts at the effective takeoff boundary and sums consecutive valid GNSS positions. It does not interpolate across gaps. During GNSS unavailability the displayed value is held and marked stale/degraded rather than advanced. This runtime presentation aggregate is not the authoritative Summary source; completed distance is derived independently from the finalized C9 record.
 
 ### GS tile
 
@@ -627,20 +636,31 @@ After confirmed takeoff it displays VS:
 
 Estimated wind is mandatory but does not replace VS in the contextual right tile.
 
+The first slice retains one simple, thin orientation circle centred on the pilot and approximately `80%` of screen width. It is not a full graduated compass ring: it has no degree scale, dense ticks, cardinal labels, or additional rings. The existing north/orientation cue remains sufficient.
+
 Before the first accepted estimate:
 
-- no wind value is shown as estimated wind;
+- no windsock-like glyph or numeric value is shown as estimated wind;
 - `0` is not shown;
 - weather wind is not substituted;
 - persistent `Estimating…` is not used as the value.
 
-After acceptance, Product UI shows a compact indicator for the last accepted estimated wind. Exact placement is bounded UI tuning provided that it:
+After acceptance, Product UI shows a bounded windsock-like comprehension experiment inside the orientation context:
 
-- does not obstruct the central spatial region;
-- is visibly different from weather-source wind;
-- remains readable at a glance.
+- the wide mouth/head of the windsock is centred on the pilot/map centre;
+- the pilot marker is rendered above it or retains clear central separation;
+- the windsock body extends downwind from the centre, so the opposite direction is the intuitive into-wind direction;
+- its screen-relative angle is calculated from the accepted estimated-wind vector and the current C8 orientation frame;
+- visible body length or simple sections encode wind speed over a display range of `0–8 m/s`;
+- maximum visual length remains inside the simple orientation circle;
+- a visible numeric value in `m/s` remains present and is displayed at approximately `0.5 m/s` granularity;
+- display rounding does not quantize the estimator's retained value;
+- above `8 m/s`, visual length is capped while the numeric value continues to show the rounded estimated result;
+- warning colour, blinking, operational thresholds, and safety policy above the display range are deferred.
 
-Technical state, age, fit window, rejection reasons, and truth comparison remain in diagnostics.
+An accepted valid zero-wind estimate is distinguishable from unavailable state: it shows `0.0 m/s` with a minimal/collapsed glyph, while unavailable state shows neither a false zero nor a windsock.
+
+Exact stroke, section count, dimensions, colours, animation, and placement within the fixed orientation context are bounded UI tuning. Weather-source wind and estimated wind remain visibly distinct. Technical state, age, fit window, rejection reasons, and truth comparison remain in replaceable developer diagnostics.
 
 ## 10.6 Estimated-wind explanation
 
@@ -917,7 +937,7 @@ C10 uses truth wind only to generate normal source equivalents. C8, C6, C7, and 
 
 The `turn_north` altitude profile is two deterministic subsegments encoded in that phase: linear climb to `135.0 m` at `58.0 s`, then hold. Physical liftoff occurs exactly at `7.4 s`; physical touchdown occurs exactly at `192.0 s`. Neither truth event is passed to C6.
 
-This profile reaches the accepted approximately `100 m` height above takeoff by `58.0 s`, includes approximately `42 s` at nominal level altitude before descent begins, and leaves approximately `92 s` for a progressive descent, final alignment, approach, flare, float, touchdown, and confirmation. The level-altitude segment exists for route and altitude-profile coherence; it is not an estimated-wind eligibility gate. C7 evaluates estimated wind continuously throughout the active Flight whenever valid GNSS GS/Track observations and a complete candidate window are available. It is an engineering fixture derived from the accepted speed, climb, altitude, route-diversity, and total-duration inputs; it is not an aerodynamic performance prediction.
+This profile reaches the accepted approximately `100 m` height above takeoff by `58.0 s`, provides approximately `42 s` of level flight before descent begins, and leaves approximately `92 s` for a progressive descent, final alignment, approach, flare, float, touchdown, and confirmation. It is an engineering fixture derived from the accepted speed, climb, altitude, route-diversity, and total-duration inputs; it is not an aerodynamic performance prediction.
 
 ## 12.7 Exact variation profiles
 
@@ -990,7 +1010,7 @@ endExclusiveS: 117.0
 
 It occurs on the stable east-downwind leg, after directional diversity has been generated and before the next turn. No GNSS observations are emitted in that half-open interval; pressure and orientation continue normally.
 
-The accepted estimator configuration must produce the first accepted estimated-wind result no later than `108.0 s` in the normal fixture, so the outage always begins after an accepted estimate exists. This deadline validates accumulated directional diversity and fit quality; it does not define an estimator start phase or require level flight. The exact earlier acceptance time remains an algorithm result, not privileged simulator input.
+The accepted estimator configuration must produce the first accepted estimated-wind result no later than `108.0 s` in the normal fixture, so the outage always begins after an accepted estimate exists. The exact earlier acceptance time remains an algorithm result, not privileged simulator input.
 
 Map-unavailable mode is an independent C8 development toggle and is not encoded as altered scenario physics.
 
@@ -1089,7 +1109,28 @@ confirmation GS threshold
 75% × usable weather headwind component
 ```
 
-Usable correction requires valid, fresh weather wind and enough valid directional information to calculate a headwind component. Otherwise correction is zero.
+Weather wind uses meteorological `from` direction relative to True North. The authoritative launch direction for the correction is the current valid GNSS Track from the same normalized observation whose GS is being evaluated. Device True Azimuth, phone orientation, candidate displacement, simulator Air Heading, and privileged truth are not used.
+
+For each evaluated observation:
+
+```text
+deltaDeg
+=
+shortest angular difference between
+weatherWindFromDegTrue and trackDegTrue
+
+usableHeadwindMps
+=
+max(0, weatherWindSpeedMps × cos(deltaDeg))
+
+confirmationThresholdKmh
+=
+25
+−
+0.75 × usableHeadwindMps × 3.6
+```
+
+The cosine uses radians internally. Usable correction requires valid and fresh weather-wind speed and direction plus valid and fresh GNSS Track with acceptable course accuracy. If any required value is missing, stale, invalid, or insufficiently accurate, correction is zero. A crosswind contributes zero; a tailwind never lowers the threshold. The threshold is recalculated for each observation during the confirmation hold.
 
 For a direct `4 m/s` headwind:
 
@@ -1308,7 +1349,7 @@ No time-based expiry is required within the same short Flight. Hard invalidation
 
 # 17. Landing Detection
 
-## 17.1 Estimated AS
+## 17.1 Estimated AS and stationary ground vector
 
 C6 uses:
 
@@ -1322,6 +1363,19 @@ last accepted estimated wind
 
 The vector magnitude is estimated AS.
 
+For landing detection only, C6 constructs the ground-velocity vector with this exact stationary rule:
+
+```text
+stationaryGsThresholdKmh = 1.0
+```
+
+- when valid GS is greater than `1.0 km/h`, valid Track is required and the normal GS/Track vector is used;
+- when valid GS is less than or equal to `1.0 km/h`, ground velocity is defined as `(0, 0)` and Track is not required;
+- missing or invalid GS is never treated as stationary;
+- unavailable Track at stationary GS is not converted into a synthetic Track and does not become valid input for C8 or C9.
+
+This is not a GS-only landing fallback: a valid last accepted estimated wind remains mandatory, and estimated AS is still derived from the vector difference.
+
 ## 17.2 Availability
 
 Automatic landing detection is available only when:
@@ -1329,9 +1383,12 @@ Automatic landing detection is available only when:
 - a Flight is active;
 - a last accepted wind estimate exists;
 - the estimate is not hard-invalidated;
-- required GNSS/Track data is valid.
+- required GNSS GS is valid;
+- Track is valid whenever GS is above the stationary threshold.
 
-There is no GS-only landing fallback.
+The normal fixture may therefore keep Track unavailable during the zero-speed `197.0–212.0 s` interval while still confirming the candidate that began near touchdown. With the accepted schedule, the `15 s` hold completes at approximately `207.0 s`.
+
+There is no landing fallback that omits the accepted estimated-wind requirement.
 
 ## 17.3 Candidate and confirmation
 
@@ -1673,9 +1730,11 @@ The persistent simulation panel includes:
 - source health;
 - last significant event.
 
-## 22.2 Expandable inspector
+## 22.2 Replaceable detailed developer output
 
-The inspector includes:
+An expanded interactive diagnostics overlay is out of scope. Detailed observability is exposed through tests, structured logs, a bounded developer dump, or another replaceable non-product mechanism using the shared diagnostic snapshot and event timeline.
+
+The replaceable output must make available when required:
 
 - detector thresholds, corrections, timers, candidates, and boundaries;
 - wind window, residual, coverage, conditioning, uncertainty, and truth comparison;
@@ -1683,6 +1742,8 @@ The inspector includes:
 - recording counts, boundaries, and outcome;
 - orientation source, age, and fallback;
 - map state and viewport information.
+
+No separate inspector information architecture, interaction model, or placement work is required in the first slice.
 
 ## 22.3 Shared structured diagnostics
 
@@ -1695,8 +1756,8 @@ Tests must not depend on rendered screen text.
 - normal end-to-end deterministic run;
 - exact `scenario-v1` asset parsing and phase-boundary tests;
 - reference truth/observation sequence test at `1×` and `2×`;
-- takeoff candidate/confirmation boundary tests;
-- landing candidate/confirmation boundary tests;
+- takeoff candidate/confirmation boundary tests, including direct/partial headwind, crosswind, tailwind, invalid Track, stale weather, and deliberate Track-versus-Device-True-Azimuth disagreement;
+- landing candidate/confirmation boundary tests, including stationary GS with unavailable Track, moving GS with invalid Track, and invalid GS;
 - circle-fit numerical tests for ideal, noisy, incomplete, poorly conditioned, and outlier cases;
 - accepted/retained/unavailable wind-state tests;
 - first accepted wind no later than `108.0 s` in the normal fixture;
@@ -1704,6 +1765,8 @@ Tests must not depend on rendered screen text.
 - quality-gate test proving acceptance/rejection depends on input, residual, coverage, conditioning, and uncertainty rather than vertical phase labels;
 - exact `112.0–117.0 s` GNSS-outage and recovery test;
 - map-unavailable validation;
+- active flown-distance tests proving effective-boundary start, `500 m` threshold notifications, `3 s` return to `FLT`, and no interpolation across GNSS gaps;
+- windsock-presentation tests proving downwind body orientation, simple-circle containment, numeric `0.5 m/s` display granularity, valid-zero versus unavailable distinction, and visual capping above `8 m/s` without estimator quantization;
 - Pause-is-not-outage test;
 - wall-clock-jump test;
 - identical same-timestamp redelivery is ignored idempotently without duplicate retention or degradation;
@@ -1812,6 +1875,7 @@ Includes:
 - temporary direct Flight Screen entry;
 - spatial placeholder;
 - centred pilot marker;
+- simple orientation circle;
 - status/time, GS, altitude, and contextual zones;
 - warning placeholders;
 - simulation panel;
@@ -1851,7 +1915,8 @@ Includes:
 - effective boundary and bounded history;
 - Flight identity and complete Takeoff Point representation;
 - explicit C3 to C9 creation handoff and recording initialization seam;
-- elapsed Flight time;
+- elapsed Flight time and camera-adjacent `FLT`/transient `DST` presentation;
+- active flown-distance aggregate with `500 m` notifications and GNSS-gap semantics;
 - Device True Azimuth-up ground presentation to Track-up airborne transition;
 - one-shot, idempotency, and Takeoff Point handoff tests.
 
@@ -1871,7 +1936,7 @@ Includes:
 - complete Landing Point representation;
 - explicit C3 to C9 completion handoff seam;
 - completed lifecycle;
-- VS and compact estimated-wind presentation.
+- VS and simple-circle windsock-like estimated-wind presentation.
 
 Observable result: the scenario automatically completes one Flight from takeoff through landing with authoritative completion context ready for C9 finalization.
 
@@ -1915,7 +1980,7 @@ Includes:
 - no distance interpolation;
 - retained wind and suspended landing detection;
 - map-unavailable run;
-- playback, Pause, wall-clock, monotonic-invalidity, duplicate/collision, magnetic-declination, exact-scenario, special-point-handoff, truth-leakage, and end-to-end tests;
+- playback, Pause, wall-clock, monotonic-invalidity, duplicate/collision, magnetic-declination, exact-scenario, headwind-projection, stationary-landing, active-distance, windsock-presentation, special-point-handoff, truth-leakage, and end-to-end tests;
 - concise validation instructions.
 
 Observable result: both pilot-visible success and deterministic boundary/degradation evidence exist.
@@ -2095,8 +2160,10 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - takeoff is detected automatically;
 - active Flight is created only through C2/C3 authority;
 - GS, altitude MSL, VS, and elapsed Flight time are shown;
+- active flown distance is accumulated from the effective boundary and appears as transient `DST` notifications at each `500 m` threshold;
 - weather wind disappears after takeoff;
 - estimated wind appears only after acceptance;
+- the estimated-wind indicator uses the simple orientation circle and bounded centre-origin windsock experiment;
 - map/orientation behavior follows the contract;
 - landing is detected automatically;
 - Summary appears only after finalization;
@@ -2131,8 +2198,11 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - wind candidates are evaluated continuously during active Flight whenever required observations are valid, without climb/level/descent or scenario-phase gating;
 - wind is accepted only through quality gates and no later than `108.0 s` in the normal fixture;
 - rejected candidates do not overwrite accepted wind;
+- takeoff weather correction uses current valid GNSS Track and the meteorological weather-wind `from` direction, with zero correction when required direction/quality context is unavailable;
 - landing detection does not use truth wind;
-- no GS-only landing fallback exists.
+- stationary GS at or below `1.0 km/h` uses a zero ground vector without synthesizing Track;
+- moving landing evaluation still requires valid Track;
+- no landing fallback without accepted estimated wind exists.
 
 ## 29.6 Recording and Summary
 
@@ -2142,7 +2212,8 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - finalized complete/degraded records contain both special points with required identity, location, boundary, confirmation, detector, and Flight-association fields;
 - Summary derives only from finalized record;
 - complete, degraded, and failed outcomes are distinguishable;
-- distance does not interpolate across GNSS gaps;
+- active and finalized distance do not interpolate across GNSS gaps;
+- the transient active-distance display is not the authoritative Summary source;
 - duration uses monotonic effective boundaries;
 - wall-clock change does not alter duration;
 - identical same-timestamp redelivery is idempotently ignored;
@@ -2166,8 +2237,9 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - exact scenario parser, phase-boundary, and reference-sequence tests exist;
 - controlled GNSS-outage test exists;
 - map-unavailable validation exists;
-- detector boundary tests exist;
-- wind numerical tests exist;
+- detector boundary tests include GNSS-Track headwind projection and stationary zero-vector landing behavior;
+- wind numerical and windsock-presentation tests exist;
+- active flown-distance threshold and GNSS-gap tests exist;
 - pressure/QNH round-trip tests exist;
 - magnetic-declination conversion and fallback tests exist;
 - identical-redelivery and conflicting-collision tests exist;
@@ -2189,7 +2261,9 @@ The following do not require a new owner decision when accepted semantics and th
 - exact Track-loss grace period;
 - exact Flutter map package within the stated stop conditions;
 - pixel geometry, typography, spacing, and animation;
-- exact compact estimated-wind placement.
+- exact compact estimated-wind placement within the fixed simple-circle/windsock semantics;
+- exact visual stroke, section count, colour, animation, and pilot-marker layering;
+- bounded typography and animation of the fixed `FLT`/`DST` status-zone behavior.
 
 The following are no longer implementation tuning for `scenario-v1` and require an explicit plan update:
 
@@ -2227,6 +2301,9 @@ Tuning becomes an owner decision when it changes product meaning, authority, sco
 - production magnetic-declination model/provider, model updates, and offline geomagnetic data;
 - process-killed Flight recovery;
 - final visual design and accessibility policy;
+- a full graduated compass ring;
+- expanded interactive diagnostics overlay;
+- operational wind-warning thresholds, colour/blink policy, and safety behavior above the `0–8 m/s` visual scale;
 - settings/units system;
 - complete application navigation;
 - complete AirLink architecture.
@@ -2301,5 +2378,25 @@ The owner accepts the logical Takeoff Point and Landing Point representation and
 ## 34.7 Estimated-wind calculation is phase-independent
 
 C7 evaluates estimated-wind candidates continuously throughout the active Flight whenever required GNSS observations are valid and a candidate window exists. Climb, nominal level flight, descent, route-leg identity, vertical speed, and simulator phase are not estimator eligibility gates and do not reset valid history. Acceptance or rejection is determined by the defined input-quality, residual, angular-coverage, conditioning, and uncertainty gates. Flight conditions that violate the circle-model assumptions are rejected through those measured quality characteristics rather than through privileged phase labels.
+
+## 34.8 Active Flight progress uses `FLT` with transient `DST`
+
+The top-centre camera-adjacent zone shows `Waiting for Takeoff` on the ground, defaults to elapsed Flight time as `FLT` while active, and temporarily shows `DST` for `3 s` whenever cumulative flown distance crosses another `500 m` threshold. Distance starts at the effective takeoff boundary, does not interpolate across GNSS gaps, and is not the completed Summary's authoritative source.
+
+## 34.9 The first wind UI keeps a simple circle and bounded windsock experiment
+
+The first slice includes one simple orientation circle approximately `80%` of screen width rather than a complex graduated compass ring. After the first accepted estimate, a windsock-like glyph begins at the pilot centre and extends downwind. Length/sections encode `0–8 m/s`, the numeric value is shown at approximately `0.5 m/s` display granularity, and visual length is capped above `8 m/s` without quantizing the estimator. Warning and safety policy remain deferred.
+
+## 34.10 Expanded diagnostics overlay remains out of scope
+
+The earlier considered expandable inspector is not implemented. The compact simulation panel remains, while detailed observability uses replaceable tests, structured logs, bounded developer output, the shared diagnostic snapshot, and the event timeline.
+
+## 34.11 Stationary landing evaluation does not require Track
+
+For landing detection, valid GS at or below `1.0 km/h` defines a zero ground-velocity vector and does not require Track. Above that threshold, Track remains mandatory. This rule does not synthesize Track for map presentation or retention and does not remove the requirement for a valid accepted estimated wind.
+
+## 34.12 Takeoff headwind correction uses current GNSS Track
+
+The bounded experimental takeoff detector projects valid fresh meteorological weather wind onto the current valid GNSS Track from the same GS observation. Device orientation, candidate displacement, simulator heading, and privileged truth are excluded. Missing, stale, invalid, or insufficiently accurate direction context produces zero correction, and tailwind never lowers the threshold.
 
 All other unresolved values in this document are classified as bounded implementation tuning or explicitly deferred decisions.
