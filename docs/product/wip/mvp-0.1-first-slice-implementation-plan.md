@@ -600,7 +600,15 @@ For the initial portrait prototype, the compact top-centre status zone uses the 
 - `ELT` is not used as the elapsed-time label because it is an established aviation abbreviation for Emergency Locator Transmitter;
 - after landing: no technical lifecycle/finalization messages; transition to completed outcome after C9 finalization.
 
-The active flown-distance aggregate starts at the effective takeoff boundary and sums consecutive valid GNSS positions. It does not interpolate across gaps. During GNSS unavailability the displayed value is held and marked stale/degraded rather than advanced. This runtime presentation aggregate is not the authoritative Summary source; completed distance is derived independently from the finalized C9 record.
+### GNSS distance-continuity segments
+
+For both active flown distance and finalized Summary distance, `consecutive valid GNSS positions` means adjacent accepted positions inside the same uninterrupted GNSS distance-continuity segment. A segment ends when C4 reports GNSS unavailable, a required GNSS position is invalid, C4 records an explicit GNSS source interruption or continuity gap, or the stream enters the source-monotonic invalid/discontinuous state defined by this plan. An identical same-timestamp redelivery that is ignored idempotently does not end the segment.
+
+After a segment ends, the first valid recovered GNSS position opens a new segment and becomes its distance anchor. No distance is added from the final valid position of the previous segment to that recovered position; accumulation resumes only when a subsequent valid position is accepted in the new segment. Conceptually, `P1 → P2 → P3 | GNSS gap | P4 → P5` includes `distance(P1, P2) + distance(P2, P3) + distance(P4, P5)` and excludes `distance(P3, P4)`. This slice does not interpolate, dead-reckon, integrate GS, reconstruct a route, or estimate missing distance. The resulting distance can therefore be lower than the unknown real flown distance, and the degraded recording/Summary status communicates the incomplete GNSS coverage.
+
+Observed delivery timing alone does not end a segment. Late or batched observations remain continuous when their source-monotonic timestamps are valid and ordered, C4 records no unavailable, invalid, interruption, or continuity-gap interval, and the observations preserve continuous source semantics. Nominal cadence, `1 Hz` test transforms, deterministic jitter, and batching do not by themselves define a gap; continuity follows normalized source availability, validity, interruption, and source-time semantics rather than wall-clock arrival spacing.
+
+The active flown-distance aggregate starts at the effective takeoff boundary and applies that segment rule only to accepted position pairs. It holds its current value and is marked stale/degraded during GNSS unavailability, opens a new anchor after recovery, and never joins the final pre-gap position to the first post-gap position. The existing transient `DST` threshold behavior is unchanged. This runtime presentation aggregate is not the authoritative Summary source; completed distance is derived independently from the finalized C9 record using the same segment semantics.
 
 ### GS tile
 
@@ -1641,7 +1649,7 @@ Wall clock is used only to display takeoff and landing civil time.
 
 ### Distance
 
-Sum distances between consecutive valid GNSS positions. Do not interpolate across gaps.
+Derive distance independently from the retained C9 record by summing only accepted position-pair distances within the uninterrupted GNSS distance-continuity segments defined in section 10.4. Do not connect two retained valid positions when a recorded unavailable, invalid, interruption, continuity-gap, or source-monotonic-invalid/discontinuous interval lies between them. The first valid position after each recorded gap is an anchor only. The active runtime aggregate must not be copied into Summary.
 
 ### Average GS
 
@@ -1651,7 +1659,7 @@ valid recorded distance
 valid covered time
 ```
 
-It is marked degraded when source gaps materially limit coverage.
+Valid covered time is the sum of source-monotonic time intervals for the same accepted within-segment position pairs that contribute valid recorded distance. A source-time interval crossing a GNSS gap contributes neither distance nor valid covered time. Overall Flight duration remains defined by the effective lifecycle boundaries and includes the outage. Average GS is marked degraded when source gaps materially limit coverage.
 
 ### Maximum GS
 
@@ -1694,15 +1702,22 @@ During the outage:
 - C7 retains the last accepted wind;
 - no new wind estimate is accepted;
 - landing detection is suspended;
-- distance is not interpolated;
+- active distance holds its current value;
 - C9 records the gap.
 
 After recovery:
 
 - the same Flight continues;
+- the last normal pre-gap GNSS sample is expected at approximately `111.5 s` under the normative cadence;
+- no GNSS sample exists in `[112.0, 117.0)`;
+- the valid sample at `117.0 s` opens the recovered distance-continuity segment as an anchor only and adds no distance from the pre-gap anchor;
+- the next valid sample, normally at `117.5 s`, may produce the first post-gap distance contribution;
+- the unavailable interval contributes neither GNSS-derived distance nor valid GNSS covered time, but remains part of elapsed Flight time and total Flight duration;
 - normal inputs resume;
 - final recording outcome is `degraded`;
 - Summary remains available.
+
+No interpolation, dead reckoning, GS integration, route reconstruction, or estimated missing distance is permitted for the outage.
 
 This behavior is an explicit owner-approved bounded reopening of the previously deferred P3 interruption boundary for this one deterministic five-second GNSS-outage validation case. It does not define general interruption retention, completion, restoration, long-loss, process-recovery, or production recovery semantics.
 
@@ -1765,7 +1780,11 @@ Tests must not depend on rendered screen text.
 - quality-gate test proving acceptance/rejection depends on input, residual, coverage, conditioning, and uncertainty rather than vertical phase labels;
 - exact `112.0–117.0 s` GNSS-outage and recovery test;
 - map-unavailable validation;
-- active flown-distance tests proving effective-boundary start, `500 m` threshold notifications, `3 s` return to `FLT`, and no interpolation across GNSS gaps;
+- active and finalized distance tests proving independently applied common segment semantics: a normal uninterrupted pair contributes distance; the final pre-gap position to first post-gap position contributes exactly zero; the first recovered position only establishes a new anchor; and the next valid position in the recovered segment resumes accumulation;
+- distance-coverage tests proving the outage interval contributes neither distance nor valid covered time while elapsed Flight time and total duration still include it;
+- degraded-distance evidence proving Summary distance is lower than the corresponding uninterrupted fixture by the omitted GNSS-covered segment;
+- continuity tests proving late or batched observations with continuous valid ordered source timestamps do not create a false segment break, while invalid or source-monotonic-discontinuous GNSS input does break the segment;
+- active flown-distance tests proving effective-boundary start, value hold during unavailability, `500 m` threshold notifications, and `3 s` return to `FLT`;
 - windsock-presentation tests proving downwind body orientation, simple-circle containment, numeric `0.5 m/s` display granularity, valid-zero versus unavailable distinction, and visual capping above `8 m/s` without estimator quantization;
 - Pause-is-not-outage test;
 - wall-clock-jump test;
@@ -1916,7 +1935,7 @@ Includes:
 - Flight identity and complete Takeoff Point representation;
 - explicit C3 to C9 creation handoff and recording initialization seam;
 - elapsed Flight time and camera-adjacent `FLT`/transient `DST` presentation;
-- active flown-distance aggregate with `500 m` notifications and GNSS-gap semantics;
+- active flown-distance aggregate with `500 m` notifications, within-segment position-pair accumulation, value hold during GNSS unavailability, anchor-only recovery, and no pre-gap to post-gap chord;
 - Device True Azimuth-up ground presentation to Track-up airborne transition;
 - one-shot, idempotency, and Takeoff Point handoff tests.
 
@@ -1977,7 +1996,9 @@ Includes:
 
 - exact five-second GNSS outage and recovery;
 - degraded record and Summary;
-- no distance interpolation;
+- no pre-gap to post-gap distance chord, anchor-only first recovery position, resumed accumulation from the next within-segment position, and no outage contribution to valid covered time;
+- independent active and finalized-record distance derivations using the same segment semantics;
+- continuous valid source-time batching that does not create a false segment break, plus invalid and source-monotonic-discontinuous inputs that do;
 - retained wind and suspended landing detection;
 - map-unavailable run;
 - playback, Pause, wall-clock, monotonic-invalidity, duplicate/collision, magnetic-declination, exact-scenario, headwind-projection, stationary-landing, active-distance, windsock-presentation, special-point-handoff, truth-leakage, and end-to-end tests;
@@ -2212,7 +2233,11 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - finalized complete/degraded records contain both special points with required identity, location, boundary, confirmation, detector, and Flight-association fields;
 - Summary derives only from finalized record;
 - complete, degraded, and failed outcomes are distinguishable;
-- active and finalized distance do not interpolate across GNSS gaps;
+- active and finalized distance independently sum only accepted position pairs within uninterrupted GNSS distance-continuity segments;
+- unavailable, invalid, explicit interruption/continuity-gap, and source-monotonic-invalid/discontinuous intervals end a distance segment, while an idempotently ignored identical redelivery and delivery delay alone do not;
+- the first valid position after a segment break is anchor-only, so the final pre-gap to first post-gap chord contributes zero and only a subsequent valid within-segment pair resumes accumulation;
+- valid covered time sums only the source-monotonic intervals belonging to the same accepted position pairs as distance, excluding every gap-crossing interval;
+- Flight duration still includes GNSS outages;
 - the transient active-distance display is not the authoritative Summary source;
 - duration uses monotonic effective boundaries;
 - wall-clock change does not alter duration;
@@ -2239,7 +2264,10 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - map-unavailable validation exists;
 - detector boundary tests include GNSS-Track headwind projection and stationary zero-vector landing behavior;
 - wind numerical and windsock-presentation tests exist;
-- active flown-distance threshold and GNSS-gap tests exist;
+- active flown-distance threshold tests exist;
+- deterministic distance-segment tests cover an uninterrupted contribution, zero pre-gap to post-gap contribution, anchor-only recovery, resumed within-segment accumulation, excluded outage distance and covered time, and unchanged elapsed/total Flight duration;
+- tests prove active and finalized Summary distance apply the same rule independently and that the degraded Summary is lower than the corresponding uninterrupted fixture by the omitted GNSS-covered segment;
+- tests prove continuous valid source-time batching creates no false segment break and invalid or source-monotonic-discontinuous GNSS input does;
 - pressure/QNH round-trip tests exist;
 - magnetic-declination conversion and fallback tests exist;
 - identical-redelivery and conflicting-collision tests exist;
@@ -2381,7 +2409,7 @@ C7 evaluates estimated-wind candidates continuously throughout the active Flight
 
 ## 34.8 Active Flight progress uses `FLT` with transient `DST`
 
-The top-centre camera-adjacent zone shows `Waiting for Takeoff` on the ground, defaults to elapsed Flight time as `FLT` while active, and temporarily shows `DST` for `3 s` whenever cumulative flown distance crosses another `500 m` threshold. Distance starts at the effective takeoff boundary, does not interpolate across GNSS gaps, and is not the completed Summary's authoritative source.
+The top-centre camera-adjacent zone shows `Waiting for Takeoff` on the ground, defaults to elapsed Flight time as `FLT` while active, and temporarily shows `DST` for `3 s` whenever cumulative flown distance crosses another `500 m` threshold. Distance starts at the effective takeoff boundary and sums only accepted position pairs within an uninterrupted GNSS distance-continuity segment. Any recorded unavailable, invalid, interruption/continuity-gap, or source-monotonic-invalid/discontinuous interval ends the segment; the first recovered position is a new anchor and the pre-gap to post-gap chord is excluded. Identical idempotent redelivery and observed batching or delay with continuous valid source-time semantics do not create a break. Active distance holds during an outage and is not the completed Summary's authoritative source; Summary derives independently from the retained C9 record using the same segment and valid-covered-time rule.
 
 ## 34.9 The first wind UI keeps a simple circle and bounded windsock experiment
 
