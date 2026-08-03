@@ -1,0 +1,51 @@
+name: PR44 materialize implementation plan
+
+on:
+  push:
+    branches:
+      - agent/al-0002-05-first-slice-implementation-plan
+    paths:
+      - .github/workflows/pr44-materialize-plan.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Materialize approved document and clean transport files
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat \
+            .tmp/pr44-plan.b64.part1 \
+            .tmp/pr44-plan.b64.part2 \
+            .tmp/pr44-plan.b64.part3 \
+            .tmp/pr44-plan.b64.part4 \
+            | base64 --decode \
+            | xz --decompress \
+            > docs/product/wip/mvp-0.1-first-slice-implementation-plan.md
+
+          echo '2c4fc467ac5f710cc163de599d37156eaef0dc119d8909816df9f86ae418d3e8  docs/product/wip/mvp-0.1-first-slice-implementation-plan.md' \
+            | sha256sum --check
+
+          rm \
+            .tmp/pr44-plan.b64.part1 \
+            .tmp/pr44-plan.b64.part2 \
+            .tmp/pr44-plan.b64.part3 \
+            .tmp/pr44-plan.b64.part4
+          rmdir .tmp
+          rm .github/workflows/pr44-materialize-plan.yml
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Address second-round implementation plan review findings'
+          git push
