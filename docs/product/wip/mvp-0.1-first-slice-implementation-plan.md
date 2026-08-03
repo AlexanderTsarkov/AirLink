@@ -224,8 +224,10 @@ These omissions are explicit simplifications, not rejection of future product do
 
 - **AS — Air Speed:** speed of the wing relative to the air mass.
 - **GS — Ground Speed:** speed relative to the ground.
-- **Heading:** orientation and air-relative movement direction.
-- **Track:** direction of the ground-velocity vector.
+- **Air Heading:** orientation and air-relative movement direction of the wing.
+- **Device Magnetic Azimuth:** phone orientation relative to Magnetic North as supplied by the orientation source.
+- **Device True Azimuth:** the same device orientation after AirLink applies magnetic-declination correction to True North.
+- **Track:** direction of the ground-velocity vector, expressed relative to True North.
 
 In the airborne simulation model:
 
@@ -237,7 +239,7 @@ air-relative velocity vector
 truth wind velocity vector
 ```
 
-Requirements and implementation-facing documentation must not use an unlabeled generic `speed` where AS and GS could be confused.
+Requirements and implementation-facing documentation must not use an unlabeled generic `speed` where AS and GS could be confused. They must also keep Air Heading, Device Magnetic Azimuth, Device True Azimuth, and Track distinct rather than using an unlabeled generic `Heading`.
 
 ## 6.2 Vertical motion and altitude
 
@@ -263,7 +265,7 @@ Weather-source wind, truth wind, and estimated wind must remain semantically dis
 - **Observed monotonic time:** time the observation reaches AirLink.
 - **Wall-clock time:** civil time used for displayed takeoff and landing timestamps.
 
-Calculations, windows, ordering, Flight duration, and elapsed Flight time use monotonic time, not wall clock.
+Calculations, windows, ordering, Flight duration, and elapsed Flight time use monotonic time, not wall clock. Monotonic validity is evaluated within a development session and within each source stream; Reset begins a new session and therefore a new monotonic domain.
 
 ---
 
@@ -276,7 +278,7 @@ Normal first-slice inputs are:
 - GNSS position;
 - GS and Track;
 - horizontal, speed, and course accuracy where available;
-- device orientation/Heading and orientation quality where available;
+- Device Magnetic Azimuth and orientation quality where available;
 - atmospheric pressure;
 - weather-source wind and QNH;
 - source monotonic time, observed monotonic time, and wall-clock time;
@@ -295,6 +297,7 @@ The slice produces:
 - `TakeoffConfirmed` and `LandingConfirmed` detector outcomes with effective boundaries and diagnostics;
 - authoritative Flight identity, lifecycle, Takeoff Point, and Landing Point;
 - altitude MSL, height above takeoff, VS, estimated wind, and estimated AS;
+- Device True Azimuth derived from Device Magnetic Azimuth, position, civil date/time, and a replaceable magnetic-declination provider;
 - pilot-centred map/spatial state and orientation state;
 - progressive recording health;
 - a finalized complete or degraded in-memory Flight record, or a failed-record outcome;
@@ -350,7 +353,7 @@ C4 owns the normalized AirLink-facing form of:
 - position;
 - GS;
 - Track;
-- orientation;
+- raw Device Magnetic Azimuth and orientation quality;
 - pressure;
 - source and observed time;
 - accuracy and quality metadata;
@@ -358,7 +361,7 @@ C4 owns the normalized AirLink-facing form of:
 - applicable pass-through or controlled-substitute handling state, kept separate from provenance;
 - platform/input interruption state.
 
-C4 accepts independent asynchronous streams. Domain logic must not require a fixed sensor frequency.
+C4 accepts independent asynchronous streams. Domain logic must not require a fixed sensor frequency. C4 does not calculate magnetic declination or convert magnetic orientation to True North; it preserves the source meaning and supplies the independent position, civil-time, and orientation inputs required by C7.
 
 ## C5 — Weather Context
 
@@ -389,6 +392,8 @@ C7 owns:
 - barometric altitude MSL;
 - height above takeoff;
 - vertical speed;
+- magnetic-declination lookup through a replaceable provider boundary;
+- conversion of Device Magnetic Azimuth to Device True Azimuth;
 - current, retained, or unavailable estimated-wind state;
 - estimated air-velocity used by the landing detector;
 - quality and uncertainty semantics for derived values.
@@ -401,6 +406,8 @@ C8 owns:
 - map orientation presentation;
 - scale and north/orientation cues;
 - map-unavailable/degraded spatial state.
+
+C8 consumes Device True Azimuth on the ground and Track in Flight. It does not calculate magnetic declination or reinterpret raw magnetic orientation.
 
 C8 does not own Flight lifecycle, Takeoff Point identity, current-value derivation, or Route navigation.
 
@@ -424,7 +431,7 @@ C10 owns:
 
 - scenario definition and progression;
 - privileged truth;
-- deterministic substitute production through C4/C5 boundaries;
+- deterministic substitute production through C4/C5 boundaries, including source-equivalent Device Magnetic Azimuth rather than a ready-made True-North orientation;
 - fault variants;
 - truth comparison and validation support.
 
@@ -451,7 +458,7 @@ When Flight Screen loads:
 - C10 emits valid ground-state source equivalents;
 - weather-source wind is available;
 - estimated wind is unavailable;
-- map orientation uses valid compass/device Heading corrected to True North semantics;
+- C4 supplies valid Device Magnetic Azimuth and C7 derives Device True Azimuth for ground map orientation;
 - bounded rolling history may exist only in memory.
 
 ## 9.3 Start
@@ -574,7 +581,7 @@ The conceptual top layout is:
 │   GS          ALT       contextual │
 │                                    │
 │             map                    │
-│         centred pilot             │
+│         centred pilot              │
 │                                    │
 ├────────────────────────────────────┤
 │ temporary simulation panel         │
@@ -681,6 +688,21 @@ It does not show:
 
 Each relevant observation carries source monotonic time. AirLink also records observed monotonic time where delivery delay or batching matters.
 
+C4 exposes timestamps used together for domain calculations in one normalized development-session monotonic domain. If an adapter receives a source-native clock with different origin or units, the adapter maps it explicitly and preserves source timing context where required for diagnosis.
+
+Within one source stream and one development session, source monotonic timestamps must be present and must not move backwards. A duplicate timestamp may not advance a time-based window and must be rejected or coalesced deterministically. Independent streams may legitimately contain equal timestamps.
+
+If a required monotonic timestamp is missing, decreases, or otherwise becomes invalid:
+
+- the affected observation is invalid for ordering and time-based calculation;
+- detector timers and derivation windows that depend on the affected stream are invalidated rather than continued across the discontinuity;
+- no takeoff or landing confirmation, VS result, wind estimate, Flight duration, or retained ordering may be reported as valid across the discontinuity;
+- lifecycle must not silently transition to landing, completion, rejection, or another state because of the clock defect;
+- C9 records the clock-invalid interval and exposes degraded or incomplete recording state;
+- the first-slice validation case stops before assigning a successful completed Summary or general recovery meaning.
+
+Production recovery from monotonic-clock failure remains deferred.
+
 Logic uses time windows and durations, not sample counts.
 
 ## 11.3 Wall clock
@@ -749,7 +771,31 @@ Takeoff and landing areas are treated as locally flat at the same surface altitu
 
 Local geometry is defined in a portable East/North metre coordinate system and converted to latitude/longitude relative to the origin.
 
-## 12.3 Truth wind
+## 12.3 Orientation fixture
+
+C10 holds a privileged truth Device True Azimuth for scenario composition but does not provide that value directly to product logic. It generates source-equivalent Device Magnetic Azimuth through the normal C4 boundary:
+
+```text
+deviceMagneticAzimuthDeg
+=
+normalize360(deviceTrueAzimuthTruthDeg − fixtureDeclinationDegEast)
+```
+
+The deterministic first fixture uses a synthetic non-zero magnetic declination of `+10.0° east`. This value exists to prove that the product performs the conversion and is not a claim about production geomagnetic truth for the location or date.
+
+C7 obtains declination through a replaceable `MagneticDeclinationProvider` using position and civil date/time, then calculates:
+
+```text
+deviceTrueAzimuthDeg
+=
+normalize360(deviceMagneticAzimuthDeg + declinationDegEast)
+```
+
+East declination is positive and west declination is negative. Results are normalized to `[0°, 360°)`.
+
+The first-slice provider deterministically returns the declared fixture value for the fixture context. Selection of a production WMM/IGRF implementation, native platform API, model-update mechanism, altitude treatment, and offline model-data strategy remains deferred.
+
+## 12.4 Truth wind
 
 The first fixture uses constant truth-wind speed:
 
@@ -758,11 +804,11 @@ The first fixture uses constant truth-wind speed:
 14.4 km/h
 ```
 
-Initial Heading and final approach are primarily into wind. Absolute wind direction is a bounded fixture parameter selected during numerical composition.
+Initial Air Heading and final approach are primarily into wind. Absolute wind direction is a bounded fixture parameter selected during numerical composition.
 
 Normal successful weather-source wind may equal truth wind. Weather/truth mismatch testing is deferred.
 
-## 12.4 Airborne and ground motion
+## 12.5 Airborne and ground motion
 
 Before physical liftoff and after physical touchdown, pilot coordinates follow ground motion; wind does not add free drift.
 
@@ -778,7 +824,7 @@ truth wind
 
 C10 uses truth wind only to generate normal source equivalents. C8, C6, C7, and C9 never read truth wind.
 
-## 12.5 Target profile
+## 12.6 Target profile
 
 | Parameter | Target |
 | --- | ---: |
@@ -794,13 +840,13 @@ C10 uses truth wind only to generate normal source equivalents. C8, C6, C7, and 
 | Flight duration | approximately `3–3.5 min` |
 | Landing confirmation interval | `15 s` |
 
-GS is never prescribed by an AS row. It is calculated from AS, Heading, and truth wind.
+GS is never prescribed by an AS row. It is calculated from AS, Air Heading, and truth wind.
 
-## 12.6 Natural deterministic variation
+## 12.7 Natural deterministic variation
 
 Even stable phases must not contain perfectly constant values.
 
-### Heading
+### Air Heading
 
 Typical straight-leg variation:
 
@@ -812,7 +858,7 @@ Typical straight-leg variation:
 
 ### AS
 
-Cruise AS varies smoothly by roughly `±1–2 km/h` without being mechanically synchronized with Heading variation.
+Cruise AS varies smoothly by roughly `±1–2 km/h` without being mechanically synchronized with Air Heading variation.
 
 ### Altitude and VS
 
@@ -820,11 +866,11 @@ Nominal level-flight altitude may vary smoothly by roughly `±0.5–1.5 m`, prod
 
 ### Measurement variation
 
-Smaller deterministic sensor-like variation may be applied to GNSS position, source GS, Track, compass, and pressure. Truth motion variation and measurement variation must remain separately visible in validation diagnostics.
+Smaller deterministic sensor-like variation may be applied to GNSS position, source GS, Track, Device Magnetic Azimuth, and pressure. Truth motion variation and measurement variation must remain separately visible in validation diagnostics.
 
 Uncontrolled randomness is prohibited. Explicit deterministic functions are preferred; a fixed seed alone is insufficient if the resulting sequence is opaque or unstable across implementations.
 
-## 12.7 Scenario phases
+## 12.8 Scenario phases
 
 The scenario contains conceptually:
 
@@ -847,14 +893,14 @@ The scenario contains conceptually:
 
 Exact phase durations, leg lengths, turn radii, and easing functions are bounded tuning parameters.
 
-## 12.8 Ground and launch phases
+## 12.9 Ground and launch phases
 
 ### Ground ready
 
 Before Start:
 
 - pilot stands at origin;
-- Heading is into wind with small orientation variation;
+- truth Device True Azimuth and Air Heading are into wind with small orientation variation;
 - pressure corresponds to `35 m MSL`;
 - GNSS position is valid;
 - Track may be unavailable at near-zero movement;
@@ -863,7 +909,7 @@ Before Start:
 ### Wing inflation and stabilization
 
 - low ground movement;
-- larger Heading corrections than stable running;
+- larger device-orientation and Air Heading corrections than stable running;
 - `wingStabilized` exists only in privileged truth.
 
 ### Launch acceleration
@@ -888,7 +934,7 @@ Physical liftoff occurs only when:
 
 C6 receives neither condition directly.
 
-## 12.9 Climb and manoeuvre phases
+## 12.10 Climb and manoeuvre phases
 
 After liftoff:
 
@@ -896,19 +942,19 @@ After liftoff:
 - VS rises toward about `+2.5 m/s`;
 - AS later settles around `40 km/h`;
 - climb continues toward about `135 m MSL`;
-- heading changes provide upwind, crosswind, downwind, and return-to-upwind directional diversity;
+- Air Heading changes provide upwind, crosswind, downwind, and return-to-upwind directional diversity;
 - turns use smooth entry, main turn, exit, and small post-turn correction;
 - straight legs retain natural deterministic yaw.
 
 The approximate closed pattern exists to supply broad velocity-vector coverage. It does not create an AirLink Route, autopilot, or navigation controller.
 
-## 12.10 Descent and approach
+## 12.11 Descent and approach
 
 Descent begins in the second half of the Flight. VS becomes negative smoothly. Final approach is primarily into wind.
 
 Final-approach AS is approximately `45 km/h`. With a full `4 m/s` headwind, corresponding GS is approximately `30.6 km/h` before flare, subject to corrections and exact geometry.
 
-## 12.11 Flare, float, touchdown, and landing run
+## 12.12 Flare, float, touchdown, and landing run
 
 Flare begins at approximately `1.0–1.5 m` above the known surface, corresponding to approximately `36.0–36.5 m MSL`.
 
@@ -937,7 +983,7 @@ At physical touchdown:
 
 A short ground run or several steps follow, with GS decreasing smoothly into landing-candidate conditions.
 
-## 12.12 Privileged-truth prohibition
+## 12.13 Privileged-truth prohibition
 
 Normal concerns must not receive:
 
@@ -947,6 +993,7 @@ Normal concerns must not receive:
 - truth wind;
 - truth AS;
 - truth altitude;
+- truth Device True Azimuth or fixture declination as a ready-made C8 orientation input;
 - scenario phase;
 - expected detector result;
 - intended route/leg identity as lifecycle or navigation authority.
@@ -1075,11 +1122,45 @@ C3 immediately and unconditionally establishes lifecycle completion and Landing 
 
 ## 15.1 Altitude MSL
 
-C7 calculates barometric altitude MSL from pressure and accepted QNH.
+C7 calculates barometric altitude MSL from atmospheric pressure and accepted QNH using one deterministic first-slice contract.
 
-QNH remains fixed for the duration of the first-slice Flight.
+Units:
 
-The pilot-facing primary altitude is MSL altitude.
+- `pressureHpa`: hectopascals (`hPa`);
+- `qnhHpa`: hectopascals (`hPa`);
+- `altitudeMslM`: metres (`m`).
+
+The first-slice formula is:
+
+```text
+altitudeMslM
+=
+44330.76923076923
+×
+(1 − (pressureHpa / qnhHpa)^0.1902632365)
+```
+
+Both pressure and QNH must be finite and greater than zero. The ratio is dimensionless. The calculation identifier is `isa-troposphere-pressure-altitude-v1` and is retained with its constants as derivation context.
+
+The normal fixture uses fixed QNH:
+
+```text
+1013.25 hPa
+```
+
+C10 generates source-equivalent pressure from truth altitude through the inverse of the same contract:
+
+```text
+pressureHpa
+=
+qnhHpa
+×
+(1 − altitudeMslM / 44330.76923076923)^(1 / 0.1902632365)
+```
+
+At the `35 m MSL` fixture surface this yields approximately `1009.052 hPa`. Round-trip tests must prove that C10 pressure generation and C7 derivation use compatible constants without C7 receiving truth altitude.
+
+QNH remains fixed for the duration of the first-slice Flight. The pilot-facing primary altitude is MSL altitude.
 
 ## 15.2 Height above takeoff
 
@@ -1258,10 +1339,14 @@ The thresholds are experimental first-slice values, not production or safety thr
 
 Before confirmed takeoff:
 
-- valid device/magnetic Heading is corrected to True North semantics;
-- map uses Heading-up;
+- C4 supplies raw Device Magnetic Azimuth and its source quality/validity;
+- C7 obtains magnetic declination from the replaceable provider using current position and civil date/time;
+- C7 derives Device True Azimuth using the accepted east-positive convention;
+- C8 uses valid Device True Azimuth for Heading-up presentation;
 - a valid Track during launch run does not switch orientation;
-- invalid/unavailable Heading falls back to North-up.
+- invalid magnetic orientation, missing declination context, or unavailable derived Device True Azimuth falls back to North-up.
+
+C4 does not combine location with orientation, C7 does not own sensor acquisition, and C8 does not perform declination correction.
 
 ## 18.2 Airborne orientation
 
@@ -1315,8 +1400,9 @@ Retain, when available:
 - speed accuracy;
 - course accuracy;
 - pressure;
-- compass/device orientation;
+- raw Device Magnetic Azimuth and orientation quality;
 - weather-source wind;
+- accepted QNH value and unit, source/update time, validity, freshness, provenance, and applicable handling state;
 - validity, freshness, provenance, and applicable handling state;
 - source monotonic time;
 - observed monotonic time;
@@ -1330,6 +1416,8 @@ Retain:
 - altitude MSL;
 - height above takeoff;
 - VS;
+- derived Device True Azimuth, declination used, position/date context, and declination-provider identifier/version;
+- altitude-calculation identifier/version and constants used with the accepted QNH;
 - all accepted wind estimates with quality metadata;
 - current/retained/unavailable wind state transitions;
 - detector candidates and confirmations;
@@ -1460,6 +1548,8 @@ After recovery:
 - final recording outcome is `degraded`;
 - Summary remains available.
 
+This behavior is an explicit owner-approved bounded reopening of the previously deferred P3 interruption boundary for this one deterministic five-second GNSS-outage validation case. It does not define general interruption retention, completion, restoration, long-loss, process-recovery, or production recovery semantics.
+
 Long GNSS-loss policy and process-recovery behavior are deferred.
 
 ## 21.2 Map unavailable
@@ -1513,6 +1603,9 @@ Tests must not depend on rendered screen text.
 - `1×/2×` semantic-equivalence test;
 - Pause-is-not-outage test;
 - wall-clock-jump test;
+- missing, duplicate, and backward source-monotonic timestamp tests proving that invalid time cannot produce valid detector windows, duration, VS, wind estimates, retained ordering, or successful Summary;
+- Device Magnetic Azimuth to Device True Azimuth tests using the non-zero fixture declination, including normalization and unavailable-declination fallback;
+- pressure/QNH forward-and-inverse round-trip tests at the surface and representative Flight altitudes;
 - truth-leakage tests;
 - recording complete/degraded/failed tests;
 - Summary-from-finalized-record tests.
@@ -1545,6 +1638,7 @@ Adapters isolate:
 
 - C4 device/platform input acquisition;
 - C5 weather input;
+- C7 magnetic-declination provider;
 - C8 map rendering/provider;
 - future native background acquisition and buffering.
 
@@ -1627,7 +1721,8 @@ Includes:
 - declarative scenario;
 - privileged truth;
 - C4/C5 contracts;
-- GNSS, pressure, orientation, and weather streams;
+- GNSS, pressure, raw magnetic-orientation, and weather streams;
+- C7 Device Magnetic Azimuth to Device True Azimuth conversion through the replaceable declination-provider boundary;
 - timing, quality, validity, and provenance;
 - fixture cadence and timing tests;
 - movement on placeholder canvas;
@@ -1648,7 +1743,7 @@ Includes:
 - Flight identity and Takeoff Point;
 - recording initialization seam;
 - elapsed Flight time;
-- Heading-up to Track-up transition;
+- Device True Azimuth-up ground presentation to Track-up airborne transition;
 - one-shot and idempotency tests.
 
 Observable result: automatic transition from `Waiting for Takeoff` to active Flight.
@@ -1657,7 +1752,7 @@ Observable result: automatic transition from `Waiting for Takeoff` to active Fli
 
 Includes:
 
-- QNH altitude;
+- versioned pressure/QNH altitude contract and round-trip fixture tests;
 - height above takeoff;
 - VS fit;
 - circle-fit estimator and quality gates;
@@ -1678,7 +1773,7 @@ Includes:
 - selected OSM-compatible implementation;
 - fixed physical viewport scale;
 - centred pilot;
-- Heading-up/Track-up and fallbacks;
+- Device True Azimuth-up/Track-up behavior and fallbacks;
 - north/orientation cue and scale;
 - map-unavailable canvas;
 - real-device map performance check.
@@ -1709,7 +1804,7 @@ Includes:
 - no distance interpolation;
 - retained wind and suspended landing detection;
 - map-unavailable run;
-- playback, Pause, wall-clock, truth-leakage, and end-to-end tests;
+- playback, Pause, wall-clock, monotonic-invalidity, magnetic-declination, truth-leakage, and end-to-end tests;
 - concise validation instructions.
 
 Observable result: both pilot-visible success and deterministic boundary/degradation evidence exist.
@@ -1778,7 +1873,7 @@ Validate real Android:
 - horizontal, speed, and course accuracy;
 - source timestamps;
 - cadence, gaps, and batching;
-- Heading and Heading accuracy;
+- Device Magnetic Azimuth and orientation accuracy;
 - pressure;
 - recovery behavior.
 
@@ -1804,7 +1899,7 @@ Validate:
 
 - Flutter presentation on iOS;
 - Core Location semantics;
-- Heading and pressure;
+- Device Magnetic Azimuth and pressure;
 - timestamps and accuracy;
 - background location;
 - suspension/restoration;
@@ -1831,7 +1926,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - C1–C10 responsibilities are explicit;
 - takeoff and landing authority chains are explicit;
 - effective and confirmation boundaries are distinct;
-- AS/GS/VS, Heading/Track, and MSL/relative-height distinctions are explicit;
+- AS/GS/VS, Air Heading/Track, Device Magnetic/True Azimuth, and MSL/relative-height distinctions are explicit;
 - record and Summary semantics are explicit.
 
 ## 28.3 Simulation readiness
@@ -1914,7 +2009,10 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 
 ## 29.5 Derivation
 
-- altitude derives from pressure and QNH;
+- altitude derives from pressure and QNH using the specified units, formula, constants, and versioned calculation context;
+- simulator pressure generation round-trips through the same contract without exposing truth altitude to C7;
+- Device True Azimuth is derived by C7 from raw Device Magnetic Azimuth plus east-positive declination obtained through the replaceable provider;
+- C8 never receives raw magnetic orientation as a ready-made True-North value;
 - VS is unavailable with insufficient history;
 - wind is accepted only through quality gates;
 - rejected candidates do not overwrite accepted wind;
@@ -1928,12 +2026,15 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - complete, degraded, and failed outcomes are distinguishable;
 - distance does not interpolate across GNSS gaps;
 - duration uses monotonic effective boundaries;
-- wall-clock change does not alter duration.
+- wall-clock change does not alter duration;
+- missing, duplicate, or backward monotonic time cannot be treated as valid ordering or duration;
+- accepted QNH and altitude-calculation context are retained with the derived altitude history.
 
 ## 29.7 Degradation
 
 - map unavailability does not stop Flight;
 - five-second GNSS outage does not complete Flight;
+- the same Flight continues after recovery only under the explicit bounded P3 reopening for this validation case;
 - accepted wind is retained;
 - landing detection is suspended during outage;
 - recovery continues the same Flight;
@@ -1947,6 +2048,9 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - map-unavailable validation exists;
 - detector boundary tests exist;
 - wind numerical tests exist;
+- pressure/QNH round-trip tests exist;
+- magnetic-declination conversion and fallback tests exist;
+- monotonic-invalidity tests exist;
 - truth-leakage tests exist;
 - diagnostics explain significant transitions.
 
@@ -1990,7 +2094,10 @@ Tuning becomes an owner decision when it changes product meaning, authority, sco
 - terrain AGL;
 - airspace;
 - production warning policy;
+- general interruption/P3 retention and recovery behavior beyond the explicitly bounded five-second GNSS case;
 - long GNSS-loss handling;
+- monotonic-clock discontinuity recovery;
+- production magnetic-declination model/provider, model updates, and offline geomagnetic data;
 - process-killed Flight recovery;
 - final visual design and accessibility policy;
 - settings/units system;
@@ -2041,5 +2148,17 @@ The final product must explain the estimated nature and limitations of in-Flight
 C3 creates Takeoff Point and C9 retains it, but the first slice does not establish or present Takeoff Point as passive Current Waypoint and does not show its marker, distance, or bearing. This is an explicit first-slice simplification relative to the Navigation WIP and the earlier selection artifact.
 
 The simplification prioritizes broad validation of the fundamental Flight lifecycle, source, derivation, spatial, recording, and completion model over visible but non-foundational navigation context. It does not remove Takeoff Point or passive awareness from the broader product direction.
+
+## 34.3 Five-second GNSS interruption has a bounded P3 reopening
+
+The owner explicitly reopens the previously deferred P3 interruption boundary only for the deterministic five-second GNSS-outage validation case defined by this plan. After the bounded outage, the same Flight continues, C9 records the gap, the finalized recording outcome is `degraded`, and Summary remains available.
+
+This decision does not define general interruption recovery, long-loss behavior, retention after an unresolved interruption, process termination, restoration guarantees, or production P3 semantics. Any extension beyond the exact bounded case requires a separate owner decision.
+
+## 34.4 Magnetic orientation remains source-equivalent
+
+The simulator supplies Device Magnetic Azimuth through C4 rather than supplying a ready-made Device True Azimuth. C4 preserves the raw source meaning; C7 owns magnetic-declination lookup and conversion to True North; C8 consumes the derived Device True Azimuth on the ground. The deterministic fixture uses a synthetic non-zero east declination so validation proves that the product performs the conversion.
+
+Production geomagnetic-model selection and update strategy remain deferred.
 
 All other unresolved values in this document are classified as bounded implementation tuning or explicitly deferred decisions.
