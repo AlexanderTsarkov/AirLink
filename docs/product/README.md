@@ -32,6 +32,7 @@ Routine work does not load Product Governance or Product Direction by default. S
 Consult `wip/README.md` and only the WIP documents that the task explicitly concerns or that the triggered alignment process identifies as directly relevant:
 
 - `wip/mvp-0.1-scope.md` for the owner-reviewed WIP boundary of MVP 0.1 and its first meaningful product slice;
+- `wip/mvp-0.1-first-slice-implementation-plan.md` for the owner-approved AL-0002 implementation-ready plan when an active bounded implementation issue explicitly invokes it;
 - `wip/flight-mode-model.md` for the operational lifecycle while the pilot intends to fly;
 - `wip/flight-model.md` for the boundaries and special points of one airborne episode;
 - `wip/navigation-model.md` for the limited navigation state and directional semantics of the initial scenario.
@@ -51,6 +52,7 @@ Consult `wip/README.md` and only the WIP documents that the task explicitly conc
 
 - `wip/mvp-0.1-scope.md` — defines the owner-reviewed product-level boundary of MVP 0.1, its first meaningful end-to-end product slice, explicit non-scope, deferred decisions, and the mandatory Flight Simulation Framework.
 - `wip/mvp-0.1-first-slice-selection.md` — is the owner-selected, non-canonical AL-0002 planning record comparing first-slice candidates and selecting the simulation-driven Map Flight Core with early estimated wind; it is not implementation authority and is an input to issue #37.
+- `wip/mvp-0.1-first-slice-implementation-plan.md` — is the owner-approved, non-canonical AL-0002 implementation-ready plan for the selected first slice; it does not authorize implementation by itself and becomes an implementation authority only when invoked by an active implementation iteration and approved bounded issue.
 - `wip/flight-mode-model.md` — defines the operational lifecycle of explicit Flight Mode, including ground waiting, repeated Flights, completion, and exit behavior.
 - `wip/flight-model.md` — defines one airborne Flight, its boundaries, special points, and relationship to summary and replay.
 - `wip/navigation-model.md` — defines only the navigation state and directional concepts required by the initial local-flight scenario.
