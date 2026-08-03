@@ -362,6 +362,8 @@ C4 accepts independent asynchronous streams, including a source-equivalent `gnss
 
 For `scenario-v1`, C4 preserves the source Track availability emitted by C10. An exact-zero truth ground-velocity sample emits Track as unavailable even if source GS error produces a positive source GS. C4 receives no truth-vector shortcut and does not synthesize Track from that positive source GS.
 
+C4 normalizes the exact `sourceMetadata` vocabulary and field-specific accuracy values in section 12.1 without reading fixture phase/fault identity. It keeps availability, validity, freshness, provenance, and handling separate. For unavailable Track it preserves an absent value and absent course accuracy with unavailable validity/freshness; it never infers course quality from source GS. Periodic fixture observations carry explicit source freshness, so observed delay or batching does not rewrite it and silence alone does not introduce a production timeout.
+
 ## C5 — Weather Context
 
 C5 owns:
@@ -371,6 +373,8 @@ C5 owns:
 - the weather interpretation supplied to C1, C6, and C7 where required.
 
 C5 does not own estimated wind or altitude calculation.
+
+C5 derives fixture weather/QNH freshness only from their source time and freshness duration under section 12.1, with the inclusive `0.0 <= ageS <= 600.0` rule. Staleness does not change validity or `simulatedWeather` provenance, and C5 receives no scenario phase/fault identity.
 
 ## C6 — Flight Detection
 
@@ -837,6 +841,8 @@ Required tests additionally include:
 
 Insufficient cadence or gaps become quality/degraded state rather than silently changing semantics.
 
+Every accepted normal periodic observation is explicitly `fresh`; cadence and observed arrival delay do not create or rewrite freshness metadata. Weather/QNH use their one initial snapshot and the exact inclusive freshness rule in section 12.1 rather than repeated updates.
+
 ## 11.6 Source-time predicate holds
 
 All detector holds use one reusable primitive evaluated from accepted normalized source observations. For predicate `P` and duration `D`:
@@ -887,11 +893,76 @@ The JSON top level must contain exactly these logical groups:
 - `origin`;
 - `environment`;
 - `sourceCadenceHz`;
+- `sourceMetadata`;
 - `variationProfiles`;
 - `phases`;
 - `faultVariants`.
 
 The logical field names define the required asset contract. Code may use typed model names internally, but it must parse this format without inventing additional required scenario semantics.
+
+`sourceMetadata` is fixed fixture configuration, not a product settings or general metadata system. It contains exactly these logical subgroups and values:
+
+```text
+gnss:
+  availability: available
+  validity: valid
+  freshness: fresh
+  provenance: simulatedSourceEquivalent
+  handling: passThrough
+  horizontalAccuracyM: 3.0
+  speedAccuracyMps: 0.20
+  courseAccuracyDeg: 3.0
+pressure:
+  availability: available
+  validity: valid
+  freshness: fresh
+  provenance: simulatedSourceEquivalent
+  handling: passThrough
+  pressureAccuracyHpa: 0.05
+orientation:
+  availability: available
+  validity: valid
+  freshness: fresh
+  provenance: simulatedSourceEquivalent
+  handling: passThrough
+  azimuthAccuracyDeg: 3.0
+weatherWind:
+  availability: available
+  validity: valid
+  provenance: simulatedWeather
+  handling: passThrough
+  sourceTimeS: 0.0
+  freshForS: 600.0
+qnh:
+  availability: available
+  validity: valid
+  provenance: simulatedWeather
+  handling: passThrough
+  sourceTimeS: 0.0
+  freshForS: 600.0
+gnssAvailability:
+  provenance: simulatedSourceEquivalent
+  handling: controlledSubstitute
+```
+
+The normative vocabularies are `availability: available | unavailable`, `validity: valid | invalid | unavailable`, `freshness: fresh | stale | unavailable`, `provenance: simulatedSourceEquivalent | simulatedWeather`, and `handling: passThrough | controlledSubstitute`. Provenance describes where a source-equivalent value came from; handling describes how it entered the input boundary and never replaces provenance. Availability, validity, freshness, provenance, and handling remain separate fields. C4/C5 normalize only the source-equivalent values and metadata presented through normal boundaries. C1–C9 receive no scenario phase or fault authority.
+
+The normal fixture uses valid/fresh values except where the Track-unavailable and GNSS-outage contracts explicitly define unavailable state. Accuracy values are metadata only and add no numerical error beyond the exact source-error profiles. For normal emitted position and GS, the GNSS availability, validity, freshness, provenance, and handling values above apply; position uses `horizontalAccuracyM: 3.0` and GS uses `speedAccuracyMps: 0.20`.
+
+Track uses `courseAccuracyDeg: 3.0` only while Track is available. When Track is unavailable because the phase declares it unavailable or the ideal truth ground-speed magnitude is exactly zero, its value is absent, availability/validity/freshness are all `unavailable`, and `courseAccuracyDeg` is absent. A positive source GS error at an exact-zero truth vector does not change this contract.
+
+Pressure accuracy is retained/diagnostic metadata, adds no noise, and does not alter the inverse-altitude plus `pressureErrorHpa(t)` contract or C4's finite/positive validation. Orientation accuracy applies to emitted Device Magnetic Azimuth, adds no error beyond `magneticAzimuthErrorDeg(t)`, and exposes no ready-made truth orientation. Dedicated invalidity/gap transforms may explicitly override normal metadata; silence alone does not invent a production timeout.
+
+Weather-wind and QNH freshness is derived identically:
+
+```text
+ageS = currentSourceMonotonicTimeS - sourceTimeS
+fresh iff 0.0 <= ageS <= freshForS
+```
+
+Both snapshots are fresh from `0.0 s` through `600.0 s`, inclusive, and therefore throughout the normal `0–212 s` run. A pre-source-time state is not a valid normal scenario state. After `600.0 s` in an indefinitely held terminal state, each becomes stale without becoming invalid or changing its `simulatedWeather` provenance. Stale weather wind is unusable for takeoff correction and uses the existing stale/degraded Product UI distinction. No repeated synthetic update is emitted, `qnhHpa` remains `1013.25`, and production refresh, network, QNH fallback, and freshness policy remain deferred.
+
+For normal periodic GNSS, pressure, and orientation streams, each accepted observation is emitted `fresh`; no production timeout or global periodic-stream freshness-duration field is introduced. Host arrival delay and deterministic batching preserving source timestamps do not rewrite source freshness. Exact test transforms may explicitly mark input stale, unavailable, or invalid, but missing delivery alone does not infer such a state unless the transform defines that normalized boundary.
 
 Each `phases` item contains exactly:
 
@@ -936,7 +1007,7 @@ availabilityTransitions:
     reason: controlledRestoration
 ```
 
-The fields, values, and transition order are normative. This is sufficient to generate the separate source-equivalent `gnssAvailability` stream deterministically and does not create a generic configuration subsystem. `sourceCadenceHz` contains `gnss`, `pressure`, and `orientation`; weather/QNH is represented by the initial snapshot in `environment`.
+The fields, values, and transition order are normative. Each availability transition also carries `sourceMetadata.gnssAvailability` provenance `simulatedSourceEquivalent` and handling `controlledSubstitute`; it carries no position, GS, Track, or accuracy value. Restoration does not make GNSS fields valid before C4 accepts a recovered observation. This is sufficient to generate the separate source-equivalent `gnssAvailability` stream deterministically and does not create a generic configuration subsystem. `sourceCadenceHz` contains `gnss`, `pressure`, and `orientation`; weather/QNH is represented by the initial snapshot in `environment`.
 
 ## 12.2 Units and deterministic evaluation
 
@@ -1006,6 +1077,8 @@ else:
 
 `atan2(0, 0)` is never used to create source Track. Availability is based on `truthGsKmh` before `sourceGsErrorKmh(t)`: a positive source GS created by measurement error at an exact-zero truth vector does not make Track available, and `sourceTrackErrorDeg(t)` is not evaluated to synthesize the absent field. Once ideal truth GS is greater than zero in a phase whose Track is otherwise available, Track is derived normally from the truth vector and its source error is applied. No epsilon, speed hysteresis, production GNSS course rule, or generic platform Track threshold is introduced.
 
+An available Track observation carries availability `available`, validity `valid`, freshness `fresh`, provenance `simulatedSourceEquivalent`, handling `passThrough`, and `courseAccuracyDeg: 3.0`. An unavailable Track carries no Track value or course accuracy and uses unavailable availability, validity, and freshness. Position and GS continue to carry their own fixed metadata independently.
+
 C10 must not convert truth coordinates first and add degree-space errors, round intermediate East/North values, radians, radii, latitude, or longitude, use a library whose geodesic algorithm or version can vary, or expose truth East/North directly to product logic. The implementation language's normal IEEE-754 binary64 arithmetic is sufficient for the fixture.
 
 The following interpolation identifiers are normative:
@@ -1031,6 +1104,8 @@ truthWind.fromDegTrue: 270.0
 weatherWind.speedMps: 4.0
 weatherWind.fromDegTrue: 270.0
 ```
+
+The weather-wind and QNH values use the exact `sourceMetadata` source-time/freshness inputs from section 12.1. Their metadata does not change the environment values or add numerical error.
 
 The wind therefore blows toward `090° True`. Initial Air Heading and final approach are `270° True`, directly into wind.
 
@@ -1155,13 +1230,40 @@ C10 uses truth wind only to generate normal source equivalents. C8, C6, C7, and 
 
 The `completed_ground` JSON item has `startS: 212.0` and `endS: null`; `null`, not the string `"212.0+"`, encodes the open-ended terminal interval. A declared ground direction such as `270°` describes the direction of non-zero ground movement. At exact-zero truth ground velocity, source Track is unavailable under section 12.2. This applies to `ground_ready`, the exact `0.0 s` start of `wing_inflation_and_stabilization`, the zero-speed portion of `landed_confirmation`, and all of `completed_ground`. The `turn_north` altitude profile is two deterministic subsegments encoded in that phase: linear climb to `135.0 m` at `58.0 s`, then hold. Physical liftoff occurs exactly at `7.4 s`; physical touchdown occurs exactly at `192.0 s`. Neither truth event is passed to C6.
 
+Every phase has this exact authoritative `variationProfileIds` array:
+
+| Phase id | Exact `variationProfileIds` |
+| --- | --- |
+| `wing_inflation_and_stabilization` | `[]` |
+| `launch_acceleration` | `[]` |
+| `liftoff_transition` | `[straightAirHeadingVariationV1]` |
+| `post_liftoff_acceleration` | `[straightAirHeadingVariationV1]` |
+| `initial_climb_upwind` | `[straightAirHeadingVariationV1]` |
+| `turn_north` | `[]` |
+| `north_crosswind_level` | `[straightAirHeadingVariationV1, cruiseAsVariationV1, levelAltitudeVariationV1]` |
+| `turn_east` | `[]` |
+| `east_downwind` | `[straightAirHeadingVariationV1, cruiseAsVariationV1]` |
+| `turn_south` | `[]` |
+| `south_crosswind_descent` | `[straightAirHeadingVariationV1, cruiseAsVariationV1]` |
+| `turn_west_final_alignment` | `[]` |
+| `final_approach_upwind` | `[straightAirHeadingVariationV1]` |
+| `flare` | `[]` |
+| `float_and_touchdown` | `[]` |
+| `landing_run` | `[]` |
+| `landed_confirmation` | `[]` |
+| `completed_ground` | `[]` |
+
+`ground_ready` is a pre-Start state, not a `phases[]` item, and uses no truth-level phase variation. Turn phases use only their explicit `turnSmoothstep` heading profile. Ground phases use their declared GS and movement direction. Flare and float/touchdown use their specialized profiles. None of those phases receives additional Heading, AS, or altitude truth variation. This bounded fixture simplification is not a statement about real-world flare stability.
+
 This profile reaches the accepted approximately `100 m` height above takeoff by `58.0 s`, provides approximately `42 s` of level flight before descent begins, and leaves approximately `92 s` for a progressive descent, final alignment, approach, flare, float, touchdown, and confirmation. It is an engineering fixture derived from the accepted speed, climb, altitude, route-diversity, and total-duration inputs; it is not an aerodynamic performance prediction.
 
 ## 12.7 Exact variation profiles
 
 All variation uses scenario time `t` in seconds and radians inside trigonometric functions.
 
-Straight-leg Air Heading variation:
+The exact truth-level profile IDs are `straightAirHeadingVariationV1`, `cruiseAsVariationV1`, and `levelAltitudeVariationV1`. `phases[].variationProfileIds[]` contains only these truth-level phase profiles according to section 12.6.
+
+`straightAirHeadingVariationV1` maps to straight-leg Air Heading variation:
 
 ```text
 headingVariationDeg(t)
@@ -1171,7 +1273,7 @@ headingVariationDeg(t)
 1.5 × sin(2πt / 4.5 + 1.10)
 ```
 
-Cruise/descent AS variation, applied only where the phase table says `+ variation`:
+`cruiseAsVariationV1` maps to cruise/descent AS variation:
 
 ```text
 asVariationKmh(t)
@@ -1181,7 +1283,7 @@ asVariationKmh(t)
 0.6 × sin(2πt / 6.5 + 2.00)
 ```
 
-Level-altitude variation, applied only to `north_crosswind_level`:
+`levelAltitudeVariationV1` maps to level-altitude variation:
 
 ```text
 altitudeVariationM(t)
@@ -1191,7 +1293,18 @@ altitudeVariationM(t)
 0.4 × sin(2πt / 7.0 + 1.40)
 ```
 
-Deterministic source-like variation is:
+The exact source-error profile IDs and global source-field mapping are:
+
+```text
+GNSS East position: gnssEastErrorV1
+GNSS North position: gnssNorthErrorV1
+GNSS GS: sourceGsErrorV1
+GNSS Track when Track is available: sourceTrackErrorV1
+Device Magnetic Azimuth: magneticAzimuthErrorV1
+pressure: pressureErrorV1
+```
+
+They correspond to these deterministic source-error formulas:
 
 ```text
 gnssEastErrorM(t)  = 1.5 × sin(2πt / 11.0 + 0.40) + 0.5 × sin(2πt / 3.7 + 1.20)
@@ -1202,11 +1315,23 @@ magneticAzimuthErrorDeg(t) = 0.9 × sin(2πt / 5.5 + 0.90)
 pressureErrorHpa(t) = 0.015 × sin(2πt / 9.0 + 1.70)
 ```
 
-No uncontrolled randomness or unspecified fixed-seed generator is permitted. Turn phases use only their explicit turn profile plus the magnetic source error; straight-leg Heading variation is not added inside turns. `sourceTrackErrorDeg(t)` is applied only after section 12.2 has established that Track is available; it never synthesizes Track for an exact-zero truth vector or a phase-declared unavailable field.
+No uncontrolled randomness or unspecified fixed-seed generator is permitted. Phase truth variation and source measurement error are distinct stages. Source-error IDs are globally assigned by field, are never repeated or reassigned in a phase array, and do not depend on phase identity except that an unavailable field does not evaluate an error to create a value. Turn phases use only their explicit truth turn profile plus the globally applied magnetic source error; straight-leg Heading variation is not added inside turns. `sourceTrackErrorDeg(t)` is applied only after section 12.2 has established that Track is available; it never synthesizes Track for an exact-zero truth vector or a phase-declared unavailable field.
+
+For each phase, C10 applies profiles in this exact order:
+
+1. select the exact phase from source scenario time;
+2. calculate declared base Heading/Track, AS/GS, and altitude segment values;
+3. apply only that phase's declared truth-level IDs: `straightAirHeadingVariationV1` adds `headingVariationDeg(t)` to base Air Heading and normalizes to `[0°, 360°)`; `cruiseAsVariationV1` adds `asVariationKmh(t)` to base AS; `levelAltitudeVariationV1` adds `altitudeVariationM(t)` to base altitude;
+4. calculate truth velocity and truth state;
+5. apply globally mapped source-error profiles to available source fields under the source-generation order below.
+
+Truth Heading variation is never applied to ground Track, cruise AS variation is never applied to GS-based ground phases, and altitude variation appears only in `north_crosswind_level`. Straight Heading variation is absent from turns, flare, and float/touchdown. Phase boundaries and endpoints remain unchanged.
+
+The fixed parser rejects an unknown or duplicate profile ID, a source-error ID in a phase array, a truth profile assigned to an incompatible phase, any array different from the exact `scenario-v1` assignment, missing `variationProfileIds`, `null` instead of an array, and any implicitly applied truth variation absent from the array. The fixed global source-error mapping rejects unknown field/profile mappings, duplicate or missing field assignments, phase-local reassignment, and error evaluation that would create an unavailable field.
 
 The normative source-generation order for every emitted field is:
 
-1. evaluate phase profiles and truth state;
+1. evaluate base phase segments and only the exact assigned truth-level profiles;
 2. calculate truth kinematics, altitude, and orientation;
 3. calculate the ideal source-equivalent field and determine its availability from the phase/truth contract before error application;
 4. when the field is available, evaluate the declared field-specific source-error function at source time `t`;
@@ -1227,6 +1352,8 @@ weather/QNH: one snapshot at 0.0 s
 
 Normal observed monotonic time equals source monotonic time. Jitter, batching, missing samples, `1 Hz` GNSS, and timestamp-invalidity cases are deterministic test transforms and do not change `scenario-v1`.
 
+Normal GNSS, pressure, and orientation samples carry the fixed valid/fresh metadata and declared accuracies from section 12.1. Batching preserves source timestamps and metadata. Weather/QNH remains a single `0.0 s` snapshot, fresh through `600.0 s` inclusive; no periodic synthetic refresh is emitted.
+
 The `gnssAvailability` transitions in section 12.9 are separate logical-stream events emitted at their exact scenario times; they are not inferred from or delayed by the GNSS observation cadence.
 
 ## 12.9 Exact fault variants and estimator timing
@@ -1237,6 +1364,8 @@ The controlled GNSS outage uses the asset contract in section 12.1. At exactly `
 stream: gnssAvailability
 state: unavailable
 reason: controlledInterruption
+provenance: simulatedSourceEquivalent
+handling: controlledSubstitute
 sourceMonotonicTimeS: 112.0
 observedMonotonicTimeS: 112.0
 ```
@@ -1249,6 +1378,8 @@ At exactly `117.0 s`, C10 emits:
 stream: gnssAvailability
 state: available
 reason: controlledRestoration
+provenance: simulatedSourceEquivalent
+handling: controlledSubstitute
 sourceMonotonicTimeS: 117.0
 observedMonotonicTimeS: 117.0
 ```
@@ -1258,7 +1389,7 @@ The normative equal-time processing order is:
 1. normalize the availability-restoration transition;
 2. emit and normalize the first recovered GNSS observation with `sourceMonotonicTimeS: 117.0`.
 
-The availability transition and recovered observation are separate logical streams, so their equal source timestamps do not violate the same-stream duplicate/collision rule. Restoration means only that the source can supply data again; it does not synthesize position, GS, or Track. Those values become valid only when C4 accepts the recovered observation. That observation opens the new distance-continuity segment as an anchor and contributes no pre-gap chord; the normally scheduled `117.5 s` observation may form the first post-restoration pair.
+The availability transition and recovered observation are separate logical streams, so their equal source timestamps do not violate the same-stream duplicate/collision rule. The fixed `controlledSubstitute` handling records explicit fixture injection without replacing `simulatedSourceEquivalent` provenance or exposing fault authority. A transition carries no position, GS, Track, or accuracy. Restoration means only that the source can supply data again; it does not synthesize position, GS, Track, or accuracy metadata. Those values become valid only when C4 accepts the recovered observation. That observation opens the new distance-continuity segment as an anchor and contributes no pre-gap chord; the normally scheduled `117.5 s` observation may form the first post-restoration pair.
 
 For the controlled first-slice fixture, GNSS silence alone is not an outage signal. The outage and restoration boundaries are defined by explicit source-equivalent availability transitions normalized by C4. No freshness timeout, cadence inference, or wall-clock delay defines this controlled outage.
 
@@ -1399,7 +1530,7 @@ confirmationThresholdKmh
 0.75 × usableHeadwindMps × 3.6
 ```
 
-The cosine uses radians internally. Usable correction requires valid and fresh weather-wind speed and direction plus valid and fresh GNSS Track with acceptable course accuracy. If any required value is missing, stale, invalid, or insufficiently accurate, correction is zero. A crosswind contributes zero; a tailwind never lowers the threshold. The threshold is recalculated for each observation during the confirmation hold.
+The cosine uses radians internally. Usable correction requires valid and fresh weather-wind speed and direction plus valid and fresh GNSS Track whose finite available `courseAccuracyDeg <= 10.0`. The endpoint is inclusive: `3.0°` and exactly `10.0°` are acceptable; a value just above `10.0°`, unavailable accuracy, or non-finite accuracy is unacceptable. If any required value is missing, stale, invalid, or insufficiently accurate, correction is zero. This is a first-slice detector input-quality contract, not a production GNSS policy. A crosswind contributes zero; a tailwind never lowers the threshold. The threshold is recalculated for each observation during the confirmation hold.
 
 For a direct `4 m/s` headwind:
 
@@ -1645,7 +1776,7 @@ Metrics include:
 
 Low residual alone is insufficient because a short arc may fit well but yield an unstable centre.
 
-Initial GNSS horizontal-accuracy guidance is better than approximately `10 m`. Speed and course accuracy also matter. Exact thresholds are selected by the first deterministic numerical test suite.
+The normal fixture's fixed valid/fresh metadata and declared horizontal, speed, and course accuracies provide deterministic input to the estimator quality gates. Exact internal numerical wind-quality thresholds remain bounded implementation tuning and are selected by deterministic tests; implementations must not alter fixture metadata to make the estimator pass. The normal fixture must accept its first estimate no later than `108.0 s`.
 
 ## 16.5 Accepted-state semantics
 
@@ -1848,7 +1979,10 @@ Retain, when available:
 - weather-source wind;
 - accepted QNH value and unit, source/update time, validity, freshness, provenance, and applicable handling state;
 - explicit GNSS interruption/restoration transitions or equivalent normalized gap-boundary evidence;
-- validity, freshness, provenance, and applicable handling state;
+- availability, validity, freshness or freshness inputs, provenance, and applicable handling state;
+- horizontal, speed, course, pressure, and azimuth accuracy where applicable;
+- weather/QNH source time and freshness duration;
+- takeoff course-accuracy gate result;
 - source monotonic time;
 - observed monotonic time;
 - C4-normalized virtual civil UTC used as AirLink-facing wall-clock time.
@@ -2103,6 +2237,9 @@ The replaceable output must make available when required:
 - recording counts, boundaries, and outcome;
 - orientation source, age, and fallback;
 - map state and viewport information.
+- normalized availability, validity, freshness or freshness inputs, provenance, handling, field accuracies, weather/QNH source time and freshness duration, and the takeoff course-accuracy gate result.
+
+Constant fixture metadata may be retained once as source/calculation context while observations retain changing state; redundant copying into every retained record is not required.
 
 No separate inspector information architecture, interaction model, or placement work is required in the first slice.
 
@@ -2116,11 +2253,17 @@ Tests must not depend on rendered screen text.
 
 - normal end-to-end deterministic run;
 - exact `scenario-v1` asset parsing and phase-boundary tests proving the asset is valid JSON, `completed_ground` begins at `212.0 s` with `endS: null`, remains active for arbitrary later scenario times until Reset, preserves normal completion and Summary behavior, and rejects non-final/multiple/followed open ends, string sentinels such as `"212.0+"`, and incompatible terminal values;
+- exact `sourceMetadata` parser tests proving every subgroup and value parses; unknown, missing, non-finite, negative-accuracy, or semantically incompatible metadata is rejected; periodic batching/observed delay preserves metadata; and C4/C5/C6/C7/C8/C9 receive no phase/fault authority;
+- metadata behavior tests proving normal position/GS are available, valid, and fresh; unavailable Track has no value or course accuracy; positive GS error at zero truth velocity creates neither; pressure/orientation accuracy adds no numerical noise; GNSS availability events carry fixed provenance/handling and no values/accuracies; restoration synthesizes nothing; and the frozen source sequence includes metadata and all field-availability outcomes;
+- weather/QNH freshness tests proving both are fresh through `600.0 s` inclusive, stale immediately after without validity/provenance change, and fresh for every normal `0–212 s` outcome without synthetic refresh;
+- takeoff course-quality tests at `3.0°`, exactly `10.0°`, just above `10.0°`, and unavailable/non-finite accuracy, proving the exact inclusive gate and zero weather-headwind correction on unacceptable input;
+- exact profile-assignment parser tests proving every phase has its authoritative array, including explicit empties; unknown, duplicate, incompatible, missing, `null`, implicit, or misplaced source-error IDs are rejected; and the global field mapping rejects missing, duplicate, unknown, or phase-local source-error assignments;
+- profile-application reference tests proving turns, ground, flare, and float/touchdown have no added truth variation; `north_crosswind_level` has all three profiles; east/south operational legs have Heading and AS only; final approach has Heading only; application order is base segment, truth variation, truth kinematics, then source error; and no phase identity crosses C10;
 - local-projection tests proving zero East/North maps back to the declared origin within a tight binary64 tolerance, a known positive East offset changes longitude by the section 12.3 formula without changing latitude beyond that tolerance, and a known positive North offset changes latitude without changing longitude beyond that tolerance;
 - GNSS generation-order test proving East/North source errors are added before geographic conversion;
 - deterministic source-error reference tests at multiple fixed source times proving every declared error affects its intended emitted field with the correct zero, sign, and phase; GS is clamped at zero; Track and magnetic azimuth are normalized to `[0°, 360°)`; Track error does not synthesize Track in zero-speed Track-unavailable phases; pressure error follows the inverse pressure calculation; C7 receives no truth-altitude or truth-orientation shortcut; and `1×`/`2×` produce the same frozen all-errors source sequence;
 - exact-zero truth-vector Track tests proving `atan2(0,0)` is not evaluated as source Track; Track is unavailable at scenario time `0.0 s`; positive `sourceGsErrorKmh(t)` at exact-zero truth velocity does not create Track; the first later sample with `truthGsKmh > 0.0` derives Track and applies `sourceTrackErrorDeg(t)`; zero-speed `landed_confirmation` and `completed_ground` remain Track-unavailable; Track error never synthesizes the field; the frozen source reference sequence includes all of these availability outcomes; and C6's separate accepted-GS-at-or-below-`1.0 km/h` stationary landing vector remains unchanged without synthesizing source Track;
-- independently generated reference latitude/longitude observations match the frozen `scenario-v1` reference sequence at `1×` and `2×` without requiring platform-specific decimal text formatting;
+- independently generated reference heading, AS, altitude, latitude/longitude, GS, Track, pressure, and orientation observations, including metadata and exact profile assignments, match the frozen `scenario-v1` reference sequence at `1×`, `2×`, normal, and batched delivery without requiring platform-specific decimal text formatting;
 - truth-isolation tests proving no truth East/North or truth-distance shortcut reaches C4, C7, C8, C9, or Summary;
 - calculation-context tests proving `scenarioV1Wgs84LocalTangentV1` and `haversineMeanEarthR6371008_8V1` are exposed or retained where required;
 - takeoff candidate/confirmation boundary tests, including direct/partial headwind, crosswind, tailwind, invalid Track, stale weather, and deliberate Track-versus-Device-True-Azimuth disagreement;
@@ -2129,7 +2272,7 @@ Tests must not depend on rendered screen text.
 - landing candidate/confirmation boundary tests, including stationary GS with unavailable Track, moving GS with invalid Track, invalid GS, exact `15.0 s` confirmation, confirmation/provisional-boundary reset when entry conditions fail, candidate identity retained without accumulated time in the hysteresis band, exact `1.0 s` strict hard cancellation, invalidity preventing confirmation across the invalid interval, and equivalent effective boundaries/Summary metrics under source-equivalent delivery transforms;
 - circle-fit numerical tests for ideal, noisy, incomplete, poorly conditioned, and outlier cases;
 - accepted/retained/unavailable wind-state tests;
-- first accepted wind no later than `108.0 s` in the normal fixture;
+- first accepted wind no later than `108.0 s` in the normal fixture using the fixed metadata values rather than altered fixture quality;
 - estimator-continuity test proving calculation runs across climb, level-flight, and descent observations without phase gating or phase-boundary resets;
 - quality-gate test proving acceptance/rejection depends on input, residual, coverage, conditioning, and uncertainty rather than vertical phase labels;
 - exact `112.0–117.0 s` GNSS-outage and recovery test proving C4 receives and immediately normalizes `unavailable/controlledInterruption` at `112.0 s` without timeout, cadence inference, or wall-clock delay;
@@ -2290,8 +2433,9 @@ Observable result: recognizable Flight Screen shell and working development sess
 Includes:
 
 - exact JSON `scenario-v1` asset and parser;
+- exact fixed `sourceMetadata` groups, vocabulary, values, field availability, parser rejection, and weather/QNH inclusive freshness semantics;
 - nullable final-phase and terminal-hold parsing with invalid-arrangement rejection;
-- fixed phase schedule, profiles, units, cadences, variation formulas, and truth-step integration;
+- fixed phase schedule, exact per-phase truth-profile arrays, global field-to-source-error mapping, units, cadences, variation formulas, and truth-step integration;
 - fixed WGS84 local-tangent East/North-to-geographic conversion with source errors applied before conversion;
 - deterministic GS, Track, magnetic-azimuth, and pressure source-error application in the normative generation order;
 - exact-zero truth-vector Track-unavailable semantics before source errors, including positive source-GS-error and frozen-reference availability cases;
@@ -2317,6 +2461,7 @@ Includes:
 - reusable source-time predicate holds with exact qualification, confirmation, cancellation, timeout, and tie semantics;
 - qualification-completing-observation reuse as the first possible confirmation-hold observation, with exact event ordering and retained diagnostics;
 - weather headwind correction;
+- exact inclusive `courseAccuracyDeg <= 10.0` correction-quality gate and zero-correction fallback;
 - effective boundary and bounded history;
 - Flight identity and complete Takeoff Point representation;
 - explicit C3 to C9 creation handoff and recording initialization seam;
@@ -2335,6 +2480,7 @@ Includes:
 - height above takeoff;
 - exact `olsAltitudeSlope3sMin20Span2sV1` VS fit and gap/recovery semantics;
 - circle-fit estimator and quality gates;
+- deterministic estimator input quality from the fixed fixture metadata without metadata retuning;
 - accepted/retained/unavailable states;
 - estimated AS;
 - landing candidate and confirmation;
@@ -2383,6 +2529,7 @@ Observable result: normal Flight ends in a complete Summary derived from a final
 Includes:
 
 - exact five-second GNSS outage and recovery through explicit source-equivalent availability transitions normalized by C4;
+- metadata-bearing availability transitions, Track-unavailable accuracy absence, weather/QNH freshness boundaries, course-accuracy gate boundaries, exact profile assignment/parser rejection, and frozen metadata/profile reference evidence;
 - degraded record and Summary;
 - no pre-gap to post-gap distance chord, anchor-only first recovery position, resumed accumulation from the next within-segment position, and no outage contribution to valid covered time;
 - independent active and finalized-record distance derivations using the same segment semantics and fixed haversine pairwise formula;
@@ -2520,13 +2667,15 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 ## 28.3 Simulation readiness
 
 - exact asset path and JSON contract are defined;
+- exact `sourceMetadata` subgroups, vocabulary, values, accuracy/noise distinction, Track-unavailable behavior, event metadata, and inclusive weather/QNH freshness rule are fixed;
 - the terminal phase uses the validated `endS: number | null` contract and no string sentinel;
 - origin, civil time, environment, wind, QNH, and declination are fixed;
 - fixed WGS84 constants, local-tangent conversion, GNSS generation order, and geographic reference sequence are defined;
 - phase start/end times and kinematic endpoints are fixed;
-- deterministic interpolation, integration, variation, and cadence contracts are fixed;
+- deterministic interpolation, integration, exact per-phase truth-profile arrays, global field-to-source-error mapping, and cadence contracts are fixed;
 - every declared source-error profile has a mandatory generation order and emitted-field formula;
 - exact-zero truth-vector Track availability is fixed before source errors without an epsilon or generic low-speed Track policy;
+- the inclusive `courseAccuracyDeg <= 10.0` takeoff correction gate is fixed without becoming production GNSS policy;
 - virtual civil time, Pause/`2×`/Reset behavior, and the exact `80.0 s / +3600 s` jump transform are fixed independently of host wall time;
 - exact GNSS-outage interval, availability transitions, and equal-time restoration ordering are fixed;
 - flare/float/touchdown behavior is fixed for the fixture;
@@ -2551,6 +2700,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - diagnostics contract is defined;
 - truth-leakage prohibitions are defined;
 - exact detector holds, same-observation takeoff ordering, exact-zero Track availability, accessible OSM attribution, and exact OLS VS evidence are defined across relevant cadence/delivery/rotation/failure transforms and invalidity boundaries;
+- exact metadata parsing/behavior/freshness and profile assignment/application/frozen-reference evidence is defined;
 - tests do not depend on rendered screen text.
 
 ## 28.6 Governance readiness
@@ -2612,6 +2762,8 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - the exact jump applies prospectively at `80.0 s` without changing monotonic calculations;
 - source-like GNSS East/North errors are added before the fixed local-to-geographic conversion, and truth coordinates do not reach normal concerns;
 - every declared source error is applied to its intended emitted field in the normative order without synthesizing unavailable Track or other absent values;
+- every phase carries its exact truth-level profile array, all required empty arrays are explicit, and source-error profiles are globally field-mapped rather than phase-assigned;
+- the exact fixed metadata accompanies source-equivalent inputs without extra numerical noise, observed-delay rewriting, or phase/fault authority leakage;
 - exact-zero truth velocity makes source Track unavailable before errors even when source GS error is positive; the first later non-zero truth sample may derive Track normally, and zero-speed landing/terminal phases remain Track-unavailable;
 - the final phase is valid JSON with `completed_ground.startS = 212.0` and `endS: null`;
 - fixture is deterministic;
@@ -2627,7 +2779,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - wind candidates are evaluated continuously during active Flight whenever required observations are valid, without climb/level/descent or scenario-phase gating;
 - wind is accepted only through quality gates and no later than `108.0 s` in the normal fixture;
 - rejected candidates do not overwrite accepted wind;
-- takeoff weather correction uses current valid GNSS Track and the meteorological weather-wind `from` direction, with zero correction when required direction/quality context is unavailable;
+- takeoff weather correction uses current valid GNSS Track and the meteorological weather-wind `from` direction, with the exact inclusive finite available `courseAccuracyDeg <= 10.0` gate and zero correction when required direction/quality context is unavailable or unacceptable;
 - landing detection does not use truth wind;
 - stationary GS at or below `1.0 km/h` uses a zero ground vector without synthesizing Track;
 - moving landing evaluation still requires valid Track;
@@ -2654,6 +2806,7 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 - identical same-timestamp redelivery is idempotently ignored;
 - missing, backward, or conflicting same-timestamp monotonic input cannot be treated as valid ordering or duration;
 - accepted QNH and altitude-calculation context are retained with the derived altitude history;
+- source metadata context retains applicable availability, validity, freshness/inputs, provenance, handling, accuracies, weather/QNH timing, and course-gate result without requiring redundant constant copies;
 - projection and distance calculation identifiers/versions are present in the required retained or validation context.
 
 ## 29.7 Degradation
@@ -2679,6 +2832,8 @@ The plan is ready for AL-0003 when all criteria below are satisfied.
 
 - automated normal end-to-end test exists;
 - exact scenario parser, phase-boundary, and reference-sequence tests exist;
+- exact source-metadata parser, semantics, freshness, no-extra-noise, Track-accuracy absence, availability-event, course-gate, isolation, and frozen-reference tests exist;
+- exact per-phase profile arrays, global source-error mapping, parser rejection, application-order, compatibility, isolation, and frozen heading/AS/altitude/source-sequence tests exist;
 - fixed-origin, known-East, known-North, error-before-conversion, and geographic reference-sequence tests exist with tight binary64 tolerances;
 - frozen-reference tests cover exact-zero truth Track unavailability, positive source GS error without Track synthesis, later non-zero Track derivation/error, and zero-speed landing/terminal availability while preserving the separate stationary-landing rule;
 - controlled GNSS-outage tests cover exact explicit interruption/restoration timing, restoration-before-recovered-observation ordering, separate-stream equal timestamps, unavailable derived GNSS state, absence of observations in the half-open gap, C4-only downstream propagation, retained gap evidence, and silence-without-transition behavior;
@@ -2730,6 +2885,10 @@ The following are no longer implementation tuning for `scenario-v1` and require 
 - truth-wind direction or speed;
 - QNH, origin, civil start time, or fixture declination;
 - variation formulas;
+- exact truth-level profile IDs and per-phase assignments;
+- global field-to-source-error profile assignments;
+- fixed source metadata values and the inclusive takeoff course-accuracy gate;
+- weather/QNH `sourceTimeS`, `freshForS`, and inclusive freshness rule;
 - source cadences;
 - truth integration step/method;
 - physical liftoff/touchdown times;
@@ -2901,5 +3060,13 @@ All takeoff and landing holds use accepted normalized source observations, elaps
 ## 34.22 Vertical speed uses versioned unweighted OLS
 
 C7 uses unweighted ordinary least squares over the inclusive `[t - 3.0 s, t]` source-time window, requiring at least `20` distinct accepted altitude samples spanning at least `2.0 s`. Invalidity or a pressure gap clears the window; recovery requires fresh minimum history. The calculation identifier is `olsAltitudeSlope3sMin20Span2sV1`, and finalized climb/descent extrema come only from retained valid outputs.
+
+## 34.23 Scenario source metadata and takeoff course quality are fixed
+
+The owner accepts the exact section 12.1 `sourceMetadata` structure and fixed GNSS, pressure, Device Magnetic Azimuth, weather-wind, QNH, and GNSS-availability-event metadata. Availability, validity, freshness, provenance, and handling remain distinct; declared accuracies add no numerical noise; unavailable Track carries no value or course accuracy; and phase/fault authority remains private to C10. Weather wind and QNH use one `sourceTimeS: 0.0` snapshot with `freshForS: 600.0` and the inclusive freshness rule. Takeoff weather correction uses the exact inclusive `courseAccuracyDeg <= 10.0` gate, with unavailable, non-finite, or greater values producing zero correction. These are fixed first-slice fixture/detector contracts, not production source-quality, freshness, or settings architecture.
+
+## 34.24 Truth-profile assignment and source-error mapping are exact
+
+The owner accepts the truth-level IDs `straightAirHeadingVariationV1`, `cruiseAsVariationV1`, and `levelAltitudeVariationV1`; every exact per-phase `variationProfileIds` array in section 12.6, including all explicit empty arrays; and the global mappings from GNSS East/North position, GNSS GS, available GNSS Track, Device Magnetic Azimuth, and pressure to `gnssEastErrorV1`, `gnssNorthErrorV1`, `sourceGsErrorV1`, `sourceTrackErrorV1`, `magneticAzimuthErrorV1`, and `pressureErrorV1`. Source-error IDs cannot appear or be reassigned in phase arrays. Base segments, assigned truth variations, truth kinematics, and available-field source errors execute in that order without changing accepted phase boundaries, kinematic endpoints, timing, detector results, estimated-wind deadline, or lifecycle outcomes.
 
 All other unresolved values in this document are classified as bounded implementation tuning or explicitly deferred decisions.
