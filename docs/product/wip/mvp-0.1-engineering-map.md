@@ -190,14 +190,14 @@ The following ten concerns define the minimum useful responsibility map for MVP 
 - non-flight explanation of the estimated nature and limitations of in-flight wind information;
 - pilot acknowledgements and explicit actions;
 - pilot-facing presentation of Flight Mode state, current Flight information, spatial information, Summary, saved Flights, and degraded capability states;
-- pilot-facing distinction between simulated and non-simulated retained Flights where those records are presented;
+- pilot-facing presentation of the approved Flight-level source/replay classification where required, including the accepted ability to distinguish synthetic-simulation records without fixing the mapping deferred to issue #37;
 - manual-completion retain-versus-discard choice.
 
 **Consumes**
 
 - weather and freshness information from C5;
 - Flight Mode state and transition outcomes from C2;
-- active Flight context, Flight-level simulation classification, elapsed time, final boundaries, and final aggregates from C3;
+- active Flight context, approved Flight-level source/replay classification, elapsed time, final boundaries, and final aggregates from C3;
 - current derived Flight values and explanatory estimated-wind semantics from C7;
 - spatial presentation from C8;
 - recording, retention, deletion, and saved-record results from C9.
@@ -211,7 +211,7 @@ The following ten concerns define the minimum useful responsibility map for MVP 
 - explicit choice to retain the episode as a Flight or discard it as a false detection;
 - pilot map-scale adjustment actions;
 - saved-Flight selection and review actions;
-- requests to delete one retained simulated Flight or all retained simulated Flights as a category.
+- requests to delete one retained synthetic-simulation Flight or the approved synthetic-simulation category, subject to the classification mapping resolved by issue #37.
 
 **Does not own**
 
@@ -559,13 +559,17 @@ C9 preserves the historical context required to represent what was available or 
 
 ### Minimum frozen stream and replay contract
 
-A frozen stream identifies its stream ID, version, compatibility target, origin (`generated synthetic`, `normalized recorded real Flight`, or `deterministic regression fixture`), and integrity evidence. Each event identifies its stream, source category, source-monotonic time, deterministic sequence within equal source time, source-equivalent value where applicable, source timestamp where distinct, and the metadata required by the applicable C4/C5 boundary. Availability and invalidity changes are explicit events rather than hidden Generator state.
+A frozen stream identifies its stream ID, version, compatibility target, origin (`generated synthetic`, `normalized recorded real Flight`, or `deterministic regression fixture`), and integrity evidence. Each event carries a stable planning-level composite identity:
 
-Source-monotonic time defines event order and source semantics. AirLink-observed delivery time records when C4/C5 receives an event and never rewrites source time. Start begins delivery at the current cursor. Pause freezes replay progression and emits no later event; it is not a lifecycle action. Playback speed scales delivery intervals only and does not alter frozen source timestamps, values, ordering, or metadata. Reset returns the cursor and replay progression to the stream start and clears session-scoped delivery transforms and diagnostics; it does not mutate an active Flight, delete a record, or define Flight Mode behavior. The selected first slice keeps its stricter rule that Reset is unavailable during an active Flight and creates a fresh development session.
+`streamId + sourceCategory + sourceMonotonicTime + equalTimeSequence`
 
-Equal-time events are delivered by their explicit frozen sequence. Batching may give several events one delivery opportunity but preserves their source order and identity. Delay changes delivery schedule only. Exact redelivery re-emits the same event identity and payload; C4/C5 handling is idempotent and does not advance source windows or retain a duplicate. Reuse of one event identity with different value or metadata is a collision: C10 fails closed for the affected stream, does not deliver the conflicting event as valid, and exposes the outcome.
+The identity is the common reference for redelivery, C4/C5 idempotency, collision detection, retained-input duplicate prevention, and diagnostics. It is not a UUID, serialization design, or full event schema. Each event also carries its source-equivalent value where applicable, source timestamp where distinct, and the metadata required by the applicable C4/C5 boundary. Availability and invalidity changes are explicit events rather than hidden Generator state.
 
-Approved availability or invalidity delivery transforms may replace delivery status for an identified event or inject a specifically identified status transition. They cannot recalculate a source value, invent baseline cadence or error behavior, alter source identity or source time, or expose Generator truth. Contract validation and collision checks occur before delivery; explicit transforms are then applied; delay, batching, and redelivery affect only delivery. Every transform remains visible in diagnostics and distinguishable from the frozen baseline.
+Source-monotonic time defines event order and source semantics. AirLink-observed delivery time records when C4/C5 receives an event and never rewrites source time. Start begins delivery at the current cursor. Pause freezes replay progression and emits no later event; it is not a lifecycle action. Playback speed scales delivery intervals only and does not alter frozen source timestamps, values, ordering, or metadata. C10 Reset returns the cursor and replay progression to the stream start and clears session-scoped delivery transforms and diagnostics; it resets replay state only. Any development-session teardown, C2/C3 transition, or C9 in-memory-record discard handoff remains for resumed issue #37 and is not owned by C10. The selected first slice keeps its stricter product rule that Reset is unavailable during an active Flight.
+
+Equal-time events are delivered by their explicit frozen sequence. Batching may give several events one delivery opportunity but preserves their source order and composite identity. Delay changes delivery schedule only. Exact redelivery preserves the complete composite identity and the complete payload and metadata; C4/C5 handling is idempotent, retained input is not duplicated, and source windows do not advance. The same composite identity with any different value or metadata is a collision: C10 fails closed for the affected stream, does not deliver the conflicting event as valid, and exposes the outcome.
+
+Approved availability or invalidity delivery transforms may suppress an identified baseline delivery and emit an explicitly identified status event, or inject a specifically identified status transition. Every emitted or injected transition receives an explicit source category, source-monotonic time, and equal-time sequence and therefore the same deterministic composite identity rule. A transform cannot reuse a baseline identity with changed value or metadata, duplicate another identity except through exact redelivery, or create an ambiguous or unordered event. It cannot recalculate a source value, invent baseline cadence or error behavior, alter source time, or expose Generator truth. Contract validation and collision checks occur before delivery; explicit transforms are then applied; delay, batching, and redelivery affect only delivery. Every transform remains visible in diagnostics and distinguishable from the frozen baseline.
 
 The conceptual validation path is:
 
@@ -776,7 +780,7 @@ The declination source or model, correction algorithm, update rate, validity rul
 
 ## R11 — Historical Flight information is not silently rewritten
 
-Replay-supporting information retained for a Flight preserves the values, semantic status, validity, live/selected/simulated provenance, separately relevant handling context, and calculation context required to represent what was available or used during the original Flight.
+Replay-supporting information retained for a Flight preserves the values, semantic status, validity, delivery mode, replay origin where applicable, category-level value provenance, separately relevant delivery handling, C3-supplied approved Flight-level source/replay classification, and calculation context required to represent what was available or used during the original Flight.
 
 Later algorithm or interpretation changes may produce a distinct later interpretation, but they must not silently replace the retained historical values.
 
@@ -1032,7 +1036,7 @@ After a coherent replay-based application path exists, integrate real position, 
 
 ### Phase 5 — Real-flight readiness
 
-Before any bounded real-flight validation, address foreground/background behavior, interruption and restoration, acquisition continuity, recording reliability, battery and resource behavior, source degradation, detector behavior, diagnostics, live-versus-simulated semantic consistency, and cleanup or separation of simulated Flights. This phase establishes readiness evidence; it does not define actual real-flight test procedures.
+Before any bounded real-flight validation, address foreground/background behavior, interruption and restoration, acquisition continuity, recording reliability, battery and resource behavior, source degradation, detector behavior, diagnostics, live/replay semantic consistency across the independent classification axes, and cleanup or separation of the approved synthetic-simulation Flight category. The exact mapping from replay origins to retained Flight records, Summary presentation, and deletion categories remains deferred to resumed issue #37. This phase establishes readiness evidence; it does not define actual real-flight test procedures.
 
 ## 13.5 First-slice selection constraints
 
