@@ -296,7 +296,9 @@ A minimum integrated Flight Simulation Framework is mandatory for MVP 0.1.
 
 It is a cross-cutting product capability required to execute and validate the accepted MVP behavior without requiring a real Flight for every development or test cycle.
 
-The framework must be sufficient to exercise the meaningful product slice, including relevant transitions and pilot-visible results such as:
+The capability is separated across two responsibility boundaries. A Scenario Generator authors and materializes frozen source-equivalent streams, including any truth or physical modelling required to produce them. AirLink runtime selects, replays, and delivers those streams through the same normal C4/C5-facing boundary used by live platform sources; it does not calculate deterministic simulated source values or consume Generator truth.
+
+Together, generation and replay must be sufficient to exercise the meaningful product slice, including relevant transitions and pilot-visible results such as:
 
 - ground waiting;
 - takeoff;
@@ -310,9 +312,9 @@ The framework must be sufficient to exercise the meaningful product slice, inclu
 - later saved-Flight review;
 - multiple sequential Flights within one Flight Mode period where required for validation.
 
-This scope does not define simulation architecture, scenario format, control interface, synthetic-data model, fidelity, automation, tooling, or test strategy.
+This scope does not define Generator or replay architecture, scenario or frozen-stream format, control interface, synthetic-data model, fidelity, automation, tooling, or test strategy.
 
-The framework is mandatory for MVP 0.1, but its detailed design belongs to engineering planning.
+The simulation capability is mandatory for MVP 0.1, but its detailed design and the separate Generator and AirLink replay realizations belong to engineering planning.
 
 ## MVP 0.1 Principles
 
@@ -506,10 +508,11 @@ The following decisions are deliberately deferred:
 
 ### Flight Simulation Framework
 
-- architecture;
+- Scenario Generator architecture and AirLink replay architecture;
 - simulation scenario representation;
-- controls and operator workflow;
-- synthetic input generation;
+- Generator controls and operator workflow;
+- frozen source-stream materialization;
+- replay and source-delivery controls;
 - simulation fidelity;
 - test automation;
 - integration with application layers;

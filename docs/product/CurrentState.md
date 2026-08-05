@@ -34,6 +34,8 @@ Development begins with Flight Support for one paramotor pilot performing a solo
 - The first meaningful product slice spans preparation, explicit Pre-Flight, Flight Mode, one or more Flights, completion, local retention, and later saved-Flight review.
 - Flight Mode and Flight are distinct concepts; one Flight Mode period may contain multiple independent Flights.
 - A minimum integrated Flight Simulation Framework is mandatory for developing and validating MVP 0.1, but it is not a third product pillar or direct end-user value.
+- The Scenario Generator is a separate product-enabling subproduct boundary responsible for scenario authoring, truth and physical modelling, and materialization of frozen source-equivalent streams.
+- AirLink runtime consumes live platform sources or replayed source-equivalent streams through the same normal C4/C5-facing boundary. It owns replay and source delivery, not deterministic source-value generation or runtime use of Generator truth.
 - No application architecture, implementation technology, provider, algorithm, or storage design has been accepted yet.
 - Every pull request starts as Draft.
 - The project owner and ChatGPT perform the initial review.
@@ -56,4 +58,4 @@ Detailed product and domain decisions remain deferred to the bounded work that r
 
 ## Last Updated
 
-2026-07-28
+2026-08-05
