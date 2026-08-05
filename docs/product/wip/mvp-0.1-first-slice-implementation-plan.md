@@ -553,18 +553,22 @@ resets qualification.
 
 The physical `25 km/h` reference is nominal wing Airspeed for sufficient lift. It is not a GS threshold.
 
-For each evaluated observation:
+For each evaluated observation, angular contract values are degree-valued unless a field explicitly says `Rad`. Convert to radians immediately before standard trigonometric evaluation (§14.7). The cosine operates on the shortest signed angular difference between the two absolute bearings, not on either bearing alone.
 
 ```text
-usableWeatherHeadwindComponentMps
-=
-max(
-  0,
-  weatherWindSpeedMps
-  * cos(shortest angular difference between
-        weatherWindFromDegTrue
-        and trackDegTrue)
-)
+degreesToRadians(degrees) = degrees * pi / 180.0
+
+deltaDeg =
+  shortest signed angular difference between
+  weatherWindFromDegTrue and trackDegTrue
+
+deltaRad = degreesToRadians(deltaDeg)
+
+usableWeatherHeadwindComponentMps =
+  max(
+    0,
+    weatherWindSpeedMps * cos(deltaRad)
+  )
 ```
 
 ```text
@@ -850,15 +854,32 @@ C4 supplies normalized GS and Track observations with source timing, availabilit
 
 When C4 has already normalized `km/h` and True-North reference, C7 may preserve the numeric value unchanged. This does not transfer semantic ownership to C4: C7 owns the product output identity and status, while C4 remains authoritative for source validity and metadata. C8 never reads raw C4 Track for Track-up. C6 may independently consume the normalized C4/C5 detector inputs it requires.
 
+## 14.7 Angular units and trigonometry
+
+AirLink direction, Track, azimuth, weather-wind direction, and angular-difference contract values remain degree-valued unless a field explicitly says `Rad`.
+
+Standard trigonometric functions (`sin`, `cos`, and other library trigonometry that expects radians) receive radians only. Conversion occurs immediately before trigonometric evaluation. This convention applies to implementation and validation.
+
+When a formula combines degree-valued bearings, derive a shortest signed angular difference in degrees first, then convert that difference once to radians before `cos` or `sin`. Do not pass absolute degree-valued bearings directly to standard trigonometric functions.
+
+Section 18.1 haversine already converts latitude and longitude to radians and expresses `deltaLambda` in radians before trigonometric evaluation; that path follows the same rule.
+
 # 15. Estimated-Wind Derivation and Evaluation Schedule
 
 ## 15.1 Inputs and vector model
 
 The estimator is inactive before C3 creates the Flight. After authorized Flight creation, C7 uses only the approved retained GNSS history beginning at the authoritative effective takeoff boundary and subsequent newly accepted active-Flight GNSS observations with valid GS, valid True-North Track, source monotonic time, and acceptable input quality.
 
+Ground-velocity components use True-North Track in degrees with the §14.7 radian conversion immediately before trigonometry:
+
 ```text
-groundVelocityEastMps  = (GS / 3.6) * sin(trackDegTrue)
-groundVelocityNorthMps = (GS / 3.6) * cos(trackDegTrue)
+trackRad = degreesToRadians(trackDegTrue)
+
+groundVelocityEastMps =
+  (GS / 3.6) * sin(trackRad)
+
+groundVelocityNorthMps =
+  (GS / 3.6) * cos(trackRad)
 ```
 
 The model is:
@@ -1365,11 +1386,11 @@ The implemented slice must provide:
 2. `1×`, `2×`, Pause/Resume, delay, batching, and exact-redelivery equivalence tests;
 3. changed-payload identity collision fail-closed tests;
 4. classification-axis tests proving replay does not imply synthetic classification and C9 does not infer classification;
-5. takeoff tests for qualification, same-observation ordering, direct/partial headwind, crosswind, tailwind, unusable weather/Track, cancellation, timeout, tie priority, gaps, and redelivery, including `courseAccuracyDeg` below `10.0`, exactly `10.0`, just above `10.0`, unavailable, and non-finite;
+5. takeoff tests for qualification, same-observation ordering, direct/partial headwind, crosswind, tailwind, unusable weather/Track, cancellation, timeout, tie priority, gaps, and redelivery, including `courseAccuracyDeg` below `10.0`, exactly `10.0`, just above `10.0`, unavailable, and non-finite; headwind angular-difference cases at `0°`, `10°`, `90°`, and `180°` with expected `usableWeatherHeadwindComponentMps` magnitudes after `degreesToRadians(deltaDeg)`; an explicit regression proving `10°` is converted to radians rather than interpreted as `10` radians; and finite-input handling consistent with §11.3 weather/Track gates;
 6. landing tests for moving/stationary rules, missing Track, missing GS, exact confirmation, hysteresis reset, strict hard cancellation, wind requirement, gaps, and redelivery;
 7. altitude formula and invalid-input tests;
 8. VS fit, minimum history, batching, gap, discontinuity, and redelivery tests;
-9. Flight-scoped wind activation tests proving the estimator is inactive before C3 creates the Flight; pre-Start and pre-effective-boundary observations cannot enter windows or shift evaluation endpoints; deterministic source-order reconstruction of `[effectiveTakeoffBoundary, takeoffConfirmationTime]`; the first eligible accepted observation at or after the effective boundary anchors the initial epoch; continuation with newly accepted observations; recovered-epoch reset; scheduler endpoint equivalence; sample count cannot gate or align evaluation; and numerical estimator tests for ideal, noisy, incomplete-arc, poorly conditioned, and outlier cases;
+9. Flight-scoped wind activation tests proving the estimator is inactive before C3 creates the Flight; pre-Start and pre-effective-boundary observations cannot enter windows or shift evaluation endpoints; deterministic source-order reconstruction of `[effectiveTakeoffBoundary, takeoffConfirmationTime]`; the first eligible accepted observation at or after the effective boundary anchors the initial epoch; continuation with newly accepted observations; recovered-epoch reset; scheduler endpoint equivalence; sample count cannot gate or align evaluation; ground-velocity vector tests proving True-North Track `0°`, `90°`, `180°`, and `270°` produce the expected East/North component signs after `degreesToRadians(trackDegTrue)` with finite GS inputs; and numerical estimator tests for ideal, noisy, incomplete-arc, poorly conditioned, and outlier cases;
 10. proof that wind acceptance depends on observations/quality gates rather than Generator phase/truth;
 11. C4/C7/C1/C8 ownership tests proving C4 retains normalized GS/Track validity/quality/provenance/timing, C7 exposes semantic Ground Speed/Track output status, C1 displays C7 Ground Speed, C8 uses C7 Track without raw-C4 reinterpretation, plus pre-delivery, ground Device True Azimuth, ground fallback, airborne Track-up, airborne fallback, ground position/altitude/weather-wind presentation, and weather-wind-to-GS transition cases;
 12. full-logical-viewport scale tests covering the centred pilot, area behind the development panel, left/right centreline ground-width measurement, centre-latitude fractional zoom, layout resizing, rotation independence, prohibited scale selectors, attribution, request policy, map degradation, windsock direction/magnitude/numeric/`0.5 m/s` granularity, and replay-position/elapsed-source-time readout;
