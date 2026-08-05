@@ -131,3 +131,12 @@ At the end of a task, report:
 ## Stability
 
 Keep this file compact and stable. Current iteration details, implementation plans, and temporary project state belong elsewhere.
+
+## Cursor Cloud specific instructions
+
+This repository is **documentation-only** and currently in a planning phase (see `ITERATION.md` and `docs/product/CurrentState.md`, which records "Implemented Capabilities: None"). It contains only Markdown files plus `.gitignore`.
+
+- There is **no application, server, database, package manifest, build system, automated test suite, or lint configuration** to install or run. There are no dependencies to fetch; the VM update/setup script is intentionally a no-op.
+- The only meaningful validation for changes here is documentation-level, matching the `CLAUDE.md` "Validation" section: check that internal links/paths resolve, internal consistency holds, and no WIP/legacy material is accidentally promoted to canon.
+- A quick internal-link check (no external dependencies, uses the preinstalled `python3`) is a good "does the docs set hang together" smoke test. It scans every tracked `*.md` file and reports any relative link that points at a missing file.
+- If/when real code lands, this section should be updated with actual install/build/test/run commands (prefer referencing the future package manifest and its scripts rather than duplicating commands here).
