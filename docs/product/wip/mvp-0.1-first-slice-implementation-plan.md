@@ -257,7 +257,7 @@ C3 owns Flight identity, active/completed state, effective boundaries, Takeoff/L
 flightClassification = syntheticTestFlight
 ```
 
-C3 receives active replay-session context but does not infer classification from observations. C3 supplies authoritative creation/completion context to C9 and consumes recording outcomes only for pilot-visible completion status. Recording failure never changes C3 lifecycle truth.
+C3 receives active replay-session context but does not infer classification from observations. At Flight creation it supplies C8 with the Flight ID, Takeoff Point ID, effective-boundary source position/state, and Flight association; C8 uses that handoff to establish Takeoff Point as Current Waypoint while Active Navigation remains off. C3 supplies authoritative creation/completion context to C9 and consumes recording outcomes only for pilot-visible completion status. Recording failure never changes C3 lifecycle truth.
 
 ## C4 — Input Acquisition and Validity
 
@@ -483,6 +483,15 @@ C6 detects
 ```
 
 C3 assigns `syntheticTestFlight` at creation from the approved development/replay context, not from replay mode or observations.
+
+C3 then supplies C8:
+
+- `flightId`;
+- Takeoff Point identity;
+- effective-boundary position, accuracy/state, and source-observation reference;
+- explicit Takeoff Point-to-Flight association.
+
+C8 acknowledges the handoff by establishing the Takeoff Point as passive Current Waypoint. It does not enable Active Navigation or invent a Route.
 
 ## 10.3 Active Flight
 
@@ -1002,6 +1011,16 @@ The development-only panel shows:
 
 It exposes no Generator phase, truth, or expected result. Detailed diagnostics remain outside the normal pilot-facing panel.
 
+## 16.8 Estimated-wind limitation explanation
+
+While no Flight is active, the `Ready on Ground` Flight Screen provides a labelled `Estimated wind info` action adjacent to the weather-wind context. It is available before Start and remains a non-flight help action while the screen is `Ready on Ground`.
+
+Activating it opens a dismissible, non-blocking information surface without starting, pausing, resetting, or otherwise changing replay/Flight state. The minimum text is:
+
+> In-flight wind is estimated from Flight data. Short-term changes may come from pilot input, climb or descent, wing behavior or configuration, turbulence, or actual wind variation. AirLink cannot reliably separate these effects. In-flight gust estimation is not included in MVP 0.1.
+
+Dismissing the surface returns to the unchanged `Ready on Ground` state. The active-Flight presentation does not require a persistent static warning and must not imply direct wind truth or gust estimation.
+
 # 17. Recording Outcomes and Retained-Result Contract
 
 ## 17.1 Recording state and handoffs
@@ -1251,6 +1270,9 @@ The implemented slice must provide:
 15. controlled interruption tests that stop at the P3 boundary;
 16. coordinated Reset eligibility, explicit record discard, new session ID, same stream ID, and fail-closed failure tests;
 17. runtime-reference isolation and bundle-content tests.
+18. wall-clock-adjustment and source-monotonic-discontinuity tests proving Flight duration, detector holds/timeouts, wind scheduling, and retained ordering use source/normalized monotonic semantics rather than mutable wall clock, host time, or playback speed;
+19. C3-to-C8 Takeoff Point identity/position/Flight-association and passive-Current-Waypoint acknowledgement tests proving Active Navigation remains off;
+20. `Estimated wind info` location, exact minimum text, non-blocking/dismiss behavior, no-state-change behavior, no persistent in-Flight-warning requirement, and no truth/gust implication tests.
 
 ## 21.3 Concrete artifact blocker
 
