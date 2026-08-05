@@ -1244,8 +1244,8 @@ The implemented slice must provide:
 8. VS fit, minimum history, batching, gap, discontinuity, and redelivery tests;
 9. wind scheduler endpoint-equivalence tests and numerical estimator tests for ideal, noisy, incomplete-arc, poorly conditioned, and outlier cases;
 10. proof that wind acceptance depends on observations/quality gates rather than Generator phase/truth;
-11. pre-delivery, ground Device True Azimuth, ground fallback, airborne Track-up, and airborne fallback tests;
-12. fixed-scale, attribution, request-policy, and map-degradation tests;
+11. pre-delivery, ground Device True Azimuth, ground fallback, airborne Track-up, airborne fallback, ground position/altitude/weather-wind presentation, and weather-wind-to-GS transition tests;
+12. fixed-scale, attribution, request-policy, map-degradation, windsock direction/magnitude/numeric/`0.5 m/s` granularity, and replay-position/elapsed-source-time readout tests;
 13. recording initialization, active complete/incomplete/failed, nominal/degraded quality, finalization, finalization failure, confirmation-tail, and Summary-eligibility tests;
 14. independent active-versus-finalized distance tests and all Summary metric tests;
 15. controlled interruption tests that stop at the P3 boundary;
