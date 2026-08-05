@@ -60,9 +60,9 @@ The normal successful path is:
 2. Before replay delivery begins, Flight Mode is `Ready on Ground`, no Flight exists, unavailable values remain unavailable, and the map is North-up.
 3. A bounded non-flight explanation states that in-Flight wind is estimated, short-term changes cannot be reliably separated among pilot input, climb or descent, wing behavior or configuration, turbulence, and actual wind variation, and in-Flight gust estimation is not included.
 4. The user selects `Start`. This begins source-equivalent delivery only.
-5. While still on the ground, valid incoming Device Magnetic Azimuth is converted to Device True Azimuth and rotates the map; unavailable or invalid ground-orientation context uses North-up fallback.
+5. While still on the ground, current map position, barometric Altitude MSL, weather-source wind, and compact replay controls are presented. Valid incoming Device Magnetic Azimuth is converted to Device True Azimuth and rotates the map; unavailable or invalid ground-orientation context uses North-up fallback.
 6. C6 qualifies and confirms experimental takeoff from normal C4/C5-derived inputs. C2 authorizes C3 to create the Flight and Takeoff Point. C9 initializes the bounded in-memory record.
-7. During Flight, the pilot sees a centred map, understandable True North, Ground Speed, barometric Altitude MSL, Height above Takeoff when available, Vertical Speed, elapsed Flight time, flown distance, and estimated wind when accepted.
+7. During Flight, the pilot sees a centred map, understandable True North, Ground Speed, barometric Altitude MSL, Height above Takeoff when available, Vertical Speed, elapsed Flight time, flown distance, and an accepted estimated wind using the bounded windsock-like comprehension experiment.
 8. With valid airborne Track, the map is Track-up. Invalid or unavailable Track produces a North-up degraded fallback; Device True Azimuth is not an airborne fallback.
 9. C6 confirms experimental landing from normal inputs. C2 authorizes C3 to complete the Flight and create the Landing Point. C9 retains the confirmation tail and produces a terminal recording outcome.
 10. A successful Summary appears only when C9 has a `finalized_complete` record. The Summary identifies the result as `Synthetic test Flight`, presents recording quality/status, and is recomputed from the finalized record.
@@ -353,7 +353,7 @@ The manifest declares:
 - calculation-profile compatibility expected by the reference evidence;
 - Generator/export provenance sufficient for package reproducibility without exposing truth to runtime.
 
-Compatibility is fail-closed. C10 rejects an unknown contract version, incompatible target, missing mandatory field, invalid digest, unordered stream, duplicate identity that is not exact byte-equivalent redelivery, or invalid terminal declaration before delivery.
+Compatibility is fail-closed. C10 rejects an unknown contract version, incompatible target, missing mandatory field, invalid digest, unordered stream, any duplicate identity in the frozen baseline stream, or invalid terminal declaration before delivery. Exact redelivery is a C10 delivery action over one validated baseline event; it is not a duplicate line in the frozen stream.
 
 ## 8.4 Event contract and identity
 
@@ -971,6 +971,37 @@ True North remains understandable in every mode.
 
 If provider, network, coverage, tiles, or renderer is unavailable, C8 shows an explicit neutral degraded spatial state and `Map unavailable`. It must not display misleading current coverage or silently switch providers. Map degradation does not change Flight Mode, Flight lifecycle, detector state, derivations whose non-map inputs remain valid, recording, finalization, or Summary.
 
+## 16.6 Ground and estimated-wind presentation
+
+Before takeoff, the bounded presentation shows:
+
+- current map position;
+- barometric Altitude MSL;
+- weather-source wind;
+- compact replay controls.
+
+Weather-source wind occupies the primary information location later used for Ground Speed. Unavailable, valid zero, stale, degraded, and uncertain states remain distinguishable where supplied by the normal contracts.
+
+After C7 accepts estimated wind, a simplified windsock-like representation appears in the compass/orientation context:
+
+- the aerodrome-windsock analogy makes the into-wind landing direction understandable;
+- visible length or sections communicate magnitude;
+- a numeric value remains visible;
+- display attempts approximately `0.5 m/s` granularity.
+
+The display granularity is not a calculation-accuracy claim. Exact geometry, section styling, gradients, warning thresholds, blinking, placement, and dimensions remain bounded presentation tuning.
+
+## 16.7 Compact replay panel
+
+The development-only panel shows:
+
+- Start/Pause;
+- Reset with section 9 eligibility;
+- `1×`/`2×`;
+- replay position or elapsed source time.
+
+It exposes no Generator phase, truth, or expected result. Detailed diagnostics remain outside the normal pilot-facing panel.
+
 # 17. Recording Outcomes and Retained-Result Contract
 
 ## 17.1 Recording state and handoffs
@@ -1255,6 +1286,7 @@ The first implementation issue should be independently reviewable and produce th
 - the validated frozen-stream boundary, four-part identity, C10 Start/Pause/`1×`/`2×`, and normal C4/C5 delivery path exist for required ground categories;
 - pre-delivery North-up and unavailable state are visible;
 - after Start, valid Device True Azimuth rotates the real map;
+- current map position, barometric Altitude MSL, weather-source wind, and replay position/elapsed source time are presented while on the ground;
 - fixed scale, attribution, User-Agent/request policy, and map degradation are exercised;
 - no Flight exists and no detector/record/summary behavior is claimed.
 
