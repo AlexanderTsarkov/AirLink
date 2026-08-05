@@ -60,10 +60,10 @@ The normal successful path is:
 2. Before replay delivery begins, Flight Mode is `Ready on Ground`, no Flight exists, unavailable values remain unavailable, and the map is North-up.
 3. A bounded non-flight explanation states that in-Flight wind is estimated, short-term changes cannot be reliably separated among pilot input, climb or descent, wing behavior or configuration, turbulence, and actual wind variation, and in-Flight gust estimation is not included.
 4. The user selects `Start`. This begins source-equivalent delivery only.
-5. While still on the ground, current map position, barometric Altitude MSL, weather-source wind, and compact replay controls are presented. Valid incoming Device Magnetic Azimuth is converted to Device True Azimuth and rotates the map; unavailable or invalid ground-orientation context uses North-up fallback.
+5. While still on the ground, current map position, barometric Altitude MSL, weather-source wind, and compact replay controls are presented. Valid incoming Device Magnetic Azimuth is converted by C7 to Device True Azimuth and rotates the map; unavailable or invalid ground-orientation context uses North-up fallback.
 6. C6 qualifies and confirms experimental takeoff from normal C4/C5-derived inputs. C2 authorizes C3 to create the Flight and Takeoff Point. C9 initializes the bounded in-memory record.
-7. During Flight, the pilot sees a centred map, understandable True North, Ground Speed, barometric Altitude MSL, Height above Takeoff when available, Vertical Speed, elapsed Flight time, flown distance, and an accepted estimated wind using the bounded windsock-like comprehension experiment.
-8. With valid airborne Track, the map is Track-up. Invalid or unavailable Track produces a North-up degraded fallback; Device True Azimuth is not an airborne fallback.
+7. During Flight, C1 presents C7's pilot-facing Ground Speed output together with a centred map, understandable True North, barometric Altitude MSL, Height above Takeoff when available, Vertical Speed, elapsed Flight time, flown distance, and an accepted estimated wind using the bounded windsock-like comprehension experiment.
+8. C8 uses C7's valid True-North Track output for Track-up. Invalid or unavailable C7 Track produces a North-up degraded fallback; C8 does not reinterpret raw C4 Track, and Device True Azimuth is not an airborne fallback.
 9. C6 confirms experimental landing from normal inputs. C2 authorizes C3 to complete the Flight and create the Landing Point. C9 retains the confirmation tail and produces a terminal recording outcome.
 10. A successful Summary appears only when C9 has a `finalized_complete` record. The Summary identifies the result as `Synthetic test Flight`, presents recording quality/status, and is recomputed from the finalized record.
 11. C2 remains `Ready on Ground` within Flight Mode, but the first-slice harness does not permit a second Flight in the same development session.
@@ -156,8 +156,10 @@ Future deletion of synthetic test records must use authoritative Flight classifi
 
 ## 5.2 Motion and direction
 
-- **Ground Speed (GS):** source-equivalent speed over the ground, expressed in `km/h` for pilot-facing and detector thresholds.
-- **Track:** source-equivalent movement direction over the ground, referenced to True North.
+- **normalized GS observation:** C4-owned source-equivalent speed over the ground with normalized unit, source time, validity, quality, and provenance.
+- **AirLink Ground Speed (GS):** C7-owned pilot-facing Ground Speed meaning and output status, expressed in `km/h` for this slice.
+- **normalized Track observation:** C4-owned source-equivalent movement direction with normalized True-North reference, source time, validity, quality, and provenance.
+- **AirLink Track:** C7-owned True-North Track meaning and output status consumed by C8 for Track-up.
 - **Device Magnetic Azimuth:** source orientation relative to Magnetic North.
 - **Device True Azimuth:** C7-derived device orientation relative to True North.
 - **Airspeed (AS):** speed relative to the air mass. Generator truth AS is never available to AirLink runtime.
@@ -165,6 +167,8 @@ Future deletion of synthetic test records must use authoritative Flight classifi
 - **landing estimated AS:** magnitude of ground velocity minus the last accepted estimated-wind vector.
 - **Heading:** aircraft orientation through the air. Generator Air Heading is not a runtime source and Device True Azimuth is not Air Heading.
 - **Bearing:** direction from one geographic point to another; it is not Track, Heading, or device orientation.
+
+C7 need not numerically transform GS or Track when C4 has already normalized the required unit/reference. C7 still owns their AirLink product meaning, availability/quality output status, and pilot-facing handoff. C4 retains source validity, quality, provenance, and timing ownership.
 
 ## 5.3 Wind
 
@@ -198,7 +202,7 @@ A correctly retained source outage may produce degraded quality while the record
 
 ## 6.1 Normal input categories
 
-The selected frozen stream supplies source-equivalent events for:
+The selected frozen stream supplies source-equivalent events for C4/C5 normalization:
 
 - GNSS position, GS, Track, and associated quality/accuracy;
 - atmospheric pressure;
@@ -230,7 +234,7 @@ Outputs include:
 - C2 Flight Mode state and authorization outcomes;
 - C3 Flight identity, `syntheticTestFlight` classification, lifecycle, effective boundaries, Takeoff Point, and Landing Point;
 - C6 detector state, reset reasons, provisional boundaries, and confirmed outcomes;
-- C7 accepted derived outputs and their quality/availability;
+- C7 AirLink Ground Speed and True-North Track outputs plus accepted derived outputs and their quality/availability;
 - C8 map/orientation state and explicit degradation;
 - C9 recording state, quality, in-memory record, and terminal outcome;
 - a successful Summary only from `finalized_complete`;
@@ -243,7 +247,7 @@ Concern identifiers remain planning references, not required modules or packages
 
 ## C1 — Pilot Interaction and Operational Flow
 
-C1 presents the temporary entry, wind-limitation explanation, Flight Screen, compact replay controls, Flight state, current values, degraded states, recording outcome, and Summary. It sends user replay-control intent to the development harness/C10 boundary. It does not infer lifecycle, classification, validity, derivations, recording completeness, or validation results.
+C1 presents the temporary entry, wind-limitation explanation, Flight Screen, compact replay controls, Flight state, C7 Ground Speed and other current values, degraded states, recording outcome, and Summary. It sends user replay-control intent to the development harness/C10 boundary. It does not read raw C4 GS/Track for pilot-facing display or infer lifecycle, classification, source validity, derivations, recording completeness, or validation results.
 
 ## C2 — Flight Mode Lifecycle
 
@@ -261,7 +265,7 @@ C3 receives active replay-session context but does not infer classification from
 
 ## C4 — Input Acquisition and Validity
 
-C4 receives replayed C4-facing events through the same boundary intended for live sources. It owns normalized values, source and observed time, availability, validity, freshness, quality/accuracy, category-level provenance, delivery handling, continuity/gap state, and idempotent handling of exact redelivery. It does not consume Generator truth or infer Flight classification.
+C4 receives replayed C4-facing events through the same boundary intended for live sources. It owns normalized GS and Track observations and all other normalized values, source and observed time, availability, validity, freshness, quality/accuracy, category-level provenance, delivery handling, continuity/gap state, and idempotent handling of exact redelivery. It supplies normalized observations and status to C6/C7/C9 and position where required by C8. It does not own pilot-facing GS/Track meaning, consume Generator truth, or infer Flight classification.
 
 ## C5 — Weather Context
 
@@ -269,15 +273,15 @@ C5 receives replayed weather/QNH through its normal input interpretation boundar
 
 ## C6 — Flight Detection
 
-C6 owns experimental takeoff and landing candidate state, source-time holds, cancellation, timeout, effective-boundary anchors, and confirmed outcomes. It calculates the takeoff Airspeed proxy and landing estimated AS required by its detector. It does not own lifecycle, recording, or Generator physical transitions.
+C6 owns experimental takeoff and landing candidate state, source-time holds, cancellation, timeout, effective-boundary anchors, and confirmed outcomes. It may consume the normalized C4/C5 inputs required by the detector and calculates the takeoff Airspeed proxy and landing estimated AS. It does not own pilot-facing GS/Track semantics, lifecycle, recording, or Generator physical transitions.
 
 ## C7 — Flight Information Derivation
 
-C7 owns barometric Altitude MSL, Height above Takeoff, Vertical Speed, Device True Azimuth, estimated wind, accepted derived-value quality/availability, and calculation context. It performs normal product calculations from C3/C4/C5 context and never consumes scenario phase, physical liftoff/touchdown, truth wind, truth AS, or expected answers.
+C7 consumes C4's normalized GS and Track observations while preserving C4's validity, quality, provenance, and timing status. C7 owns the AirLink semantic Ground Speed output used by C1 and the True-North Track output used by C8, even when no numerical unit/reference conversion is required. C7 also owns barometric Altitude MSL, Height above Takeoff, Vertical Speed, Device True Azimuth, estimated wind, accepted output quality/availability, and calculation context. It performs normal product calculations from C3/C4/C5 context and never consumes scenario phase, physical liftoff/touchdown, truth wind, truth AS, or expected answers.
 
 ## C8 — Spatial Awareness and Map Context
 
-C8 owns the pilot-centred map, package-specific zoom, fixed visible ground width, orientation-mode presentation, True North indication, passive Current Waypoint state after takeoff, attribution realization, provider isolation, and spatial degradation. It does not perform C7 calculations or receive fixture/scenario metadata directly.
+C8 owns the pilot-centred map, package-specific zoom, fixed visible ground width, orientation-mode presentation, True North indication, passive Current Waypoint state after takeoff, attribution realization, provider isolation, and spatial degradation. It consumes C7's True-North Track output for Track-up and must not bypass C7 or reinterpret raw C4 Track. It does not perform C7 calculations or receive fixture/scenario metadata directly.
 
 ## C9 — Flight Recording and In-Memory Retention
 
@@ -307,12 +311,12 @@ C10 does not own scenario phases, truth, physical or source-generation formulas,
 
 ## 8.1 Validation package
 
-The first-slice validation package contains four separate artifacts:
+The first-slice validation package contains exactly four separate artifacts:
 
-1. **fixture manifest**;
+1. **runtime fixture manifest**;
 2. **frozen runtime source-equivalent event stream**;
-3. **out-of-band validation reference evidence**;
-4. **evidence proving that normal C1–C10 runtime cannot access the validation reference**.
+3. **out-of-band validation reference evidence**, with its own reference identity and payload digest;
+4. **validation-only association and isolation evidence**, which associates the stream with the reference and proves that normal C1–C10 runtime cannot discover or access the reference location or content.
 
 Issue #37 plan approval does not require a concrete package. A conforming concrete package is mandatory:
 
@@ -325,10 +329,11 @@ Full completion of issue #47 is not a blocker. Only a specifically missing requi
 
 For the first slice only:
 
-- the manifest is deterministic UTF-8 JSON;
+- the runtime fixture manifest is deterministic UTF-8 JSON;
 - the runtime event stream is UTF-8 NDJSON with one event per line;
-- out-of-band validation reference evidence is deterministic UTF-8 JSON and may reference separate deterministic numeric data files if needed;
-- SHA-256 digests in the manifest provide integrity evidence;
+- out-of-band validation reference evidence is one deterministic UTF-8 JSON envelope containing `referenceEvidenceId`, `referenceEvidenceVersion`, its deterministic payload, and a SHA-256 digest calculated over that payload;
+- the validation-only association/isolation artifact is deterministic UTF-8 JSON containing the stream-to-reference association and isolation results;
+- the runtime manifest's SHA-256 digest covers the runtime stream only;
 - canonical field ordering is not a runtime requirement, but Generator/export verification must produce stable bytes for the frozen package.
 
 This is a replaceable fixture interchange choice, not a complete replay-storage architecture or permanent Generator format.
@@ -349,11 +354,16 @@ The manifest declares:
 - categories and category contract versions present;
 - permitted units and reference semantics;
 - approved delivery-validation cases and their referenced event identities;
-- digest and location of the out-of-band reference artifact, which is not a runtime asset;
-- calculation-profile compatibility expected by the reference evidence;
-- Generator/export provenance sufficient for package reproducibility without exposing truth to runtime.
 
 Compatibility is fail-closed. C10 rejects an unknown contract version, incompatible target, missing mandatory field, invalid digest, unordered stream, any duplicate identity in the frozen baseline stream, or invalid terminal declaration before delivery. Exact redelivery is a C10 delivery action over one validated baseline event; it is not a duplicate line in the frozen stream.
+
+The runtime fixture manifest contains only runtime-stream metadata, compatibility/integrity information, categories, source-time range, terminal behavior, and approved delivery-case declarations required by C10. It contains no validation-reference identity, digest, path, filename, URI, URL, package key, lookup key, or other reference-location hint.
+
+### Validation-only association and isolation evidence
+
+The validation-only association/isolation artifact associates `streamId`/`streamVersion` and runtime-stream digest with the independent `referenceEvidenceId`/`referenceEvidenceVersion` and reference-payload digest. The validation harness receives this association after runtime output capture. C10 and the runtime bundle receive only the runtime fixture manifest and runtime event stream; they receive neither the reference artifact nor artifact 4.
+
+Artifact 4 also records the parser, dependency, asset, and configuration checks proving that no runtime surface exposes the reference identity, location, or content. This four-artifact separation is a bounded validation contract, not a storage or distribution architecture.
 
 ## 8.4 Event contract and identity
 
@@ -514,7 +524,7 @@ All thresholds are experimental first-slice parameters, not production or safety
 
 ## 11.1 Accepted evaluation input
 
-Takeoff state advances only on a newly accepted normalized GNSS observation with valid source-monotonic time and valid GS. Exact redelivery does not advance state. Gap, required-input invalidity, or source-monotonic discontinuity clears all candidate state.
+Takeoff state advances only on a newly accepted C4-normalized GNSS observation with valid source-monotonic time and valid GS. C6 consumes this detector input directly without taking ownership of C7's pilot-facing Ground Speed/Track semantics. Exact redelivery does not advance state. Gap, required-input invalidity, or source-monotonic discontinuity clears all candidate state.
 
 ## 11.2 Qualification
 
@@ -566,7 +576,20 @@ GS
   * 3.6
 ```
 
-The weather direction is meteorological `from`. C6 uses valid GNSS Track from the same evaluated observation and C5's usable weather context. Missing, stale, invalid, or insufficiently accurate weather or Track gives zero weather correction. Crosswind gives no positive headwind correction. Tailwind never lowers required GS.
+The weather direction is meteorological `from`. C6 uses C4's normalized GNSS Track from the same evaluated observation and C5's weather context. Weather correction is usable only when:
+
+- weather-wind speed and direction are available, valid, and fresh;
+- Track is available, valid, and fresh;
+- C4 supplies finite, available course accuracy; and
+- the inclusive gate passes:
+
+```text
+courseAccuracyDeg <= 10.0
+```
+
+Exactly `10.0` degrees is accepted. A value below `10.0` is accepted; a value just above `10.0`, unavailable accuracy, or non-finite accuracy produces zero weather correction. Any missing, stale, or invalid required weather/Track value also produces zero correction. This is an experimental first-slice detector input-quality gate, not a production GNSS policy. C4 remains authoritative for the normalized Track observation and its accuracy/status; C6 owns only application of this detector gate.
+
+Crosswind gives no positive headwind correction. Tailwind never lowers required GS.
 
 The proxy does not use Device orientation, candidate displacement, Generator Air Heading, truth wind, truth AS, or scenario phase.
 
@@ -619,6 +642,8 @@ ground velocity
 ```
 
 Estimated AS is the vector magnitude. Estimated wind is mandatory; there is no GS-only landing fallback.
+
+For this detector calculation, C6 consumes C4-normalized GS/Track source observations and their status. It does not redefine the C7 Ground Speed/Track outputs used by product presentation.
 
 For landing only:
 
@@ -689,7 +714,13 @@ On confirmation, C3 supplies the authoritative effective boundary. C9 initialize
 [effectiveTakeoffBoundary, takeoffConfirmationTime]
 ```
 
-Data before the boundary does not enter the Flight record. C7 may deterministically seed Flight-scoped derivation history from the same approved range without treating the pre-confirmation interval as a pre-existing Flight.
+Data before the boundary does not enter the Flight record. The wind estimator remains inactive until C3 creates the Flight. After authorized creation, C7 receives or reconstructs only the approved retained GNSS history in:
+
+```text
+[effectiveTakeoffBoundary, takeoffConfirmationTime]
+```
+
+C7 processes that history deterministically in source order as Flight-scoped estimator input, then continues the same history with newly accepted active-Flight observations. Observations before the authoritative effective boundary never enter wind windows or determine schedule alignment. This retrospective handoff does not create a pre-existing Flight.
 
 Cancellation, timeout, invalidity, or discontinuity discards no-longer-needed transient history. During landing, C9 already owns the active record and retains the confirmation tail through actual confirmation.
 
@@ -810,11 +841,20 @@ magneticToTrueAzimuthEastPositiveV1
 
 The provider identity/version and applied declination are retained when the derived value is retained. Provider-specific types do not escape the C7 boundary.
 
+## 14.6 Ground Speed and Track semantics
+
+C4 supplies normalized GS and Track observations with source timing, availability, validity, freshness, quality/accuracy, and provenance. C7 exposes:
+
+- AirLink Ground Speed value/unit and output status for C1;
+- AirLink True-North Track value/reference and output status for C8.
+
+When C4 has already normalized `km/h` and True-North reference, C7 may preserve the numeric value unchanged. This does not transfer semantic ownership to C4: C7 owns the product output identity and status, while C4 remains authoritative for source validity and metadata. C8 never reads raw C4 Track for Track-up. C6 may independently consume the normalized C4/C5 detector inputs it requires.
+
 # 15. Estimated-Wind Derivation and Evaluation Schedule
 
 ## 15.1 Inputs and vector model
 
-C7 uses only newly accepted normalized GNSS observations with valid GS, valid True-North Track, source monotonic time, and acceptable input quality.
+The estimator is inactive before C3 creates the Flight. After authorized Flight creation, C7 uses only the approved retained GNSS history beginning at the authoritative effective takeoff boundary and subsequent newly accepted active-Flight GNSS observations with valid GS, valid True-North Track, source monotonic time, and acceptable input quality.
 
 ```text
 groundVelocityEastMps  = (GS / 3.6) * sin(trackDegTrue)
@@ -856,18 +896,20 @@ Acceptance requires:
 
 Diagnostics include radial RMSE, normalized RMSE/radius, a maximum or percentile residual, robust residual such as MAD, angular coverage, covariance/uncertainty, and a condition number or equivalent. Low residual alone is insufficient.
 
-## 15.3 Source-time evaluation schedule
+## 15.3 Flight-scoped activation and source-time evaluation schedule
 
-Wind evaluation is driven only by accepted normalized GNSS observations and source monotonic time.
+Wind evaluation is driven only by accepted normalized GNSS observations and source monotonic time while a C3-created Flight is active.
 
-At the first accepted GNSS observation in a continuous valid segment:
+On Flight creation, C7 processes the approved retained range `[effectiveTakeoffBoundary, takeoffConfirmationTime]` once in deterministic source order. The first eligible accepted GNSS observation at or after the authoritative effective takeoff boundary establishes:
 
 ```text
 windScheduleEpochTime = observation.sourceMonotonicTime
 nextEvaluationBoundary = windScheduleEpochTime + 1.0 s
 ```
 
-On each newly accepted GNSS observation:
+Observations before the effective boundary, including pre-Start and unrelated ground observations, are excluded and cannot shift the epoch or any evaluation endpoint. Subsequently accepted observations after takeoff confirmation continue the same active-Flight history and schedule.
+
+On each newly accepted active-Flight GNSS observation:
 
 1. add it to eligible history;
 2. if its source time reaches or crosses `nextEvaluationBoundary`, perform one evaluation using that observation as the endpoint;
@@ -875,9 +917,11 @@ On each newly accepted GNSS observation:
 
 If several boundaries were crossed, exactly one evaluation occurs. No catch-up fit is created without a new observation. At most one evaluation occurs for one source timestamp.
 
-Exact redelivery adds no history and triggers no evaluation. A gap, invalidity, or source-monotonic discontinuity invalidates dependent history, clears current scheduling state, and requires a new continuity epoch after recovery.
+Exact redelivery adds no history and triggers no evaluation. A gap, invalidity, or source-monotonic discontinuity invalidates dependent history and clears the schedule; the next eligible recovered observation begins a new continuity epoch using the same rule.
 
 The same ordered source stream must produce equivalent endpoints and domain results under `1×`, `2×`, Pause/Resume, delayed delivery, batching, and exact redelivery.
+
+No Generator phase, altitude phase, VS phase, host timer, playback speed, or sample count starts, stops, aligns, or gates estimator execution.
 
 ## 15.4 Accepted state
 
@@ -946,13 +990,17 @@ Requirements:
 
 ## 16.3 Scale
 
-The map uses fixed visible horizontal ground width through the pilot-centred viewport:
+The pilot marker is at the geometric centre of the full logical map viewport. That full logical viewport includes the area behind the temporary development panel.
+
+The fixed scale is:
 
 ```text
 2000 m +/- 2%
 ```
 
-C8 owns package-specific zoom calculation. Scale is independent from live/replay mode, fixture/scenario metadata, C10, source provenance, and map rotation. No fixture field may control zoom.
+Visible ground width is the ground distance between the geographic positions under the left and right edges of the full logical viewport along its horizontal centreline. C8 computes the renderer-specific fractional zoom from the full logical viewport width and the current centre latitude.
+
+A layout-size change may update fractional zoom only to preserve the same physical width. Rotation changes orientation, not scale. Ground/Flight state, replay/live mode, provenance, fixture metadata, scenario metadata, and C10 cannot select another scale. No fixture field may control zoom.
 
 ## 16.4 Orientation
 
@@ -970,8 +1018,9 @@ After Start and before confirmed takeoff:
 
 After confirmed takeoff:
 
-- valid Track produces `Track-up`;
-- invalid/unavailable Track produces `North-up degraded fallback`;
+- valid C7 True-North Track output produces `Track-up`;
+- invalid/unavailable C7 Track output produces `North-up degraded fallback`;
+- C8 does not bypass C7 or reinterpret raw C4 Track;
 - Device True Azimuth is not an airborne fallback.
 
 True North remains understandable in every mode.
@@ -989,7 +1038,7 @@ Before takeoff, the bounded presentation shows:
 - weather-source wind;
 - compact replay controls.
 
-Weather-source wind occupies the primary information location later used for Ground Speed. Unavailable, valid zero, stale, degraded, and uncertain states remain distinguishable where supplied by the normal contracts.
+Weather-source wind occupies the primary information location later used by C1 for C7's Ground Speed output. Unavailable, valid zero, stale, degraded, and uncertain states remain distinguishable where supplied by the normal contracts.
 
 After C7 accepts estimated wind, a simplified windsock-like representation appears in the compass/orientation context:
 
@@ -1044,6 +1093,25 @@ Explicit handoff results are:
 
 `finalization_failed` maps to a failed usable-record outcome without changing C3 lifecycle truth.
 
+The bounded transition rules are:
+
+| Current state | Condition/result | Next state | Rule |
+| --- | --- | --- | --- |
+| no recorder | initialization `unavailable` | `unavailable` | No usable active recorder was initialized for this Flight; no finalized usable record can result |
+| no recorder | initialization `initialized` | `active_complete` | Initial successful append state |
+| `active_complete` | mandatory append succeeds | `active_complete` | Completeness remains intact |
+| `active_complete` | transient append failure with retry still possible | `active_complete` | Retry is allowed only before mandatory loss is declared; finalization waits for success, declared loss, or failure |
+| `active_complete` | mandatory recording-contract item is irretrievably missed | `active_incomplete` | The established gap is irreversible |
+| `active_incomplete` | later append succeeds | `active_incomplete` | Later data cannot hide established mandatory loss |
+| `active_complete` or `active_incomplete` | recorder becomes unusable | `failed` | Terminal for the usable record |
+| `active_complete` | finalization succeeds | `finalized_complete` | The only successful complete finalization |
+| `active_complete` | finalization fails | `failed` | Handoff result is `finalization_failed`; no usable finalized record |
+| `active_incomplete` | finalization succeeds | `finalized_incomplete` | Incomplete record remains ineligible for successful Summary |
+| `active_incomplete` | finalization fails | `failed` | Handoff result is `finalization_failed`; no usable finalized record |
+| `failed` | any later append/finalization attempt | `failed` | Failed cannot produce a finalized usable record |
+
+The transient retry is an internal pending condition, not another logical recording state. `unavailable`, `failed`, `finalized_complete`, and `finalized_incomplete` are terminal for this Flight's recorder. Once mandatory data is conclusively lost, no later append may return the record to `active_complete`.
+
 Quality is separate:
 
 ```text
@@ -1053,6 +1121,8 @@ quality = nominal | degraded
 Loss of mandatory recording-contract data makes the record incomplete. A retained outage/invalidity interval may make quality degraded while structural completeness remains complete.
 
 Only `finalized_complete` is eligible for successful Summary. A degraded `finalized_complete` record is clearly presented as degraded. `finalized_incomplete`, unavailable, and failed outcomes do not produce a successful Summary.
+
+Quality changes never alter the completeness transition graph. No recording transition changes C3 lifecycle truth.
 
 ## 17.2 C3 to C9 creation handoff
 
@@ -1112,6 +1182,7 @@ For every approved retained event in the Flight range, retain sufficient normal-
 - validity;
 - freshness/freshness inputs;
 - quality/accuracy;
+- course accuracy where Track supplies it;
 - category-level provenance;
 - delivery handling;
 - interruption/gap transitions;
@@ -1129,6 +1200,8 @@ For each retained accepted derivation, retain:
 - semantic calculation contract ID;
 - implementation/configuration version where needed;
 - retained input observation references or input range.
+
+Retained C7 product outputs include Ground Speed and True-North Track value/status with references to their C4 observations where required. Detector context retains the takeoff `courseAccuracyDeg <= 10.0` gate result without moving source-accuracy ownership out of C4.
 
 C9 does not recalculate, repair, or improve C7 values. Rejected wind candidates remain diagnostics unless needed to interpret an accepted outcome.
 
@@ -1151,7 +1224,9 @@ The Summary displays:
 - last accepted estimated wind;
 - recording quality/status.
 
-Summary uses retained accepted C7 outputs for altitude, VS, and estimated wind. It does not run a second wind estimator or VS estimator.
+Summary uses retained accepted C7 outputs for Ground Speed, altitude, VS, and estimated wind. It does not run a second wind estimator or VS estimator.
+
+Maximum valid GS uses retained C7 AirLink Ground Speed outputs. C1 never reconstructs pilot-facing GS from raw C4 observations.
 
 ## 18.1 Distance and covered time
 
@@ -1168,6 +1243,36 @@ and the same continuity policy:
 - the first recovered position is an anchor and contributes no cross-gap distance;
 - exact redelivery contributes no second point or interval.
 
+Pair eligibility is determined by this continuity-segment policy before applying the pairwise formula. For eligible accepted geographic positions `p1` and `p2`, convert latitude/longitude to radians and use:
+
+```text
+R = 6371008.8 m
+
+deltaPhi = phi2 - phi1
+deltaLambda = shortest signed longitude difference in radians
+
+h
+=
+sin(deltaPhi / 2)^2
++ cos(phi1) * cos(phi2) * sin(deltaLambda / 2)^2
+
+h = clamp(h, 0, 1)
+
+centralAngle
+=
+2 * atan2(sqrt(h), sqrt(max(0, 1 - h)))
+
+distanceM = R * centralAngle
+```
+
+The semantic contract is:
+
+```text
+haversineMeanEarthR6371008_8V1
+```
+
+Neither active nor finalized distance may use truth distance, local Generator East/North displacement, GS integration, interpolation, dead reckoning, or route reconstruction.
+
 Valid covered time is the sum of source-time intervals for the same accepted within-segment position pairs. Average GS is:
 
 ```text
@@ -1180,7 +1285,7 @@ using:
 validSegmentDistanceOverCoveredTimeV1
 ```
 
-The active and finalized calculations are independently testable so divergence or recording omission is detectable.
+The active and finalized calculations remain independent and are separately testable so divergence or recording omission is detectable.
 
 ## 18.2 Derived extrema and Height above Takeoff
 
@@ -1223,13 +1328,13 @@ Minimum structured snapshots/events expose:
 
 - Development Session Coordinator state, eligibility, teardown steps, new session ID, and fail-closed reset outcome;
 - C10 stream identity/version/origin/integrity, playback state, cursor, source progression, four-part event identity, ordering, batching, delay, transforms, redelivery, collisions, and delivery outcomes;
-- C4/C5 active mode, category provenance, delivery handling, source/observed time, availability, validity, freshness, quality/accuracy, and continuity;
+- C4/C5 active mode, normalized GS/Track observations, category provenance, delivery handling, source/observed time, availability, validity, freshness, quality/accuracy, and continuity;
 - C2 state and authorization outcomes;
-- C6 qualification, candidate, hold, cancellation/timeout, reset reason, effective boundary, confirmation time, and detector version;
+- C6 qualification, candidate, takeoff course-accuracy gate input/result, hold, cancellation/timeout, reset reason, effective boundary, confirmation time, and detector version;
 - C3 Flight identity, classification, lifecycle, special points, and recording-outcome handoffs;
-- C7 calculation profile, estimator schedule epoch/boundaries/endpoints, windows, quality metrics, accepted/rejected state, derivation availability, and retained input references;
-- C8 orientation mode/source, True North state, scale, provider state, attribution state, and degradation;
-- C9 recent-history range, initialization result, append state, completeness, quality, retained counts/ranges, finalization result, and explicit discard;
+- C7 AirLink Ground Speed and True-North Track output status, calculation profile, Flight-scoped estimator activation/range, schedule epoch/boundaries/endpoints, windows, quality metrics, accepted/rejected state, derivation availability, and retained input references;
+- C8 orientation mode/source, proof that Track-up consumed C7 Track rather than raw C4 Track, True North state, scale, provider state, attribution state, and degradation;
+- C9 recent-history range, initialization result, append retry/loss declaration, state transition, completeness, quality, retained counts/ranges, finalization result, and explicit discard;
 - Summary source record identity, independent aggregate results, and comparison evidence.
 
 Normal runtime diagnostics contain no Generator phase, truth, physical liftoff/touchdown, expected detector result, or expected Summary value. Out-of-band comparisons are performed by the validation harness after runtime output is produced.
@@ -1244,7 +1349,10 @@ Structural proof includes:
 
 - reference files are outside bundled runtime assets;
 - runtime packages have no dependency/import path to reference readers or Generator packages;
-- C10 accepts only manifest and runtime-stream inputs;
+- C10 accepts only the runtime fixture manifest and runtime-stream inputs;
+- the runtime manifest has no field containing a reference identity, digest, path, filename, URI, URL, package/lookup key, or other location hint;
+- no runtime parser, dependency, asset, configuration, or generated resource exposes reference location or content;
+- the validation-only association occurs outside runtime after outputs are captured;
 - build/asset inventory verifies reference files are absent from the application bundle;
 - an automated dependency/asset test fails if a runtime target gains reference access;
 - comparison code runs in a test-only harness after runtime outputs are captured.
@@ -1257,19 +1365,19 @@ The implemented slice must provide:
 2. `1×`, `2×`, Pause/Resume, delay, batching, and exact-redelivery equivalence tests;
 3. changed-payload identity collision fail-closed tests;
 4. classification-axis tests proving replay does not imply synthetic classification and C9 does not infer classification;
-5. takeoff tests for qualification, same-observation ordering, direct/partial headwind, crosswind, tailwind, unusable weather/Track, cancellation, timeout, tie priority, gaps, and redelivery;
+5. takeoff tests for qualification, same-observation ordering, direct/partial headwind, crosswind, tailwind, unusable weather/Track, cancellation, timeout, tie priority, gaps, and redelivery, including `courseAccuracyDeg` below `10.0`, exactly `10.0`, just above `10.0`, unavailable, and non-finite;
 6. landing tests for moving/stationary rules, missing Track, missing GS, exact confirmation, hysteresis reset, strict hard cancellation, wind requirement, gaps, and redelivery;
 7. altitude formula and invalid-input tests;
 8. VS fit, minimum history, batching, gap, discontinuity, and redelivery tests;
-9. wind scheduler endpoint-equivalence tests and numerical estimator tests for ideal, noisy, incomplete-arc, poorly conditioned, and outlier cases;
+9. Flight-scoped wind activation tests proving pre-Start and pre-effective-boundary observations cannot enter windows or shift evaluation endpoints; deterministic source-order reconstruction of `[effectiveTakeoffBoundary, takeoffConfirmationTime]`; continuation with newly accepted observations; recovered-epoch reset; scheduler endpoint equivalence; and numerical estimator tests for ideal, noisy, incomplete-arc, poorly conditioned, and outlier cases;
 10. proof that wind acceptance depends on observations/quality gates rather than Generator phase/truth;
-11. pre-delivery, ground Device True Azimuth, ground fallback, airborne Track-up, airborne fallback, ground position/altitude/weather-wind presentation, and weather-wind-to-GS transition tests;
-12. fixed-scale, attribution, request-policy, map-degradation, windsock direction/magnitude/numeric/`0.5 m/s` granularity, and replay-position/elapsed-source-time readout tests;
-13. recording initialization, active complete/incomplete/failed, nominal/degraded quality, finalization, finalization failure, confirmation-tail, and Summary-eligibility tests;
-14. independent active-versus-finalized distance tests and all Summary metric tests;
+11. C4/C7/C1/C8 ownership tests proving C4 retains normalized GS/Track validity/quality/provenance/timing, C7 exposes semantic Ground Speed/Track output status, C1 displays C7 Ground Speed, C8 uses C7 Track without raw-C4 reinterpretation, plus pre-delivery, ground Device True Azimuth, ground fallback, airborne Track-up, airborne fallback, ground position/altitude/weather-wind presentation, and weather-wind-to-GS transition cases;
+12. full-logical-viewport scale tests covering the centred pilot, area behind the development panel, left/right centreline ground-width measurement, centre-latitude fractional zoom, layout resizing, rotation independence, prohibited scale selectors, attribution, request policy, map degradation, windsock direction/magnitude/numeric/`0.5 m/s` granularity, and replay-position/elapsed-source-time readout;
+13. recording-transition tests covering initialization unavailable/initialized, initial `active_complete`, transient retry, irreversible transition to `active_incomplete`, no return to complete, terminal `failed`, allowed finalization edges, quality independence, confirmation-tail retention, Summary eligibility, and no C3 lifecycle mutation;
+14. independent active-versus-finalized distance and Summary tests covering pair eligibility before the complete clamped haversine formula, exact `R = 6371008.8 m`, shortest longitude difference, and prohibition of truth/local-East-North/GS-integration/interpolation/dead-reckoning/route-reconstruction shortcuts;
 15. controlled interruption tests that stop at the P3 boundary;
 16. coordinated Reset eligibility, explicit record discard, new session ID, same stream ID, and fail-closed failure tests;
-17. runtime-reference isolation and bundle-content tests.
+17. runtime-reference isolation and bundle-content tests proving the runtime manifest and every runtime parser, dependency, asset, and configuration expose neither validation-reference content nor identity/digest/path/filename/URI/URL/package/lookup location hints, while the validation-only artifact associates the stream and reference outside runtime;
 18. wall-clock-adjustment and source-monotonic-discontinuity tests proving Flight duration, detector holds/timeouts, wind scheduling, and retained ordering use source/normalized monotonic semantics rather than mutable wall clock, host time, or playback speed;
 19. C3-to-C8 Takeoff Point identity/position/Flight-association and passive-Current-Waypoint acknowledgement tests proving Active Navigation remains off;
 20. `Estimated wind info` location, exact minimum text, non-blocking/dismiss behavior, no-state-change behavior, no persistent in-Flight-warning requirement, and no truth/gust implication tests.
@@ -1299,28 +1407,56 @@ These decisions do not select a permanent framework/provider, durable schema, pr
 
 This decomposition is planning input only. It does not activate AL-0003, create issues, authorize code, define a complete backlog, or require one issue per increment/PR.
 
-## Increment 1 — Replay-backed Ready on Ground
+## First bounded implementation issue — Development foundation and pre-delivery state
 
-The first implementation issue should be independently reviewable and produce this observable result:
+The first AL-0003 implementation issue must be smaller than the complete Ready-on-Ground milestone. Its bounded scope is:
 
-- a bounded Flutter development entry opens the Flight Screen in `Ready on Ground`;
+- Flutter development foundation and development target;
+- a Development Session context with `developmentSessionId` and immutable calculation-profile identity;
+- temporary development entry into pre-delivery `Ready on Ground`;
+- neutral replay contract/model seams and Start/Pause/`1×`/`2×`/Reset control intent without normal C4/C5 source delivery;
+- a neutral North-up spatial placeholder, not `flutter_map` or an online tile provider;
+- tests proving no Flight exists and no source value is available or delivered before Start.
+
+The observable result is a development build showing a coherent pre-delivery `Ready on Ground` state and controls without implying Flight creation or source availability.
+
+This first issue excludes:
+
+- runtime-stream parsing/integrity integration beyond the neutral contract seam;
+- normal C4/C5 ground delivery;
+- C7 Ground Speed, Track, altitude, or orientation output;
+- real map rendering or OSM requests;
+- detector, recording, or Summary behavior.
+
+No issue is created by this plan.
+
+## Early milestone / Increment 1 — Replay-backed Ready on Ground
+
+The larger early milestone may span multiple small independently reviewed Draft PRs. It is complete when:
+
+- the bounded Flutter development entry opens the Flight Screen in `Ready on Ground`;
 - the wind limitation explanation is available;
 - the validated frozen-stream boundary, four-part identity, C10 Start/Pause/`1×`/`2×`, and normal C4/C5 delivery path exist for required ground categories;
 - pre-delivery North-up and unavailable state are visible;
-- after Start, valid Device True Azimuth rotates the real map;
+- after Start, C7 exposes semantic Ground Speed/Track status and valid Device True Azimuth rotates the presentation;
 - current map position, barometric Altitude MSL, weather-source wind, and replay position/elapsed source time are presented while on the ground;
 - fixed scale, attribution, User-Agent/request policy, and map degradation are exercised;
 - no Flight exists and no detector/record/summary behavior is claimed.
 
-This is not a shell/scaffolding task: it connects pilot-visible flow, session state, replay delivery, normal source interpretation, C7 orientation derivation, and C8 output.
+Suggested bounded follow-ups within the milestone are:
+
+1. **Normal ground delivery and C7 semantic outputs:** validate/activate the stream, deliver required categories through normal C4/C5 boundaries, expose C7 Ground Speed/True-North Track product status, barometric altitude, and Device True Azimuth on the neutral spatial presentation.
+2. **Real C8 map adapter:** replace the placeholder with isolated `flutter_map`/OSM rendering, exact full-logical-viewport scale, attribution/request policy, C7 orientation inputs, and explicit map degradation.
+
+These follow-ups may be separate issues or multiple small Draft PRs under an approved bounded issue. The milestone is not a requirement that one issue or PR implement all of its behavior.
 
 ## Increment 2 — Takeoff and authoritative Flight creation
 
-Add transient recent history, takeoff qualification/proxy/confirmation, C2/C3 authority, Flight classification, Takeoff Point/passive Current Waypoint state, and C9 initialization outcomes.
+Add transient recent history, takeoff qualification/proxy/confirmation, the inclusive `courseAccuracyDeg <= 10.0` detector gate, C2/C3 authority, Flight classification, Takeoff Point/passive Current Waypoint state, C9 initialization outcomes, and the Flight-scoped C7 handoff that admits only `[effectiveTakeoffBoundary, takeoffConfirmationTime]` history.
 
 ## Increment 3 — Active Flight derivations
 
-Add elapsed time, active/finalized-independent distance foundation, pressure altitude, Height above Takeoff, VS, wind schedule/estimator, retained calculation context, and active presentation.
+Add C1 consumption of C7 Ground Speed, C8 consumption of C7 Track, elapsed time, active/finalized-independent distance with the complete haversine contract, pressure altitude, Height above Takeoff, VS, Flight-scoped wind schedule/estimator, retained calculation context, and active presentation.
 
 ## Increment 4 — Landing, recording finalization, and Summary
 
@@ -1337,6 +1473,7 @@ Implementation may be prepared for AL-0003 only when:
 - this plan is owner-approved and merged;
 - the separate AL-0003 transition is approved and active;
 - the first bounded implementation issue references only its applicable plan sections;
+- the first issue is limited to section 23's development-foundation/pre-delivery scope and does not absorb the complete early milestone;
 - no protected product/governance artifact must change to start;
 - the runtime fixture/manifest/reference/isolation contracts are accepted, even if the concrete package is not yet produced;
 - calculation profile, semantic contract IDs, detector semantics, recording states, and classification axes are fixed as described;
@@ -1353,11 +1490,12 @@ The later implemented slice is done only when:
 - the pilot-visible path in section 2 works in a development build;
 - C10 consumes a validated frozen stream and never generates source values;
 - live/replay-compatible C4/C5-facing boundaries and all classification axes remain distinct;
+- C4 retains normalized GS/Track source-state ownership while C7 supplies pilot-facing Ground Speed/Track semantics to C1/C8;
 - takeoff and landing detectors obey the exact experimental source-time contracts;
 - runtime derivations use the fixed calculation profile and never consume Generator truth;
 - wind endpoints/results are delivery-equivalent across the required delivery modes;
-- C8 meets scale, orientation, attribution, request, and degradation requirements;
-- C9 produces the required recording states, quality, retained layers, and explicit discard behavior;
+- C8 meets full-logical-viewport scale, C7-Track orientation, attribution, request, and degradation requirements;
+- C9 follows the bounded transition graph and produces the required recording states, quality, retained layers, and explicit discard behavior;
 - only `finalized_complete` produces successful Summary;
 - Summary is independently recomputed from the finalized record;
 - controlled interruption stops at the P3 boundary;
@@ -1457,19 +1595,19 @@ The following issue #37 decisions are final and are implemented by the cited pla
 | --- | --- | --- |
 | 1 | Plan approval may precede a concrete package; four separate artifacts are mandatory before integration validation and slice acceptance; only a specific missing artifact may block | 8, 21 |
 | 2 | C3 assigns `syntheticTestFlight`; replay/delivery/provenance axes remain independent; Summary says `Synthetic test Flight` | 5.1, 7, 17, 18 |
-| 3 | Recording completeness and quality are independent; only `finalized_complete` yields successful Summary; failure preserves Flight completion | 17, 18, 19 |
+| 3 | Recording completeness and quality are independent; transition rules make mandatory loss irreversible; only `finalized_complete` yields successful Summary; failure preserves Flight completion | 17, 18, 19 |
 | 4 | C10 Reset is replay-only; the temporary Development Session Coordinator performs fail-closed concern-owned fresh-session reset and explicit record discard | 9 |
-| 5 | Estimated-wind evaluation is driven by accepted GNSS observations and epoch-aligned source time with one evaluation per endpoint and no catch-up | 15.3 |
-| 6 | Flutter, `flutter_map`, and OSM Standard are bounded slice choices; Dart domain isolation, attribution, request policy, degradation, and fixed `2000 m +/- 2%` width are required | 16, 22 |
+| 5 | Estimated-wind activation is Flight-scoped from the authoritative effective boundary; evaluation is driven by accepted GNSS observations and epoch-aligned source time with one evaluation per endpoint and no catch-up | 13, 15.3 |
+| 6 | Flutter, `flutter_map`, and OSM Standard are bounded slice choices; Dart domain isolation, attribution, request policy, degradation, and fixed full-logical-viewport `2000 m +/- 2%` width are required | 16, 22 |
 | 7 | Pre-delivery is North-up; valid ground Device True Azimuth rotates after Start; airborne uses Track-up with North-up degraded fallback and no compass fallback | 14.5, 16.4 |
-| 8 | Takeoff uses experimental GS qualification and discounted weather-headwind Airspeed proxy, exact holds/cancellation/timeout/tie, and C6→C2→C3→C9 authority | 11 |
+| 8 | Takeoff uses experimental GS qualification, discounted weather-headwind Airspeed proxy, inclusive `courseAccuracyDeg <= 10.0` gate, exact holds/cancellation/timeout/tie, and C6→C2→C3→C9 authority | 11 |
 | 9 | Landing requires estimated wind, stationary-vector rule, exact entry/hold/hysteresis/hard cancellation, and effective-boundary metric end with retained confirmation tail | 12 |
 | 10 | C9 pre-Flight history is transient, bounded to 15 seconds, and only the authoritative effective-boundary-to-confirmation range enters the record | 13 |
 | 11 | C6/C7/Summary keep product calculations; only simulated source-value generation moves to Generator | 7, 11–15, 18 |
 | 12 | Every session has immutable calculation profile; semantic calculation and estimator IDs/configuration are retained and versioned | 9.1, 14.1, 15.4, 17 |
 | 13 | C9 retains normalized source and derived/domain layers with observation references and calculation context; it never recalculates C7 values | 17 |
-| 14 | Summary exists only from `finalized_complete`, recomputes from retained data, uses retained C7 outputs, and independently checks distance | 18 |
-| 15 | Validation evidence is independently produced, remains out of band, and is structurally inaccessible to C1–C10 | 8, 20, 21 |
+| 14 | Summary exists only from `finalized_complete`, recomputes from retained C7 data, and uses an independent complete haversine calculation | 18 |
+| 15 | Validation evidence is independently produced and associated only by the validation harness; its identity, location, and content remain structurally inaccessible to C1–C10 | 8, 20, 21 |
 
 No decision group above remains open.
 
@@ -1498,7 +1636,7 @@ Each row is one meaningful PR #44 section or decision group. Mixed sections are 
 | T02 | Status, authority, purpose, source basis | rewritten under the replay-only boundary | This document's Status, Source Basis, and Purpose use current authority |
 | T03 | §1 Selected Slice | rewritten under the replay-only boundary | §1 keeps the selection but defines simulation-driven as materialized replay |
 | T04 | §2 pilot-visible acceptance | retained for AirLink product runtime | §2 preserves the coherent waiting-to-Summary path |
-| T05 | §2 engineering acceptance | rewritten under the replay-only boundary | §§20–21 use replay diagnostics and out-of-band evidence |
+| T05 | §2 engineering acceptance | rewritten under the replay-only boundary | §§8 and 20–21 keep reference identity/location outside the runtime manifest/bundle and use validation-only association |
 | T06 | §3.1 one Flight per development session | retained for AirLink product runtime | §§2 and 9 preserve the harness restriction |
 | T07 | §3.2 removal of passive Current Waypoint | discarded as obsolete or over-scoped | Current selection keeps the logical passive Current Waypoint |
 | T08 | §3.3 reduced C8 presentation | rewritten under the replay-only boundary | §16 keeps only approved scale, orientation, provider, and degradation contracts |
@@ -1515,8 +1653,8 @@ Each row is one meaningful PR #44 section or decision group. Mixed sections are 
 | T19 | §8 C2 | retained for AirLink product runtime | §7 preserves Flight Mode authority |
 | T20 | §8 C3 hardcoded simulated meaning | rewritten under the replay-only boundary | §§5.1 and 7 require C3 `syntheticTestFlight` assignment with independent axes |
 | T21 | §8 C4/C5 simulator-source boundaries | replaced by the #46 replay/materialization contract | §§7–8 use normal C4/C5-facing replay delivery |
-| T22 | §8 C6/C7 runtime calculation | retained for AirLink product runtime | §§7 and 11–15 retain detection and derivation |
-| T23 | §8 C8 | rewritten under the replay-only boundary | §16 applies final owner orientation/provider decisions |
+| T22 | §8 C6/C7 runtime calculation | retained for AirLink product runtime | §§5.2, 7, 11–15 retain C6 detector inputs and restore C7 ownership of AirLink Ground Speed/True-North Track semantics |
+| T23 | §8 C8 | rewritten under the replay-only boundary | §§7 and 16 require C8 to consume C7 Track without reinterpreting raw C4 Track and apply final orientation/provider decisions |
 | T24 | §8 C9 | rewritten under the replay-only boundary | §17 supplies final state, quality, classification, and two-layer contracts |
 | T25 | §8 old C10 Simulation and Validation Enablement | replaced by the #46 replay/materialization contract | §§7–8 use Replay and Source Delivery Enablement |
 | T26 | §9 development entry/initial ground | rewritten under the replay-only boundary | §§2 and 9 use prepared replay context and pre-delivery distinction |
@@ -1525,8 +1663,8 @@ Each row is one meaningful PR #44 section or decision group. Mixed sections are 
 | T29 | §9 completed state and Reset | rewritten under the replay-only boundary | §9 separates replay Reset from coordinated session teardown/discard |
 | T30 | §10 Flight Screen product role | retained for AirLink product runtime | §§2 and 16 preserve map-centred pilot-visible outcome |
 | T31 | §10 detailed layer/overlay geometry | discarded as obsolete or over-scoped | Complete layout remains outside §16's bounded behavior |
-| T32 | §10 fixed `2000 m +/- 2%` scale | retained for AirLink product runtime | §16.3 records the final owner decision |
-| T33 | §10 active distance and value semantics | retained for AirLink product runtime | §§2 and 18 retain active/finalized metrics |
+| T32 | §10 fixed `2000 m +/- 2%` scale | retained for AirLink product runtime | §16.3 defines the full logical viewport, centred pilot, edge-to-edge centreline measurement, centre-latitude fractional zoom, and invariant selectors |
+| T33 | §10 active distance and value semantics | retained for AirLink product runtime | §§2 and 18 retain independent active/finalized metrics and the complete normative haversine formula |
 | T34 | §10 windsock experiment | rewritten under the replay-only boundary | §2 retains estimated-wind presentation outcome without fixing complete geometry |
 | T35 | §10 minimal one-line wind notice | discarded as obsolete or over-scoped | §2 uses the owner-required fuller limitation explanation |
 | T36 | §10 pilot-visible degradation | retained for AirLink product runtime | §19 preserves bounded degraded states |
@@ -1538,37 +1676,37 @@ Each row is one meaningful PR #44 section or decision group. Mixed sections are 
 | T42 | §12.1–12.8 scenario asset, phases, truth, coordinates, motion, errors, cadences | moved/preserved for Scenario Generator / #47 | Scenario Generator owns all source-generation internals |
 | T43 | §12.9 mixed fault variant and delivery behavior | rewritten under the replay-only boundary | §8 keeps only frozen status events/approved C10 transforms |
 | T44 | §12.10–12.13 physical launch/Flight/touchdown/scale | moved/preserved for Scenario Generator / #47 | Physical truth never enters runtime |
-| T45 | §12.14 C10-owned privileged truth prohibition | rewritten under the replay-only boundary | §§8 and 21 move truth fully outside C1–C10 |
-| T46 | §13 takeoff candidate/holds/authority | rewritten under the replay-only boundary | §11 applies final Airspeed-proxy semantics and exact owner rules |
+| T45 | §12.14 C10-owned privileged truth prohibition | rewritten under the replay-only boundary | §§8 and 21 move truth/reference evidence and even its location fully outside C1–C10 |
+| T46 | §13 takeoff candidate/holds/authority | rewritten under the replay-only boundary | §11 applies final Airspeed-proxy semantics, inclusive `courseAccuracyDeg <= 10.0` gate, and exact owner rules |
 | T47 | §14 Flight lifecycle | retained for AirLink product runtime | §10 preserves lifecycle/recording independence |
 | T48 | §15 runtime pressure-altitude formula | retained for AirLink product runtime | §14.2 uses `isaTropospherePressureAltitudeV1` |
 | T49 | §15 inverse pressure generation | moved/preserved for Scenario Generator / #47 | Generator owns simulated pressure materialization |
 | T50 | §15 Height above Takeoff and VS | retained for AirLink product runtime | §§14.3–14.4 retain corrected baseline and OLS contracts |
-| T51 | §16 wind vector/fit/windows/quality gates | retained for AirLink product runtime | §15 retains non-conflicting estimator decisions |
-| T52 | §16 approximate recomputation cadence | rewritten under the replay-only boundary | §15.3 supplies exact accepted-GNSS source-time schedule |
+| T51 | §16 wind vector/fit/windows/quality gates | retained for AirLink product runtime | §§13 and 15 retain non-conflicting estimator decisions while making activation/history strictly Flight-scoped from the effective boundary |
+| T52 | §16 approximate recomputation cadence | rewritten under the replay-only boundary | §15.3 supplies exact active-Flight accepted-GNSS source-time schedule and recovered epochs |
 | T53 | §17 landing detector | retained for AirLink product runtime | §12 records final owner rules |
 | T54 | §18 ground orientation throughout pre-takeoff | rewritten under the replay-only boundary | §16.4 distinguishes pre-delivery from post-Start source-driven ground orientation |
 | T55 | §18 airborne Track-up/no compass fallback | retained for AirLink product runtime | §16.4 preserves it with immediate North-up degraded fallback |
 | T56 | §18 stale-orientation grace | discarded as obsolete or over-scoped | Owner decision requires fallback when invalid/unavailable; no grace is fixed |
 | T57 | §18 map degradation/attribution | retained for AirLink product runtime | §16 keeps provider isolation, attribution, and degradation |
-| T58 | §19 complete/degraded/failed recording model | rewritten under the replay-only boundary | §17 uses final completeness/quality and handoff states |
-| T59 | §19 normalized/derived retained layers | rewritten under the replay-only boundary | §17 removes Generator context and fixes normal-boundary provenance |
+| T58 | §19 complete/degraded/failed recording model | rewritten under the replay-only boundary | §17 defines exact initialization, irreversible incompleteness, retry, failure, finalization, and quality-independent transitions |
+| T59 | §19 normalized/derived retained layers | rewritten under the replay-only boundary | §17 removes Generator context and retains C4 source state, C7 GS/Track output status, course-gate evidence, and normal-boundary provenance |
 | T60 | §19 special points and C3/C9 handoffs | rewritten under the replay-only boundary | §§17.2–17.4 keep logical requirements without a durable schema |
 | T61 | §20 Summary-from-record principle | retained for AirLink product runtime | §18 preserves it |
 | T62 | §20 Summary fields/calculations | rewritten under the replay-only boundary | §18 applies final fields, Height baseline, and independent distance |
 | T63 | §20 failed-record presentation | retained for AirLink product runtime | §§2 and 17 preserve lifecycle truth and unavailable record meaning |
 | T64 | §21 five-second outage continuation/degraded Summary | discarded as obsolete or over-scoped | §19.1 stops at unresolved P3 boundary |
 | T65 | §21 map unavailable | retained for AirLink product runtime | §§16.5 and 19 preserve non-map continuation |
-| T66 | §22 scenario phase/truth diagnostics | rewritten under the replay-only boundary | §20 uses replay diagnostics and out-of-band comparison |
+| T66 | §22 scenario phase/truth diagnostics | rewritten under the replay-only boundary | §§8 and 20–21 use replay diagnostics and validation-only comparison without exposing reference identity/location to runtime |
 | T67 | §22 shared diagnostic snapshots | retained for AirLink product runtime | §20 keeps replaceable structured observability |
 | T68 | §22 Generator/parser/source-generation evidence | moved/preserved for Scenario Generator / #47 | Generator verification remains outside AirLink acceptance |
 | T69 | §23 Flutter decision | retained for AirLink product runtime | §§16 and 22 make it slice-bounded |
 | T70 | §23 adapter boundaries | retained for AirLink product runtime | §§14, 16, and 22 isolate provider/plugin types |
-| T71 | §23 `flutter_map`/OSM | retained for AirLink product runtime | §§16 and 22 apply final provider constraints |
-| T72 | §24 greenfield assumption | retained for AirLink product runtime | §23 decomposition begins from no implementation |
-| T73 | §25 runtime increments | rewritten under the replay-only boundary | §23 provides replay-bound product increments |
+| T71 | §23 `flutter_map`/OSM | retained for AirLink product runtime | §§16 and 22 apply final provider constraints after the neutral first-issue placeholder |
+| T72 | §24 greenfield assumption | retained for AirLink product runtime | §23 defines a small development-foundation/pre-delivery first issue from no implementation |
+| T73 | §25 runtime increments | rewritten under the replay-only boundary | §23 separates the first bounded issue from a multi-PR Ready-on-Ground milestone and later product increments |
 | T74 | §25 deterministic simulator increment | moved/preserved for Scenario Generator / #47 | No Generator implementation belongs in AL-0003 AirLink increments |
-| T75 | §25 issue/PR flexibility | retained for AirLink product runtime | §23 states increments do not map one-to-one |
+| T75 | §25 issue/PR flexibility | retained for AirLink product runtime | §23 explicitly permits the early milestone to span multiple bounded Draft PRs |
 | T76 | §26 scope/stop conditions | retained for AirLink product runtime | §28 preserves and strengthens stops |
 | T77 | §27 post-slice Flutter qualification path | discarded as obsolete or over-scoped | Later Android/iOS work is not designed by this slice |
 | T78 | §28 readiness | rewritten under the replay-only boundary | §24 uses package contracts and current authority |
@@ -1588,19 +1726,19 @@ Each row is one meaningful PR #44 section or decision group. Mixed sections are 
 | T92 | §34.9 exact wind UI geometry | rewritten under the replay-only boundary | Pilot-visible estimate remains; final geometry is not fixed |
 | T93 | §34.10 no expanded diagnostics overlay | retained for AirLink product runtime | §20 keeps replaceable non-product diagnostics |
 | T94 | §34.11 stationary landing rule | retained for AirLink product runtime | §12.1 records final owner rule |
-| T95 | §34.12 takeoff headwind correction | rewritten under the replay-only boundary | §11.3 expresses it as discounted Airspeed proxy, never GS=AS |
+| T95 | §34.12 takeoff headwind correction | rewritten under the replay-only boundary | §11.3 expresses it as discounted Airspeed proxy with the exact inclusive course-accuracy gate, never GS=AS |
 | T96 | §34.13 Generator geography | moved/preserved for Scenario Generator / #47 | Coordinate materialization is Generator-owned |
-| T97 | §34.13 runtime haversine | retained for AirLink product runtime | §18.1 keeps semantic distance contract |
+| T97 | §34.13 runtime haversine | retained for AirLink product runtime | §18.1 restores exact radius, radian/shortest-longitude/clamped-haversine formula, eligibility order, exclusions, and independent calculations |
 | T98 | §34.14 runtime-generated outage transitions | replaced by the #46 replay/materialization contract | §8 requires frozen status event or approved identity-bearing transform |
 | T99 | §34.15 ground weather-to-GS presentation | retained for AirLink product runtime | §2 preserves ground/weather then active Flight values without fixing full layout |
-| T100 | §34.16 fixed map scale | retained for AirLink product runtime | §16.3 records final owner decision |
+| T100 | §34.16 fixed map scale | retained for AirLink product runtime | §16.3 records the exact full-logical-viewport physical-width and fractional-zoom contract |
 | T101 | §34.17 renderer/provider | retained for AirLink product runtime | §16 records final bounded decision |
 | T102 | §34.18 virtual civil time generation | moved/preserved for Scenario Generator / #47 | Runtime preserves source civil time only |
 | T103 | §34.19 terminal phase JSON | moved/preserved for Scenario Generator / #47 | Phase schema remains #47 work |
 | T104 | §34.20 source-error order | moved/preserved for Scenario Generator / #47 | Source generation remains outside runtime |
 | T105 | §34.21 detector source-time holds | retained for AirLink product runtime | §§11–12 record exact final semantics |
 | T106 | §34.22 versioned VS OLS | retained for AirLink product runtime | §14.4 records the contract |
-| T107 | §34.23 fixture metadata/course gate | rewritten under the replay-only boundary | §§8 and 11 separate materialized metadata from runtime interpretation |
+| T107 | §34.23 fixture metadata/course gate | rewritten under the replay-only boundary | §§8 and 11 separate materialized C4 metadata from C6 interpretation and restore the exact inclusive `courseAccuracyDeg <= 10.0` gate |
 | T108 | §34.24 truth-profile/error mapping | moved/preserved for Scenario Generator / #47 | #47 owns formula/profile mapping |
 
 ## 31.3 Current unresolved PR #44 review findings
@@ -1621,23 +1759,23 @@ All 29 PR #44 review threads remain formally unresolved; 22 are outdated and 7 a
 | R10 | Expanded diagnostics inspector over-scoped | discarded as obsolete or over-scoped | §20 uses replaceable diagnostics |
 | R11 | Landing could not complete with stationary Track unavailable | retained for AirLink product runtime | §12.1 defines zero-vector stationary rule |
 | R12 | Temporary payload/workflow files risked surviving merge | discarded as obsolete or over-scoped | Fresh PR contains only plan/index |
-| R13 | Takeoff correction lacked direction/fallback | rewritten under the replay-only boundary | §11.3 fixes same-observation Track, meteorological direction, and zero fallback |
-| R14 | Distance bridged GNSS outage | retained for AirLink product runtime | §18.1 defines continuity segments |
+| R13 | Takeoff correction lacked direction/fallback | rewritten under the replay-only boundary | §11.3 fixes same-observation Track, meteorological direction, inclusive course-accuracy gate, and zero fallback |
+| R14 | Distance bridged GNSS outage | retained for AirLink product runtime | §18.1 defines continuity segments, eligibility-first calculation, and the complete haversine formula |
 | R15 | Truth East/North lacked geographic conversion | moved/preserved for Scenario Generator / #47 | Runtime consumes materialized coordinates |
 | R16 | Silence did not expose interruption through C4 | replaced by the #46 replay/materialization contract | §§8.5 and 19.1 require explicit status events/transforms |
 | R17 | Ground UI used wrong weather/GS meaning | retained for AirLink product runtime | §2 preserves ground weather versus Flight GS meaning |
-| R18 | Map scale had incompatible targets | retained for AirLink product runtime | §16.3 fixes `2000 m +/- 2%` |
+| R18 | Map scale had incompatible targets | retained for AirLink product runtime | §16.3 fixes `2000 m +/- 2%` over the full logical viewport with centred pilot and fractional-zoom invariants |
 | R19 | Virtual wall-clock under Pause/2× was undefined | rewritten under the replay-only boundary | §§5.4 and 8 keep frozen source/civil time independent of delivery |
 | R20 | Open-ended terminal phase JSON undefined | moved/preserved for Scenario Generator / #47 | #47 owns phase representation |
 | R21 | Declared source errors not normatively applied | moved/preserved for Scenario Generator / #47 | Generator owns source-error materialization |
 | R22 | Detector holds were sample-count ambiguous | retained for AirLink product runtime | §§11–12 define source-time holds/ties/redelivery |
 | R23 | VS window/algorithm/minimum history undefined | retained for AirLink product runtime | §14.4 defines OLS contract |
 | R24 | Map package/provider/licensing decision deferred | retained for AirLink product runtime | §16 records final bounded choice |
-| R25 | Fixture validity/freshness/accuracy/provenance unspecified | rewritten under the replay-only boundary | §8 defines runtime event/manifest metadata |
+| R25 | Fixture validity/freshness/accuracy/provenance unspecified | rewritten under the replay-only boundary | §§8 and 11 define runtime metadata, keep reference location out of the manifest, and apply exact course accuracy |
 | R26 | Variation profiles lacked exact phase assignment | moved/preserved for Scenario Generator / #47 | #47 owns phase/profile mapping |
 | R27 | Shared non-terminal phase boundary ownership undefined | moved/preserved for Scenario Generator / #47 | Explicit #47 open question; no runtime dependency |
-| R28 | Wind recomputation was approximately host-timed | rewritten under the replay-only boundary | §15.3 records final accepted source-time schedule |
-| R29 | Recording outcomes/handoffs were incomplete | rewritten under the replay-only boundary | §17 records final state, quality, and handoff model |
+| R28 | Wind recomputation was approximately host-timed | rewritten under the replay-only boundary | §§13 and 15.3 record Flight-scoped history, effective-boundary epoch, recovery reset, and final source-time schedule |
+| R29 | Recording outcomes/handoffs were incomplete | rewritten under the replay-only boundary | §17 records final state, irreversible transition, retry, quality, finalization, and handoff model |
 
 None of these findings creates an unresolved issue #37 blocker.
 
